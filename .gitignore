@@ -1,0 +1,204 @@
+# PR-Tracker Comprehensive .gitignore
+# Covers: Node.js, React Native, Expo, TypeScript, Fastify, Prisma
+
+# ================================
+# Dependencies
+# ================================
+node_modules/
+npm-debug.*
+yarn-debug.*
+yarn-error.*
+pnpm-debug.log*
+lerna-debug.log*
+
+# ================================
+# Environment Variables
+# ================================
+.env
+.env.*
+!.env.example
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+.env.backup
+
+# ================================
+# Build Outputs
+# ================================
+dist/
+build/
+out/
+lib/
+web-build/
+
+# ================================
+# TypeScript
+# ================================
+*.tsbuildinfo
+*.d.ts.map
+
+# ================================
+# Backend Specific (Fastify + Prisma)
+# ================================
+# Prisma
+backend/src/generated/prisma
+backend/prisma/migrations/
+
+# Database files
+*.sqlite
+*.sqlite3
+*.db
+database.db
+
+# Logs
+logs/
+*.log
+combined.log
+error.log
+access.log
+
+# Runtime data
+pids/
+*.pid
+*.seed
+*.pid.lock
+
+# Uploads/temporary files
+uploads/
+tmp/
+temp/
+
+# SSL certificates
+*.pem
+*.key
+*.cert
+*.crt
+
+# ================================
+# Mobile Specific (React Native + Expo)
+# ================================
+# Expo
+.expo/
+expo-env.d.ts
+
+# Native builds
+mobile/ios/
+mobile/android/
+
+# React Native
+.react-native/
+
+# Metro
+.metro-health-check*
+.metro/
+
+# Native files
+.kotlin/
+*.orig.*
+*.jks
+*.p8
+*.p12
+*.mobileprovision
+*.keystore
+
+# Android
+*.iml
+.gradle/
+captures/
+.externalNativeBuild/
+.cxx/
+
+# iOS
+ios/Pods/
+ios/Podfile.lock
+ios/**/*.xcworkspace
+ios/**/*.xcuserdata
+ios/.xcode.env.local
+
+# ================================
+# Development Tools
+# ================================
+# IDE and Editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# ESLint/Prettier cache
+.eslintcache
+.prettiercache
+
+# Testing
+coverage/
+*.lcov
+.nyc_output
+test-results/
+.jest/
+
+# ================================
+# OS Generated Files
+# ================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ================================
+# Cache & Temporary
+# ================================
+.npm
+.yarn-integrity
+.cache
+.parcel-cache
+
+# ================================
+# Third-party Services
+# ================================
+# Firebase
+google-services.json
+GoogleService-Info.plist
+.firebaserc
+firebase.json
+
+# Sentry
+.sentryclirc
+
+# ================================
+# Development Artifacts
+# ================================
+# Backup files
+*.bak
+*.backup
+*.old
+*.orig
+
+# Archive files
+*.zip
+*.tar.gz
+*.rar
+
+# Bundle analysis
+bundle-analyzer-report.html
+
+# Storybook
+storybook-static/
+
+# Optional tools
+.watchmanconfig
+buck-out/
+.flipper/
+.fi-cache/
+.hbc/
+
+# Local configuration
+config.local.js
+config.local.json
+
+# Claude
+.claude
+CLAUDE.md

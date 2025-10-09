@@ -1,0 +1,27 @@
+version: '3.8'
+
+services:
+  postgres:
+    image: postgres:15-alpine
+    container_name: pr-tracker-db
+    environment:
+      POSTGRES_USER: pr_tracker
+      POSTGRES_PASSWORD: pr_tracker_password
+      POSTGRES_DB: pr_tracker_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+
+  adminer:
+    image: adminer
+    container_name: pr-tracker-adminer
+    ports:
+      - "8080:8080"
+    depends_on:
+      - postgres
+    restart: unless-stopped
+
+volumes:
+  postgres_data:
