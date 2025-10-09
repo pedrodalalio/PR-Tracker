@@ -152,33 +152,6 @@ pnpm prisma studio
 - React Native Chart Kit
 - Expo Vector Icons
 
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Test thoroughly
-5. Submit a pull request
-
 ## 📄 License
 
 This project is licensed under the MIT License.
-
-## 🔧 Troubleshooting
-
-### Common Issues
-
-**Backend won't start:**
-- Check if PostgreSQL is running
-- Verify database credentials in `.env`
-- Run `pnpm prisma migrate dev`
-
-**Mobile app won't connect:**
-- Ensure backend is running on port 3000
-- Check if device/simulator can reach localhost
-- For physical devices, update API URL to your computer's IP
-
-**Database issues:**
-- Reset with `pnpm prisma migrate reset`
-- Check connection string format
-- Ensure database exists and user has permissions
