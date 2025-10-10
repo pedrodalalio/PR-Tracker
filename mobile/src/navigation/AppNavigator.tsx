@@ -2,8 +2,9 @@ import React from 'react';
 import { NavigationContainer } from '@react-navigation/native';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { TouchableOpacity } from 'react-native';
+import { TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
+import { useAuth } from '../contexts/AuthContext';
 
 import HomeScreen from '../screens/HomeScreen';
 import WorkoutsScreen from '../screens/WorkoutsScreen';
@@ -14,6 +15,7 @@ import CalendarScreen from '../screens/CalendarScreen';
 import NewWorkoutScreen from '../screens/NewWorkoutScreen';
 import ManageExercisesScreen from '../screens/ManageExercisesScreen';
 import GoalSettingsScreen from '../screens/GoalSettingsScreen';
+import LoginScreen from '../screens/LoginScreen';
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -70,7 +72,7 @@ function WorkoutStackNavigator() {
       <WorkoutStack.Screen
         name="NewWorkout"
         component={NewWorkoutScreen}
-        options={{ title: 'New Workout' }}
+        options={{ headerShown: false }}
       />
     </WorkoutStack.Navigator>
   );
@@ -104,6 +106,29 @@ function ExerciseStackNavigator() {
 }
 
 function TabNavigator() {
+  const { logout, user, isGuest } = useAuth();
+
+  const handleLogout = () => {
+    console.log('Logout button pressed');
+    Alert.alert(
+      'Logout',
+      `Are you sure you want to logout?${isGuest ? ' You will lose any demo changes made.' : ''}`,
+      [
+        { text: 'Cancel', style: 'cancel' },
+        { text: 'Logout', style: 'destructive', onPress: async () => {
+          console.log('User confirmed logout');
+          try {
+            await logout();
+            console.log('Logout completed successfully');
+          } catch (error) {
+            console.error('Logout failed:', error);
+            Alert.alert('Error', 'Failed to logout. Please try again.');
+          }
+        }}
+      ]
+    );
+  };
+
   return (
     <Tab.Navigator
       screenOptions={({ route }) => ({
@@ -127,14 +152,36 @@ function TabNavigator() {
               iconName = focused ? 'calendar' : 'calendar-outline';
               break;
             default:
-              iconName = 'circle';
+              iconName = 'ellipse';
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
-        headerShown: false,
+        headerShown: true,
+        headerTitle: route.name,
+        headerTitleStyle: {
+          fontWeight: 'bold',
+        },
+        headerRight: () => (
+          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
+            {isGuest && (
+              <View style={{
+                backgroundColor: '#34C759',
+                paddingHorizontal: 8,
+                paddingVertical: 4,
+                borderRadius: 12,
+                marginRight: 10,
+              }}>
+                <Ionicons name="eye-outline" size={12} color="white" />
+              </View>
+            )}
+            <TouchableOpacity onPress={handleLogout}>
+              <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
+            </TouchableOpacity>
+          </View>
+        ),
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />
@@ -147,12 +194,33 @@ function TabNavigator() {
 }
 
 export default function AppNavigator() {
+  const { isAuthenticated, isLoading, login } = useAuth();
+
+  const handleLogin = async (type: 'admin' | 'guest', credentials?: { username: string; password: string }) => {
+    const success = await login(type, credentials);
+    if (!success && type === 'admin') {
+      Alert.alert('Login Failed', 'Invalid credentials. Please try again.');
+    }
+  };
+
+  if (isLoading) {
+    return (
+      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FA' }}>
+        <ActivityIndicator size="large" color="#007AFF" />
+      </View>
+    );
+  }
+
   return (
     <NavigationContainer>
-      <RootStack.Navigator screenOptions={{ headerShown: false }}>
-        <RootStack.Screen name="MainTabs" component={TabNavigator} />
-        <RootStack.Screen name="GoalSettings" component={GoalSettingsScreen} />
-      </RootStack.Navigator>
+      {isAuthenticated ? (
+        <RootStack.Navigator screenOptions={{ headerShown: false }}>
+          <RootStack.Screen name="MainTabs" component={TabNavigator} />
+          <RootStack.Screen name="GoalSettings" component={GoalSettingsScreen} />
+        </RootStack.Navigator>
+      ) : (
+        <LoginScreen onLogin={handleLogin} />
+      )}
     </NavigationContainer>
   );
 }

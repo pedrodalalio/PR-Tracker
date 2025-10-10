@@ -33,10 +33,10 @@ class AppInitializer {
             console.log('Initial sync completed successfully');
           } catch (error) {
             console.error('Initial sync failed:', error);
-            throw new Error('First launch requires internet connection to download initial data');
+            console.log('Sync failed but continuing - demo mode will work with mock data');
           }
         } else {
-          throw new Error('First launch requires internet connection to download initial data');
+          console.log('No internet connection - demo mode will work with mock data');
         }
       } else {
         console.log('Existing data found, attempting background sync...');

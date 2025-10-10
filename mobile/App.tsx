@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, ActivityIndicator } from 'react-native';
 import Toast from 'react-native-toast-message';
 import AppNavigator from './src/navigation/AppNavigator';
 import { appInitializer } from './src/services/appInitializer';
+import { AuthProvider } from './src/contexts/AuthContext';
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -12,10 +13,12 @@ export default function App() {
   useEffect(() => {
     const initializeApp = async () => {
       try {
-        await appInitializer.initialize();
+        // Skip initialization - allow app to start immediately
+        console.log('Skipping app initialization - demo mode available');
         setIsLoading(false);
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Failed to initialize app');
+        console.error('Initialization error:', err);
+        // Even if there's an error, allow the app to continue for demo mode
         setIsLoading(false);
       }
     };
@@ -27,29 +30,17 @@ export default function App() {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007AFF" />
-        <Text style={styles.loadingText}>Initializing app...</Text>
-      </View>
-    );
-  }
-
-  if (error) {
-    return (
-      <View style={styles.errorContainer}>
-        <Text style={styles.errorTitle}>Initialization Error</Text>
-        <Text style={styles.errorText}>{error}</Text>
-        <Text style={styles.errorHint}>
-          Please ensure you have an internet connection for the first launch.
-        </Text>
+        <Text style={styles.loadingText}>Starting app...</Text>
       </View>
     );
   }
 
   return (
-    <>
+    <AuthProvider>
       <AppNavigator />
       <StatusBar style="auto" />
       <Toast />
-    </>
+    </AuthProvider>
   );
 }
 
