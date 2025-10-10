@@ -29,6 +29,7 @@ export default function CalendarProgressScreen({ navigation }: any) {
   const [selectedDate, setSelectedDate] = useState<string>('');
   const [selectedWorkouts, setSelectedWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
+  const [isCalendarInteracting, setIsCalendarInteracting] = useState(false);
 
   useEffect(() => {
     loadWorkouts();
@@ -98,6 +99,8 @@ export default function CalendarProgressScreen({ navigation }: any) {
   };
 
   const onDayPress = (day: DateData) => {
+    if (isCalendarInteracting) return; // Prevent interaction during navigation
+
     const dayWorkouts = workouts.filter(workout =>
       workout.date.split('T')[0] === day.dateString
     );
@@ -145,6 +148,15 @@ export default function CalendarProgressScreen({ navigation }: any) {
       sunday: 'Sunday'
     };
     return days[dayKey as keyof typeof days] || dayKey;
+  };
+
+  const onMonthChange = (month: DateData) => {
+    setIsCalendarInteracting(true);
+
+    // Re-enable interaction after animation completes
+    setTimeout(() => {
+      setIsCalendarInteracting(false);
+    }, 300);
   };
 
   const calculateWorkoutStats = (workout: Workout) => {
@@ -291,6 +303,9 @@ export default function CalendarProgressScreen({ navigation }: any) {
         <View style={styles.calendarContainer}>
           <Calendar
             onDayPress={onDayPress}
+            onMonthChange={onMonthChange}
+            enableSwipeMonths={true}
+            disableMonthChange={isCalendarInteracting}
             markedDates={{
               ...markedDates,
               [new Date().toISOString().split('T')[0]]: {

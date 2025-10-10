@@ -10,7 +10,8 @@ import {
 } from "react-native";
 import { useFocusEffect } from "@react-navigation/native";
 import { Ionicons } from "@expo/vector-icons";
-import { workoutApi, goalsApi } from "../services/api";
+import { offlineWorkoutApi, offlineGoalsApi } from "../services/offlineApi";
+import { SyncStatusIndicator } from "../components/SyncStatusIndicator";
 import { Workout, WorkoutType, UserGoals, WeeklyProgress, StreakInfo } from "../types/workout";
 
 const { width } = Dimensions.get('window');
@@ -44,10 +45,10 @@ export default function HomeScreen({ navigation }: any) {
     try {
       // Load all data in parallel
       const [workouts, goals, weekProgress, streak] = await Promise.all([
-        workoutApi.getWorkouts(),
-        goalsApi.getGoals(),
-        goalsApi.getWeekProgress(),
-        goalsApi.getStreakInfo(),
+        offlineWorkoutApi.getWorkouts(),
+        offlineGoalsApi.getGoals(),
+        offlineGoalsApi.getWeekProgress(),
+        offlineGoalsApi.getStreakInfo(),
       ]);
 
       // Sort workouts by date (newest first)
@@ -223,8 +224,13 @@ export default function HomeScreen({ navigation }: any) {
     <ScrollView style={styles.container} showsVerticalScrollIndicator={false}>
       {/* Header with greeting and streak */}
       <View style={styles.header}>
-        <Text style={styles.greeting}>{getGreeting()}</Text>
-        <Text style={styles.subtitle}>Let's crush your fitness goals!</Text>
+        <View style={styles.headerTop}>
+          <View style={styles.greetingContainer}>
+            <Text style={styles.greeting}>{getGreeting()}</Text>
+            <Text style={styles.subtitle}>Let's crush your fitness goals!</Text>
+          </View>
+          <SyncStatusIndicator style={styles.syncStatus} />
+        </View>
         {streakInfo && streakInfo.currentStreak > 0 && (
           <View style={styles.streakBadge}>
             <Ionicons name="flame" size={16} color="#FF6B35" />
@@ -636,5 +642,17 @@ const styles = StyleSheet.create({
     fontSize: 18,
     color: "#666",
     fontWeight: "500",
+  },
+  headerTop: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  greetingContainer: {
+    flex: 1,
+  },
+  syncStatus: {
+    marginLeft: 12,
   },
 });

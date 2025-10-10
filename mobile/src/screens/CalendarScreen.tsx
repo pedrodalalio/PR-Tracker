@@ -25,6 +25,7 @@ export default function CalendarScreen() {
   const [workouts, setWorkouts] = useState<Workout[]>([]);
   const [loading, setLoading] = useState(true);
   const [currentDate, setCurrentDate] = useState(new Date());
+  const [isNavigating, setIsNavigating] = useState(false);
 
   useEffect(() => {
     loadWorkouts();
@@ -125,6 +126,10 @@ export default function CalendarScreen() {
   };
 
   const navigateMonth = (direction: 'prev' | 'next') => {
+    if (isNavigating) return; // Prevent multiple rapid taps
+
+    setIsNavigating(true);
+
     setCurrentDate(prev => {
       const newDate = new Date(prev);
       if (direction === 'prev') {
@@ -134,6 +139,11 @@ export default function CalendarScreen() {
       }
       return newDate;
     });
+
+    // Re-enable navigation after a short delay
+    setTimeout(() => {
+      setIsNavigating(false);
+    }, 300);
   };
 
   const goToToday = () => {
@@ -225,19 +235,29 @@ export default function CalendarScreen() {
       {/* Month Navigation */}
       <View style={styles.monthNavigation}>
         <TouchableOpacity
-          style={styles.navButton}
+          style={[styles.navButton, isNavigating && styles.navButtonDisabled]}
           onPress={() => navigateMonth('prev')}
+          disabled={isNavigating}
         >
-          <Ionicons name="chevron-back" size={24} color="#007AFF" />
+          <Ionicons
+            name="chevron-back"
+            size={24}
+            color={isNavigating ? "#ccc" : "#007AFF"}
+          />
         </TouchableOpacity>
 
         <Text style={styles.monthTitle}>{formatMonthYear()}</Text>
 
         <TouchableOpacity
-          style={styles.navButton}
+          style={[styles.navButton, isNavigating && styles.navButtonDisabled]}
           onPress={() => navigateMonth('next')}
+          disabled={isNavigating}
         >
-          <Ionicons name="chevron-forward" size={24} color="#007AFF" />
+          <Ionicons
+            name="chevron-forward"
+            size={24}
+            color={isNavigating ? "#ccc" : "#007AFF"}
+          />
         </TouchableOpacity>
       </View>
 
@@ -328,6 +348,9 @@ const styles = StyleSheet.create({
   },
   navButton: {
     padding: 8,
+  },
+  navButtonDisabled: {
+    opacity: 0.5,
   },
   monthTitle: {
     fontSize: 20,
