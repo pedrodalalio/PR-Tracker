@@ -30,6 +30,11 @@ interface ExerciseProgress {
   workoutCount: number;
   totalSets: number;
   lastWorkout: string;
+  // Running-specific metrics
+  totalDistance?: number;
+  totalTime?: number;
+  bestPace?: number;
+  averagePace?: number;
   progressData: {
     date: string;
     weight: number;
@@ -37,15 +42,22 @@ interface ExerciseProgress {
     volume: number;
     estimated1RM: number;
     sets: number;
+    // Running-specific data
+    distance?: number;
+    duration?: number;
+    pace?: number;
   }[];
   improvement: {
     weight: number;
     volume: number;
     oneRM: number;
+    // Running improvements
+    pace?: number;
+    distance?: number;
   };
 }
 
-type ChartType = "weight";
+type ChartType = "weight" | "pace" | "distance";
 type ViewMode = "individual" | "comparison";
 
 interface MuscleGroupProgress {
@@ -70,7 +82,7 @@ export default function ProgressScreen() {
   const [selectedTimeRange, setSelectedTimeRange] = useState<"month" | "all">(
     "all",
   );
-  const [selectedChartType] = useState<ChartType>("weight");
+  const [selectedChartType, setSelectedChartType] = useState<ChartType>("weight");
   const [viewMode, setViewMode] = useState<ViewMode>("individual");
   const [selectedExercises, setSelectedExercises] = useState<string[]>([]);
   const [showExerciseSelector, setShowExerciseSelector] = useState(false);
@@ -90,6 +102,15 @@ export default function ProgressScreen() {
       calculateProgress();
     }
   }, [workouts, selectedTimeRange, selectedWorkoutType]);
+
+  useEffect(() => {
+    // Auto-select appropriate chart type for cardio
+    if (selectedWorkoutType === 'cardio') {
+      setSelectedChartType('pace');
+    } else {
+      setSelectedChartType('weight');
+    }
+  }, [selectedWorkoutType]);
 
   const loadData = async () => {
     try {
@@ -132,6 +153,7 @@ export default function ProgressScreen() {
         const exerciseId = workoutExercise.exercise.id;
 
         if (!exerciseMap.has(exerciseId)) {
+          const isCardio = workoutExercise.exercise.category === 'Cardio';
           exerciseMap.set(exerciseId, {
             exercise: workoutExercise.exercise,
             maxWeight: 0,
@@ -140,11 +162,21 @@ export default function ProgressScreen() {
             workoutCount: 0,
             totalSets: 0,
             lastWorkout: workout.date,
+            ...(isCardio && {
+              totalDistance: 0,
+              totalTime: 0,
+              bestPace: Number.MAX_VALUE,
+              averagePace: 0,
+            }),
             progressData: [],
             improvement: {
               weight: 0,
               volume: 0,
               oneRM: 0,
+              ...(isCardio && {
+                pace: 0,
+                distance: 0,
+              }),
             },
           });
         }
@@ -156,33 +188,62 @@ export default function ProgressScreen() {
         let dayMaxWeight = 0;
         let maxReps = 0;
         let dayMax1RM = 0;
+        let dayTotalDistance = 0;
+        let dayTotalTime = 0;
+        let dayBestPace = Number.MAX_VALUE;
         const dayVolume = calculateVolume(workoutExercise.sets);
         const dayTotalSets = workoutExercise.sets.length;
+        const isCardio = workoutExercise.exercise.category === 'Cardio';
 
         workoutExercise.sets.forEach((set) => {
           const weight = set.weight || 0;
           const reps = set.reps || 0;
 
-          if (weight > dayMaxWeight) {
-            dayMaxWeight = weight;
-            maxReps = reps;
-          }
+          if (!isCardio) {
+            // Regular strength training logic
+            if (weight > dayMaxWeight) {
+              dayMaxWeight = weight;
+              maxReps = reps;
+            }
 
-          const set1RM = calculate1RM(weight, reps);
-          if (set1RM > dayMax1RM) {
-            dayMax1RM = set1RM;
+            const set1RM = calculate1RM(weight, reps);
+            if (set1RM > dayMax1RM) {
+              dayMax1RM = set1RM;
+            }
+          } else {
+            // Cardio/running logic
+            const distance = set.distance || 0;
+            const duration = set.duration || 0;
+            const pace = set.pace || 0;
+
+            dayTotalDistance += distance;
+            dayTotalTime += duration;
+
+            if (pace > 0 && pace < dayBestPace) {
+              dayBestPace = pace;
+            }
           }
         });
 
         // Update overall maxes
-        if (dayMaxWeight > progress.maxWeight) {
-          progress.maxWeight = dayMaxWeight;
-        }
-        if (dayVolume > progress.maxVolume) {
-          progress.maxVolume = dayVolume;
-        }
-        if (dayMax1RM > progress.estimated1RM) {
-          progress.estimated1RM = dayMax1RM;
+        if (!isCardio) {
+          if (dayMaxWeight > progress.maxWeight) {
+            progress.maxWeight = dayMaxWeight;
+          }
+          if (dayVolume > progress.maxVolume) {
+            progress.maxVolume = dayVolume;
+          }
+          if (dayMax1RM > progress.estimated1RM) {
+            progress.estimated1RM = dayMax1RM;
+          }
+        } else {
+          // Update cardio-specific metrics
+          progress.totalDistance = (progress.totalDistance || 0) + dayTotalDistance;
+          progress.totalTime = (progress.totalTime || 0) + dayTotalTime;
+
+          if (dayBestPace < (progress.bestPace || Number.MAX_VALUE)) {
+            progress.bestPace = dayBestPace;
+          }
         }
 
         progress.workoutCount++;
@@ -199,6 +260,11 @@ export default function ProgressScreen() {
           volume: dayVolume,
           estimated1RM: dayMax1RM,
           sets: dayTotalSets,
+          ...(isCardio && {
+            distance: dayTotalDistance,
+            duration: dayTotalTime,
+            pace: dayBestPace !== Number.MAX_VALUE ? dayBestPace : 0,
+          }),
         });
       });
     });
@@ -216,6 +282,8 @@ export default function ProgressScreen() {
         const firstData = progress.progressData[0];
         const lastData =
           progress.progressData[progress.progressData.length - 1];
+
+        const isCardio = progress.exercise.category === 'Cardio';
 
         progress.improvement = {
           weight:
@@ -235,6 +303,26 @@ export default function ProgressScreen() {
                 100
               : 0,
         };
+
+        if (isCardio) {
+          // Calculate running-specific improvements
+          progress.improvement.pace =
+            firstData?.pace && firstData.pace > 0 && lastData?.pace && lastData.pace > 0
+              ? ((firstData.pace - lastData.pace) / firstData.pace) * 100 // Negative pace improvement is good
+              : 0;
+
+          progress.improvement.distance =
+            firstData?.distance && firstData.distance > 0 && lastData?.distance && lastData.distance > 0
+              ? ((lastData.distance - firstData.distance) / firstData.distance) * 100
+              : 0;
+
+          // Calculate average pace across all runs
+          const totalPaceSum = progress.progressData.reduce((sum, data) =>
+            data.pace && data.pace > 0 ? sum + data.pace : sum, 0
+          );
+          const validPaceCount = progress.progressData.filter(data => data.pace && data.pace > 0).length;
+          progress.averagePace = validPaceCount > 0 ? totalPaceSum / validPaceCount : 0;
+        }
 
         return progress;
       })
@@ -348,19 +436,39 @@ export default function ProgressScreen() {
   };
 
   const getChartTypeLabel = () => {
-    return "Weight";
+    switch (selectedChartType) {
+      case "weight": return "Weight";
+      case "pace": return "Pace";
+      case "distance": return "Distance";
+      default: return "Weight";
+    }
   };
 
   const formatChartValue = (value: number): string => {
-    return `${value.toFixed(1)}kg`;
+    switch (selectedChartType) {
+      case "weight": return `${value.toFixed(1)}kg`;
+      case "pace": return `${Math.floor(value)}:${String(Math.round((value % 1) * 60)).padStart(2, '0')}/km`;
+      case "distance": return `${(value / 1000).toFixed(2)}km`;
+      default: return `${value.toFixed(1)}kg`;
+    }
   };
 
   const getCurrentImprovement = (progress: ExerciseProgress): number => {
-    return progress.improvement.weight;
+    switch (selectedChartType) {
+      case "weight": return progress.improvement.weight;
+      case "pace": return progress.improvement.pace || 0;
+      case "distance": return progress.improvement.distance || 0;
+      default: return progress.improvement.weight;
+    }
   };
 
   const getCurrentMaxValue = (progress: ExerciseProgress): number => {
-    return progress.maxWeight;
+    switch (selectedChartType) {
+      case "weight": return progress.maxWeight;
+      case "pace": return progress.bestPace || 0;
+      case "distance": return progress.totalDistance || 0;
+      default: return progress.maxWeight;
+    }
   };
 
   const getWorkoutTypeName = (type: WorkoutType): string => {
@@ -399,7 +507,12 @@ export default function ProgressScreen() {
 
     const chartData = progress.progressData.slice(-8);
     const getValue = (d: (typeof chartData)[0]) => {
-      return d.weight;
+      switch (selectedChartType) {
+        case "weight": return d.weight;
+        case "pace": return d.pace || 0;
+        case "distance": return (d.distance || 0) / 1000; // Convert to km
+        default: return d.weight;
+      }
     };
 
     const data = {
@@ -458,7 +571,15 @@ export default function ProgressScreen() {
           withVerticalLines={true}
           withHorizontalLines={true}
           fromZero={false}
-          formatYLabel={(value) => `${Math.round(Number(value))}kg`}
+          formatYLabel={(value) => {
+            const numValue = Number(value);
+            switch (selectedChartType) {
+              case "weight": return `${Math.round(numValue)}kg`;
+              case "pace": return `${Math.floor(numValue)}:${String(Math.round((numValue % 1) * 60)).padStart(2, '0')}`;
+              case "distance": return `${numValue.toFixed(1)}km`;
+              default: return `${Math.round(numValue)}kg`;
+            }
+          }}
         />
       </View>
     );
@@ -773,6 +894,34 @@ export default function ProgressScreen() {
         ))}
       </View>
 
+      {/* Chart Type Selector for Cardio */}
+      {selectedWorkoutType === 'cardio' && (
+        <View style={styles.chartTypeSelector}>
+          <Text style={styles.chartTypeSelectorTitle}>Chart Type:</Text>
+          <View style={styles.chartTypeButtons}>
+            {(["pace", "distance"] as ChartType[]).map((type) => (
+              <TouchableOpacity
+                key={type}
+                style={[
+                  styles.chartTypeButton,
+                  selectedChartType === type && styles.chartTypeButtonActive,
+                ]}
+                onPress={() => setSelectedChartType(type)}
+              >
+                <Text
+                  style={[
+                    styles.chartTypeButtonText,
+                    selectedChartType === type && styles.chartTypeButtonTextActive,
+                  ]}
+                >
+                  {type === "pace" ? "Pace" : "Distance"}
+                </Text>
+              </TouchableOpacity>
+            ))}
+          </View>
+        </View>
+      )}
+
       <View style={styles.statsContainer}>
         <Text style={styles.statsTitle}>
           {getWorkoutTypeName(selectedWorkoutType)} - {getTimeRangeText()}
@@ -897,30 +1046,66 @@ export default function ProgressScreen() {
               </View>
 
               <View style={styles.progressStats}>
-                <View style={styles.progressStat}>
-                  <Text style={styles.progressStatNumber}>
-                    {progress.maxWeight.toFixed(1)}kg
-                  </Text>
-                  <Text style={styles.progressStatLabel}>Max Weight</Text>
-                </View>
-                <View style={styles.progressStat}>
-                  <Text style={styles.progressStatNumber}>
-                    {progress.progressData[progress.progressData.length - 1]?.weight.toFixed(1)}kg
-                  </Text>
-                  <Text style={styles.progressStatLabel}>Last Weight</Text>
-                </View>
-                <View style={styles.progressStat}>
-                  <Text style={styles.progressStatNumber}>
-                    {progress.workoutCount}
-                  </Text>
-                  <Text style={styles.progressStatLabel}>Workouts</Text>
-                </View>
-                <View style={styles.progressStat}>
-                  <Text style={styles.progressStatNumber}>
-                    {formatDate(progress.lastWorkout)}
-                  </Text>
-                  <Text style={styles.progressStatLabel}>Last Done</Text>
-                </View>
+                {progress.exercise.category === 'Cardio' ? (
+                  // Running-specific stats
+                  <>
+                    <View style={styles.progressStat}>
+                      <Text style={styles.progressStatNumber}>
+                        {progress.bestPace ?
+                          `${Math.floor(progress.bestPace)}:${String(Math.round((progress.bestPace % 1) * 60)).padStart(2, '0')}` :
+                          '0:00'
+                        }
+                      </Text>
+                      <Text style={styles.progressStatLabel}>Best Pace</Text>
+                    </View>
+                    <View style={styles.progressStat}>
+                      <Text style={styles.progressStatNumber}>
+                        {((progress.totalDistance || 0) / 1000).toFixed(1)}km
+                      </Text>
+                      <Text style={styles.progressStatLabel}>Total Distance</Text>
+                    </View>
+                    <View style={styles.progressStat}>
+                      <Text style={styles.progressStatNumber}>
+                        {Math.round((progress.totalTime || 0) / 60)}min
+                      </Text>
+                      <Text style={styles.progressStatLabel}>Total Time</Text>
+                    </View>
+                    <View style={styles.progressStat}>
+                      <Text style={styles.progressStatNumber}>
+                        {progress.workoutCount}
+                      </Text>
+                      <Text style={styles.progressStatLabel}>Runs</Text>
+                    </View>
+                  </>
+                ) : (
+                  // Strength training stats
+                  <>
+                    <View style={styles.progressStat}>
+                      <Text style={styles.progressStatNumber}>
+                        {progress.maxWeight.toFixed(1)}kg
+                      </Text>
+                      <Text style={styles.progressStatLabel}>Max Weight</Text>
+                    </View>
+                    <View style={styles.progressStat}>
+                      <Text style={styles.progressStatNumber}>
+                        {progress.progressData[progress.progressData.length - 1]?.weight.toFixed(1)}kg
+                      </Text>
+                      <Text style={styles.progressStatLabel}>Last Weight</Text>
+                    </View>
+                    <View style={styles.progressStat}>
+                      <Text style={styles.progressStatNumber}>
+                        {progress.workoutCount}
+                      </Text>
+                      <Text style={styles.progressStatLabel}>Workouts</Text>
+                    </View>
+                    <View style={styles.progressStat}>
+                      <Text style={styles.progressStatNumber}>
+                        {formatDate(progress.lastWorkout)}
+                      </Text>
+                      <Text style={styles.progressStatLabel}>Last Done</Text>
+                    </View>
+                  </>
+                )}
               </View>
 
               {viewMode === "individual" && renderExerciseChart(progress)}
@@ -1158,16 +1343,28 @@ const styles = StyleSheet.create({
     backgroundColor: "#007AFF",
   },
   chartTypeSelector: {
+    backgroundColor: "white",
+    marginHorizontal: 20,
+    marginTop: 8,
+    padding: 16,
+    borderRadius: 12,
+  },
+  chartTypeSelectorTitle: {
+    fontSize: 14,
+    fontWeight: "600",
+    color: "#333",
+    marginBottom: 12,
+  },
+  chartTypeButtons: {
     flexDirection: "row",
     backgroundColor: "#f8f8f8",
     borderRadius: 8,
     padding: 2,
-    marginBottom: 8,
   },
   chartTypeButton: {
     flex: 1,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
     borderRadius: 6,
     alignItems: "center",
   },
@@ -1175,7 +1372,7 @@ const styles = StyleSheet.create({
     backgroundColor: "#007AFF",
   },
   chartTypeButtonText: {
-    fontSize: 12,
+    fontSize: 14,
     color: "#666",
     fontWeight: "500",
   },

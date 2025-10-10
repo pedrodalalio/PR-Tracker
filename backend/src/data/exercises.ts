@@ -100,42 +100,12 @@ export const exercises: Exercise[] = [
     category: 'Lower',
     muscleGroups: ['quadriceps', 'glutes', 'hamstrings']
   },
-  // Cardio Exercises
+  // Cardio Exercises - Focused on Running
   {
     id: '17',
-    name: 'Treadmill Running',
+    name: 'Run',
     category: 'Cardio',
-    muscleGroups: ['cardiovascular', 'legs']
-  },
-  {
-    id: '18',
-    name: 'Stationary Bike',
-    category: 'Cardio',
-    muscleGroups: ['cardiovascular', 'legs']
-  },
-  {
-    id: '19',
-    name: 'Elliptical',
-    category: 'Cardio',
-    muscleGroups: ['cardiovascular', 'full body']
-  },
-  {
-    id: '20',
-    name: 'Rowing Machine',
-    category: 'Cardio',
-    muscleGroups: ['cardiovascular', 'back', 'legs']
-  },
-  {
-    id: '21',
-    name: 'Stair Climber',
-    category: 'Cardio',
-    muscleGroups: ['cardiovascular', 'legs', 'glutes']
-  },
-  {
-    id: '22',
-    name: 'Jump Rope',
-    category: 'Cardio',
-    muscleGroups: ['cardiovascular', 'legs', 'coordination']
+    muscleGroups: ['cardiovascular', 'legs', 'endurance']
   }
 ];
 

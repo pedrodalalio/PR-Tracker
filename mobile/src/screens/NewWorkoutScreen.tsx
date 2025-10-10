@@ -14,6 +14,7 @@ import { Ionicons } from '@expo/vector-icons';
 import Toast from 'react-native-toast-message';
 import { workoutApi, exerciseApi } from '../services/api';
 import { Exercise, Set, WorkoutExercise, WorkoutType, WeekDay, Workout } from '../types/workout';
+import RunningEnhancer from '../components/RunningEnhancer';
 
 export default function NewWorkoutScreen({ navigation, route }: any) {
   const selectedDateFromRoute = route?.params?.selectedDate;
@@ -28,6 +29,8 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
   const [searchQuery, setSearchQuery] = useState('');
   const [filteredExercises, setFilteredExercises] = useState<Exercise[]>([]);
   const [existingWorkouts, setExistingWorkouts] = useState<Workout[]>([]);
+  const [showRunningEnhancer, setShowRunningEnhancer] = useState(false);
+  const [currentRunningExercise, setCurrentRunningExercise] = useState<WorkoutExercise | null>(null);
 
   useEffect(() => {
     // Auto-select day of week based on selected date
@@ -108,10 +111,16 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
   const addSet = (exerciseId: string) => {
     setSelectedExercises(selectedExercises.map(ex => {
       if (ex.id === exerciseId) {
+        const isCardio = ex.exercise.category === 'Cardio';
         const newSet: Set = {
           id: Date.now().toString(),
-          reps: 0,
-          weight: 0,
+          reps: isCardio ? 1 : 0, // For cardio, reps represents the run number
+          weight: isCardio ? 0 : 0, // Not used for cardio
+          ...(isCardio && {
+            duration: 0, // time in seconds
+            distance: 0, // distance in meters
+            pace: 0 // calculated pace
+          })
         };
         return { ...ex, sets: [...ex.sets, newSet] };
       }
@@ -233,14 +242,58 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     loadExercises();
   };
 
+  // Helper function to calculate pace in minutes per kilometer
+  const calculatePace = (distanceInMeters: number, durationInSeconds: number): number => {
+    if (distanceInMeters <= 0 || durationInSeconds <= 0) return 0;
+    const distanceInKm = distanceInMeters / 1000;
+    const durationInMinutes = durationInSeconds / 60;
+    return durationInMinutes / distanceInKm; // minutes per km
+  };
+
+  // Helper function to format time from seconds to MM:SS
+  const formatTimeInput = (seconds: number): string => {
+    const minutes = Math.floor(seconds / 60);
+    const remainingSeconds = seconds % 60;
+    return `${minutes}:${String(Math.round(remainingSeconds)).padStart(2, '0')}`;
+  };
+
+  // Helper function to parse time input from MM:SS to seconds
+  const parseTimeInput = (timeString: string): number => {
+    if (!timeString) return 0;
+
+    // Handle MM:SS format
+    const parts = timeString.split(':');
+    if (parts.length === 2) {
+      const minutes = parseInt(parts[0]) || 0;
+      const seconds = parseInt(parts[1]) || 0;
+      return minutes * 60 + seconds;
+    }
+
+    // Handle just minutes or seconds
+    const number = parseFloat(timeString) || 0;
+    return number * 60; // Assume input is in minutes if no colon
+  };
+
   const updateSet = (exerciseId: string, setId: string, field: keyof Set, value: any) => {
     setSelectedExercises(selectedExercises.map(ex => {
       if (ex.id === exerciseId) {
         return {
           ...ex,
-          sets: ex.sets.map(set =>
-            set.id === setId ? { ...set, [field]: value } : set
-          )
+          sets: ex.sets.map(set => {
+            if (set.id === setId) {
+              const updatedSet = { ...set, [field]: value };
+
+              // Auto-calculate pace for cardio exercises
+              if (ex.exercise.category === 'Cardio' && (field === 'distance' || field === 'duration')) {
+                const distance = field === 'distance' ? value : (set.distance || 0);
+                const duration = field === 'duration' ? value : (set.duration || 0);
+                updatedSet.pace = calculatePace(distance, duration);
+              }
+
+              return updatedSet;
+            }
+            return set;
+          })
         };
       }
       return ex;
@@ -256,19 +309,67 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     }));
   };
 
+  const handleEnhancedRun = (exercise: WorkoutExercise) => {
+    setCurrentRunningExercise(exercise);
+    setShowRunningEnhancer(true);
+  };
+
+  const handleSaveEnhancedRun = (runData: {
+    distance: number;
+    duration: number;
+    pace: number;
+    notes?: string;
+    heartRateZone?: string;
+  }) => {
+    if (!currentRunningExercise) return;
+
+    const newSet: Set = {
+      id: Date.now().toString(),
+      reps: 1,
+      weight: 0,
+      distance: runData.distance,
+      duration: runData.duration,
+      pace: runData.pace,
+    };
+
+    setSelectedExercises(selectedExercises.map(ex => {
+      if (ex.id === currentRunningExercise.id) {
+        const updatedExercise = { ...ex, sets: [...ex.sets, newSet] };
+        if (runData.notes) {
+          updatedExercise.notes = (updatedExercise.notes || '') + '\n' + runData.notes;
+        }
+        return updatedExercise;
+      }
+      return ex;
+    }));
+
+    setCurrentRunningExercise(null);
+  };
+
   const saveWorkout = async () => {
     if (selectedExercises.length === 0) {
       Alert.alert('Error', 'Please add at least one exercise');
       return;
     }
 
-    // Check if all exercises have at least one set with reps and weight
-    const invalidExercises = selectedExercises.filter(ex =>
-      ex.sets.length === 0 || ex.sets.some(set => !set.reps || !set.weight)
-    );
+    // Check if all exercises have at least one set with valid data
+    const invalidExercises = selectedExercises.filter(ex => {
+      if (ex.sets.length === 0) return true;
+
+      if (ex.exercise.category === 'Cardio') {
+        // For cardio, require distance and duration
+        return ex.sets.some(set => !set.distance || !set.duration);
+      } else {
+        // For non-cardio, require reps and weight
+        return ex.sets.some(set => !set.reps || !set.weight);
+      }
+    });
 
     if (invalidExercises.length > 0) {
-      Alert.alert('Error', 'Please add sets with reps and weight for all exercises');
+      const errorMessage = invalidExercises.some(ex => ex.exercise.category === 'Cardio')
+        ? 'Please add distance and time for all running sets'
+        : 'Please add sets with reps and weight for all exercises';
+      Alert.alert('Error', errorMessage);
       return;
     }
 
@@ -326,27 +427,65 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
         <View key={set.id} style={styles.setRow}>
           <Text style={styles.setNumber}>{setIndex + 1}</Text>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="barbell" size={16} color="#666" />
-            <TextInput
-              style={styles.setInput}
-              placeholder="Weight (kg)"
-              value={set.weight?.toString() || ''}
-              onChangeText={(text) => updateSet(exercise.id, set.id, 'weight', parseFloat(text) || 0)}
-              keyboardType="numeric"
-            />
-          </View>
+          {exercise.exercise.category === 'Cardio' ? (
+            // Cardio/Running inputs
+            <>
+              <View style={styles.inputContainer}>
+                <Ionicons name="map" size={16} color="#666" />
+                <TextInput
+                  style={styles.setInput}
+                  placeholder="Distance (km)"
+                  value={set.distance ? (set.distance / 1000).toString() : ''}
+                  onChangeText={(text) => updateSet(exercise.id, set.id, 'distance', (parseFloat(text) || 0) * 1000)}
+                  keyboardType="numeric"
+                />
+              </View>
 
-          <View style={styles.inputContainer}>
-            <Ionicons name="repeat" size={16} color="#666" />
-            <TextInput
-              style={styles.setInput}
-              placeholder="Reps"
-              value={set.reps?.toString() || ''}
-              onChangeText={(text) => updateSet(exercise.id, set.id, 'reps', parseInt(text) || 0)}
-              keyboardType="numeric"
-            />
-          </View>
+              <View style={styles.inputContainer}>
+                <Ionicons name="time" size={16} color="#666" />
+                <TextInput
+                  style={styles.setInput}
+                  placeholder="Time (MM:SS)"
+                  value={set.duration ? formatTimeInput(set.duration) : ''}
+                  onChangeText={(text) => updateSet(exercise.id, set.id, 'duration', parseTimeInput(text))}
+                  keyboardType="numbers-and-punctuation"
+                />
+              </View>
+
+              {set.pace && set.pace > 0 && (
+                <View style={styles.paceContainer}>
+                  <Text style={styles.paceText}>
+                    {Math.floor(set.pace)}:{String(Math.round((set.pace % 1) * 60)).padStart(2, '0')}/km
+                  </Text>
+                </View>
+              )}
+            </>
+          ) : (
+            // Regular strength training inputs
+            <>
+              <View style={styles.inputContainer}>
+                <Ionicons name="barbell" size={16} color="#666" />
+                <TextInput
+                  style={styles.setInput}
+                  placeholder="Weight (kg)"
+                  value={set.weight?.toString() || ''}
+                  onChangeText={(text) => updateSet(exercise.id, set.id, 'weight', parseFloat(text) || 0)}
+                  keyboardType="numeric"
+                />
+              </View>
+
+              <View style={styles.inputContainer}>
+                <Ionicons name="repeat" size={16} color="#666" />
+                <TextInput
+                  style={styles.setInput}
+                  placeholder="Reps"
+                  value={set.reps?.toString() || ''}
+                  onChangeText={(text) => updateSet(exercise.id, set.id, 'reps', parseInt(text) || 0)}
+                  keyboardType="numeric"
+                />
+              </View>
+            </>
+          )}
 
           <TouchableOpacity
             style={styles.removeSetButton}
@@ -357,13 +496,33 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
         </View>
       ))}
 
-      <TouchableOpacity
-        style={styles.addSetButton}
-        onPress={() => addSet(exercise.id)}
-      >
-        <Ionicons name="add" size={16} color="#007AFF" />
-        <Text style={styles.addSetText}>Add Set (Reps + Weight)</Text>
-      </TouchableOpacity>
+      {exercise.exercise.category === 'Cardio' ? (
+        <View style={styles.cardioButtons}>
+          <TouchableOpacity
+            style={styles.addSetButton}
+            onPress={() => addSet(exercise.id)}
+          >
+            <Ionicons name="add" size={16} color="#007AFF" />
+            <Text style={styles.addSetText}>Quick Add Run</Text>
+          </TouchableOpacity>
+
+          <TouchableOpacity
+            style={styles.enhancedRunButton}
+            onPress={() => handleEnhancedRun(exercise)}
+          >
+            <Ionicons name="analytics" size={16} color="#34C759" />
+            <Text style={styles.enhancedRunText}>Enhanced Run Log</Text>
+          </TouchableOpacity>
+        </View>
+      ) : (
+        <TouchableOpacity
+          style={styles.addSetButton}
+          onPress={() => addSet(exercise.id)}
+        >
+          <Ionicons name="add" size={16} color="#007AFF" />
+          <Text style={styles.addSetText}>Add Set (Reps + Weight)</Text>
+        </TouchableOpacity>
+      )}
     </View>
   );
 
@@ -596,6 +755,15 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
         {selectedExercises.map((exercise, index) => renderSelectedExercise(exercise, index))}
       </ScrollView>
+
+      <RunningEnhancer
+        visible={showRunningEnhancer}
+        onClose={() => {
+          setShowRunningEnhancer(false);
+          setCurrentRunningExercise(null);
+        }}
+        onSaveRun={handleSaveEnhancedRun}
+      />
     </View>
   );
 }
@@ -894,5 +1062,40 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#666',
     textAlign: 'center',
+  },
+  paceContainer: {
+    backgroundColor: '#E3F2FD',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    marginHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    minWidth: 60,
+  },
+  paceText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#007AFF',
+  },
+  cardioButtons: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 8,
+  },
+  enhancedRunButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 8,
+    backgroundColor: '#E8F5E8',
+    borderRadius: 6,
+    flex: 1,
+  },
+  enhancedRunText: {
+    color: '#34C759',
+    marginLeft: 4,
+    fontWeight: '500',
+    fontSize: 12,
   },
 });

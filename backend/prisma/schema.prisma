@@ -67,6 +67,7 @@ model Set {
   weight           Float
   duration         Int?    // for cardio exercises (in seconds)
   distance         Float?  // for runs (in meters)
+  pace             Float?  // calculated pace (minutes per kilometer)
 
   // Relations
   workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)

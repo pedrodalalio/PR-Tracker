@@ -14,6 +14,7 @@ export interface Set {
   weight: number;
   duration?: number; // for cardio exercises (in seconds)
   distance?: number; // for runs (in meters)
+  pace?: number; // calculated pace (minutes per kilometer)
 }
 
 export interface WorkoutExercise {
