@@ -14,7 +14,7 @@ import {
 } from '../types/workout';
 import { MockDataService } from './mockDataService';
 
-const API_BASE_URL = 'http://localhost:3000/api';
+const API_BASE_URL = 'https://pr-tracker-nb87.onrender.com/api';
 const AUTH_STORAGE_KEY = '@pr_tracker_auth';
 
 const api = axios.create({
