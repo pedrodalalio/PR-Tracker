@@ -1,12 +1,13 @@
-import Fastify from 'fastify';
-import cors from '@fastify/cors';
-import helmet from '@fastify/helmet';
-import { workoutRoutes } from './routes/workouts';
-import { exerciseRoutes } from './routes/exercises';
-import { goalsRoutes } from './routes/goals';
+import Fastify from "fastify";
+import cors from "@fastify/cors";
+import helmet from "@fastify/helmet";
+import { workoutRoutes } from "./routes/workouts";
+import { exerciseRoutes } from "./routes/exercises";
+import { goalsRoutes } from "./routes/goals";
+import { authRoutes } from "./routes/auth";
 
 const fastify = Fastify({
-  logger: true
+  logger: true,
 });
 
 fastify.register(helmet, {
@@ -27,33 +28,33 @@ fastify.register(cors, {
     }
 
     const hostname = new URL(origin).hostname;
-    if(hostname === 'localhost' || hostname === '127.0.0.1') {
+    if (hostname === "localhost" || hostname === "127.0.0.1") {
       callback(null, true);
       return;
     }
     callback(new Error("Not allowed"), false);
   },
-  methods: ['GET', 'POST', 'PUT', 'DELETE', 'OPTIONS'],
-  allowedHeaders: ['Content-Type', 'Authorization']
+  methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 });
 
-fastify.get('/', async (request, reply) => {
-  return { message: 'Gym Stats Tracker API is running!' };
+fastify.get("/", async (request, reply) => {
+  return { message: "Gym Stats Tracker API is running!" };
 });
 
-fastify.get('/health', async (request, reply) => {
-  return { status: 'ok', timestamp: new Date().toISOString() };
+fastify.get("/health", async (request, reply) => {
+  return { status: "ok", timestamp: new Date().toISOString() };
 });
 
 // Register routes
-fastify.register(workoutRoutes, { prefix: '/api' });
-fastify.register(exerciseRoutes, { prefix: '/api' });
-fastify.register(goalsRoutes, { prefix: '/api' });
+fastify.register(authRoutes, { prefix: "/api" });
+fastify.register(workoutRoutes, { prefix: "/api" });
+fastify.register(exerciseRoutes, { prefix: "/api" });
+fastify.register(goalsRoutes, { prefix: "/api" });
 
 const start = async () => {
   try {
-    await fastify.listen({ port: 3000, host: '0.0.0.0' });
-    console.log('Server is running on http://localhost:3000');
+    await fastify.listen({ port: 3000, host: "0.0.0.0" });
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

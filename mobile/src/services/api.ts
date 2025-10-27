@@ -1,5 +1,5 @@
-import axios from 'axios';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import axios from "axios";
+import AsyncStorage from "@react-native-async-storage/async-storage";
 import {
   Workout,
   Exercise,
@@ -10,15 +10,15 @@ import {
   CreateGoalsRequest,
   UpdateGoalsRequest,
   WeeklyProgress,
-  StreakInfo
-} from '../types/workout';
-import { MockDataService } from './mockDataService';
+  StreakInfo,
+} from "../types/workout";
+import { MockDataService } from "./mockDataService";
+import { ENV_CONFIG } from "../config/environment";
 
-const API_BASE_URL = 'https://pr-tracker-nb87.onrender.com/api';
-const AUTH_STORAGE_KEY = '@pr_tracker_auth';
+const AUTH_STORAGE_KEY = "@pr_tracker_auth";
 
 const api = axios.create({
-  baseURL: API_BASE_URL,
+  baseURL: ENV_CONFIG.apiBaseUrl,
   timeout: 10000,
 });
 
@@ -27,10 +27,10 @@ async function isGuestUser(): Promise<boolean> {
     const storedAuth = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
     if (storedAuth) {
       const authData = JSON.parse(storedAuth);
-      return authData.type === 'guest';
+      return authData.type === "guest";
     }
   } catch (error) {
-    console.error('Error checking user type:', error);
+    console.error("Error checking user type:", error);
   }
   return false;
 }
@@ -46,7 +46,7 @@ export const workoutApi = {
       const mockService = await getMockService();
       return mockService.getWorkouts();
     }
-    const response = await api.get('/workouts');
+    const response = await api.get("/workouts");
     return response.data.workouts;
   },
 
@@ -66,12 +66,15 @@ export const workoutApi = {
       const mockService = await getMockService();
       return mockService.createWorkout(workout);
     }
-    const response = await api.post('/workouts', workout);
+    const response = await api.post("/workouts", workout);
     return response.data.workout;
   },
 
   // Update workout
-  updateWorkout: async (id: string, updates: UpdateWorkoutRequest): Promise<Workout> => {
+  updateWorkout: async (
+    id: string,
+    updates: UpdateWorkoutRequest,
+  ): Promise<Workout> => {
     if (await isGuestUser()) {
       const mockService = await getMockService();
       return mockService.updateWorkout(id, updates);
@@ -90,17 +93,21 @@ export const workoutApi = {
   },
 
   // Add exercise to workout
-  addExerciseToWorkout: async (workoutId: string, exerciseId: string, sets: any[] = []): Promise<any> => {
+  addExerciseToWorkout: async (
+    workoutId: string,
+    exerciseId: string,
+    sets: any[] = [],
+  ): Promise<any> => {
     if (await isGuestUser()) {
       const mockService = await getMockService();
       return mockService.addExerciseToWorkout(workoutId, exerciseId, sets);
     }
     const response = await api.post(`/workouts/${workoutId}/exercises`, {
       exerciseId,
-      sets
+      sets,
     });
     return response.data.workoutExercise;
-  }
+  },
 };
 
 export const exerciseApi = {
@@ -110,7 +117,7 @@ export const exerciseApi = {
       const mockService = await getMockService();
       return mockService.getExercises();
     }
-    const response = await api.get('/exercises');
+    const response = await api.get("/exercises");
     return response.data.exercises;
   },
 
@@ -140,24 +147,29 @@ export const exerciseApi = {
       const mockService = await getMockService();
       return mockService.searchExercises(muscle);
     }
-    const response = await api.get('/exercises/search', {
-      params: muscle ? { muscle } : {}
+    const response = await api.get("/exercises/search", {
+      params: muscle ? { muscle } : {},
     });
     return response.data.exercises;
   },
 
   // Create new exercise
-  createExercise: async (exercise: CreateExerciseRequest): Promise<Exercise> => {
+  createExercise: async (
+    exercise: CreateExerciseRequest,
+  ): Promise<Exercise> => {
     if (await isGuestUser()) {
       const mockService = await getMockService();
       return mockService.createExercise(exercise);
     }
-    const response = await api.post('/exercises', exercise);
+    const response = await api.post("/exercises", exercise);
     return response.data.exercise;
   },
 
   // Update exercise
-  updateExercise: async (id: string, updates: Partial<CreateExerciseRequest>): Promise<Exercise> => {
+  updateExercise: async (
+    id: string,
+    updates: Partial<CreateExerciseRequest>,
+  ): Promise<Exercise> => {
     if (await isGuestUser()) {
       const mockService = await getMockService();
       return mockService.updateExercise(id, updates);
@@ -173,7 +185,7 @@ export const exerciseApi = {
       return mockService.deleteExercise(id);
     }
     await api.delete(`/exercises/${id}`);
-  }
+  },
 };
 
 export const goalsApi = {
@@ -184,11 +196,10 @@ export const goalsApi = {
       return mockService.getGoals();
     }
     try {
-      const response = await api.get('/goals');
-      console.log('Goals API response:', response.data);
+      const response = await api.get("/goals");
       return response.data;
     } catch (error) {
-      console.error('Get goals error:', error);
+      console.error("Get goals error:", error);
       throw error;
     }
   },
@@ -200,12 +211,10 @@ export const goalsApi = {
       return mockService.updateGoals(updates);
     }
     try {
-      console.log('Updating goals with:', updates);
-      const response = await api.put('/goals', updates);
-      console.log('Update goals response:', response.data);
+      const response = await api.put("/goals", updates);
       return response.data;
     } catch (error) {
-      console.error('Update goals error:', error);
+      console.error("Update goals error:", error);
       throw error;
     }
   },
@@ -216,7 +225,7 @@ export const goalsApi = {
       const mockService = await getMockService();
       return mockService.getWeekProgress();
     }
-    const response = await api.get('/goals/week-progress');
+    const response = await api.get("/goals/week-progress");
     return response.data;
   },
 
@@ -226,7 +235,7 @@ export const goalsApi = {
       const mockService = await getMockService();
       return mockService.getStreakInfo();
     }
-    const response = await api.get('/goals/streak-info');
+    const response = await api.get("/goals/streak-info");
     return response.data;
   },
 
@@ -236,9 +245,9 @@ export const goalsApi = {
       const mockService = await getMockService();
       return mockService.updateStreak();
     }
-    const response = await api.post('/goals/update-streak');
+    const response = await api.post("/goals/update-streak");
     return response.data;
-  }
+  },
 };
 
 export default api;

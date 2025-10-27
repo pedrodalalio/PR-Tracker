@@ -1,7 +1,7 @@
-import NetInfo from '@react-native-community/netinfo';
-import { databaseService, SyncQueueItem } from './database';
-import { workoutApi, exerciseApi, goalsApi } from './api';
-import { Workout, Exercise, UserGoals } from '../types/workout';
+import NetInfo from "@react-native-community/netinfo";
+import { databaseService, SyncQueueItem } from "./database";
+import { workoutApi, exerciseApi, goalsApi } from "./api";
+import { Workout, Exercise, UserGoals } from "../types/workout";
 
 export interface SyncStatus {
   isOnline: boolean;
@@ -21,12 +21,11 @@ class SyncService {
   }
 
   private initializeNetworkListener(): void {
-    NetInfo.addEventListener(state => {
+    NetInfo.addEventListener((state) => {
       const wasOnline = this.isOnline;
       this.isOnline = state.isConnected === true;
 
       if (!wasOnline && this.isOnline) {
-        console.log('Network restored, starting sync...');
         this.syncWithServer();
       }
 
@@ -49,10 +48,10 @@ class SyncService {
       isOnline: this.isOnline,
       isSyncing: this.isSyncing,
       lastSyncTime: this.lastSyncTime,
-      pendingItems: 0 // Will be updated by specific methods
+      pendingItems: 0, // Will be updated by specific methods
     };
 
-    this.syncListeners.forEach(listener => listener(status));
+    this.syncListeners.forEach((listener) => listener(status));
   }
 
   async getNetworkStatus(): Promise<boolean> {
@@ -63,7 +62,6 @@ class SyncService {
 
   async initialDataSync(): Promise<void> {
     if (!this.isOnline) {
-      console.log('No internet connection for initial sync');
       return;
     }
 
@@ -71,31 +69,22 @@ class SyncService {
     this.notifyListeners();
 
     try {
-      console.log('Starting initial data sync...');
-
-      // Download exercises
       const exercises = await exerciseApi.getExercises();
       await databaseService.saveExercises(exercises);
-      console.log(`Synced ${exercises.length} exercises`);
 
-      // Download workouts
       const workouts = await workoutApi.getWorkouts();
       await databaseService.saveWorkouts(workouts);
-      console.log(`Synced ${workouts.length} workouts`);
 
-      // Download user goals
       try {
         const goals = await goalsApi.getGoals();
         await databaseService.saveUserGoals(goals);
-        console.log('Synced user goals');
       } catch (error) {
-        console.log('No user goals found on server');
+        console.error(error);
       }
 
       this.lastSyncTime = Date.now();
-      console.log('Initial sync completed successfully');
     } catch (error) {
-      console.error('Initial sync failed:', error);
+      console.error("Initial sync failed:", error);
       throw error;
     } finally {
       this.isSyncing = false;
@@ -112,17 +101,12 @@ class SyncService {
     this.notifyListeners();
 
     try {
-      console.log('Starting sync with server...');
-
-      // Get pending sync items
       const syncQueue = await databaseService.getSyncQueue();
-      console.log(`Found ${syncQueue.length} items to sync`);
 
       for (const item of syncQueue) {
         try {
           await this.processSyncItem(item);
           await databaseService.markSynced(item.id);
-          console.log(`Synced item: ${item.operation} ${item.tableName}`);
         } catch (error) {
           console.error(`Failed to sync item ${item.id}:`, error);
           // Don't mark as synced if it failed
@@ -136,9 +120,8 @@ class SyncService {
       await databaseService.clearSyncedItems();
 
       this.lastSyncTime = Date.now();
-      console.log('Sync completed successfully');
     } catch (error) {
-      console.error('Sync failed:', error);
+      console.error("Sync failed:", error);
     } finally {
       this.isSyncing = false;
       this.notifyListeners();
@@ -147,13 +130,13 @@ class SyncService {
 
   private async processSyncItem(item: SyncQueueItem): Promise<void> {
     switch (item.tableName) {
-      case 'workouts':
+      case "workouts":
         await this.syncWorkout(item);
         break;
-      case 'exercises':
+      case "exercises":
         await this.syncExercise(item);
         break;
-      case 'user_goals':
+      case "user_goals":
         await this.syncUserGoals(item);
         break;
       default:
@@ -165,14 +148,14 @@ class SyncService {
     const workout: Workout = item.data;
 
     switch (item.operation) {
-      case 'CREATE':
+      case "CREATE":
         // Transform local workout to server format
         const serverWorkout = await workoutApi.createWorkout({
           name: workout.name,
           date: workout.date,
           workoutType: workout.workoutType,
           dayOfWeek: workout.dayOfWeek,
-          notes: workout.notes
+          notes: workout.notes,
         });
 
         // Update local workout exercises with server IDs
@@ -180,21 +163,21 @@ class SyncService {
           await workoutApi.addExerciseToWorkout(
             serverWorkout.id,
             exercise.exerciseId,
-            exercise.sets
+            exercise.sets,
           );
         }
         break;
 
-      case 'UPDATE':
+      case "UPDATE":
         await workoutApi.updateWorkout(workout.id, {
           name: workout.name,
           exercises: workout.exercises,
           notes: workout.notes,
-          endTime: workout.endTime
+          endTime: workout.endTime,
         });
         break;
 
-      case 'DELETE':
+      case "DELETE":
         await workoutApi.deleteWorkout(workout.id);
         break;
     }
@@ -204,23 +187,23 @@ class SyncService {
     const exercise: Exercise = item.data;
 
     switch (item.operation) {
-      case 'CREATE':
+      case "CREATE":
         await exerciseApi.createExercise({
           name: exercise.name,
           category: exercise.category,
-          muscleGroups: exercise.muscleGroups
+          muscleGroups: exercise.muscleGroups,
         });
         break;
 
-      case 'UPDATE':
+      case "UPDATE":
         await exerciseApi.updateExercise(exercise.id, {
           name: exercise.name,
           category: exercise.category,
-          muscleGroups: exercise.muscleGroups
+          muscleGroups: exercise.muscleGroups,
         });
         break;
 
-      case 'DELETE':
+      case "DELETE":
         await exerciseApi.deleteExercise(exercise.id);
         break;
     }
@@ -230,10 +213,10 @@ class SyncService {
     const goals: UserGoals = item.data;
 
     switch (item.operation) {
-      case 'CREATE':
-      case 'UPDATE':
+      case "CREATE":
+      case "UPDATE":
         await goalsApi.updateGoals({
-          weeklyWorkoutGoal: goals.weeklyWorkoutGoal
+          weeklyWorkoutGoal: goals.weeklyWorkoutGoal,
         });
         break;
     }
@@ -254,10 +237,10 @@ class SyncService {
         const goals = await goalsApi.getGoals();
         await databaseService.saveUserGoals(goals);
       } catch (error) {
-        console.log('No goals to download');
+        console.error(error);
       }
     } catch (error) {
-      console.error('Failed to download latest data:', error);
+      console.error("Failed to download latest data:", error);
     }
   }
 
@@ -271,7 +254,7 @@ class SyncService {
       isOnline: this.isOnline,
       isSyncing: this.isSyncing,
       lastSyncTime: this.lastSyncTime,
-      pendingItems: 0 // This will be updated by calling getPendingItemsCount()
+      pendingItems: 0, // This will be updated by calling getPendingItemsCount()
     };
   }
 

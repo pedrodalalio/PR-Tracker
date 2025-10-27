@@ -6,6 +6,7 @@ import {
   WorkoutExercise,
 } from "../types/workout";
 import { prisma } from "../lib/prisma";
+import { authenticateToken } from "../lib/middleware";
 
 export async function workoutRoutes(fastify: FastifyInstance) {
   // Get all workouts
@@ -64,6 +65,9 @@ export async function workoutRoutes(fastify: FastifyInstance) {
   // Create new workout
   fastify.post<{ Body: CreateWorkoutRequest }>(
     "/workouts",
+    {
+      preHandler: authenticateToken,
+    },
     async (request, reply) => {
       try {
         const {
@@ -77,6 +81,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
 
         const workout = await prisma.workout.create({
           data: {
+            userId: request.user!.userId,
             name,
             date: new Date(date),
             workoutType,

@@ -1,10 +1,10 @@
-export type WorkoutType = 'upper' | 'legs' | 'cardio';
-export type WeekDay = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+export type WorkoutType = 'superiores' | 'inferiores' | 'cardio';
+export type WeekDay = 'segunda' | 'terça' | 'quarta' | 'quinta' | 'sexta' | 'sabado' | 'domingo';
 
 export interface Exercise {
   id: string;
   name: string;
-  category: 'Upper' | 'Lower' | 'Cardio';
+  category: 'Superiores' | 'Inferiores' | 'Cardio';
   muscleGroups: string[];
 }
 

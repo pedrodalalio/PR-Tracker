@@ -1,6 +1,7 @@
 import { databaseService } from './database';
 import { syncService } from './syncService';
 import { workoutApi as onlineWorkoutApi, exerciseApi as onlineExerciseApi, goalsApi as onlineGoalsApi } from './api';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import {
   Workout,
   Exercise,
@@ -12,6 +13,22 @@ import {
   WeeklyProgress,
   StreakInfo
 } from '../types/workout';
+
+const AUTH_STORAGE_KEY = '@pr_tracker_auth';
+
+// Função auxiliar para verificar se o usuário está autenticado e não é guest
+async function isAuthenticatedUser(): Promise<boolean> {
+  try {
+    const storedAuth = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
+    if (storedAuth) {
+      const authData = JSON.parse(storedAuth);
+      return authData.type === 'admin' && authData.token;
+    }
+  } catch (error) {
+    console.error('Error checking authentication status:', error);
+  }
+  return false;
+}
 
 class OfflineWorkoutApi {
   async getWorkouts(): Promise<Workout[]> {
@@ -294,8 +311,10 @@ class OfflineExerciseApi {
 class OfflineGoalsApi {
   async getGoals(): Promise<UserGoals> {
     const isOnline = await syncService.getNetworkStatus();
+    const isAuthenticated = await isAuthenticatedUser();
 
-    if (isOnline) {
+    // Só tenta fazer requisição online se o usuário estiver autenticado
+    if (isOnline && isAuthenticated) {
       try {
         const goals = await onlineGoalsApi.getGoals();
         await databaseService.saveUserGoals(goals);
@@ -307,6 +326,22 @@ class OfflineGoalsApi {
 
     const localGoals = await databaseService.getUserGoals();
     if (!localGoals) {
+      // Se não há dados locais e não está autenticado, criar dados padrão
+      if (!isAuthenticated) {
+        const defaultGoals: UserGoals = {
+          id: 'default',
+          userId: 'guest',
+          weeklyWorkoutGoal: 3,
+          currentStreak: 0,
+          bestStreak: 0,
+          totalWeeksCompleted: 0,
+          lastWorkoutDate: null,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        };
+        await databaseService.saveUserGoals(defaultGoals);
+        return defaultGoals;
+      }
       throw new Error('No goals found');
     }
     return localGoals;
@@ -314,8 +349,10 @@ class OfflineGoalsApi {
 
   async updateGoals(updates: UpdateGoalsRequest): Promise<UserGoals> {
     const isOnline = await syncService.getNetworkStatus();
+    const isAuthenticated = await isAuthenticatedUser();
 
-    if (isOnline) {
+    // Só tenta fazer requisição online se o usuário estiver autenticado
+    if (isOnline && isAuthenticated) {
       try {
         const updatedGoals = await onlineGoalsApi.updateGoals(updates);
         await databaseService.saveUserGoals(updatedGoals);
@@ -330,8 +367,10 @@ class OfflineGoalsApi {
 
   async getWeekProgress(): Promise<WeeklyProgress> {
     const isOnline = await syncService.getNetworkStatus();
+    const isAuthenticated = await isAuthenticatedUser();
 
-    if (isOnline) {
+    // Só tenta fazer requisição online se o usuário estiver autenticado
+    if (isOnline && isAuthenticated) {
       try {
         return await onlineGoalsApi.getWeekProgress();
       } catch (error) {
@@ -369,8 +408,10 @@ class OfflineGoalsApi {
 
   async getStreakInfo(): Promise<StreakInfo> {
     const isOnline = await syncService.getNetworkStatus();
+    const isAuthenticated = await isAuthenticatedUser();
 
-    if (isOnline) {
+    // Só tenta fazer requisição online se o usuário estiver autenticado
+    if (isOnline && isAuthenticated) {
       try {
         return await onlineGoalsApi.getStreakInfo();
       } catch (error) {
@@ -398,8 +439,10 @@ class OfflineGoalsApi {
 
   async updateStreak(): Promise<UserGoals> {
     const isOnline = await syncService.getNetworkStatus();
+    const isAuthenticated = await isAuthenticatedUser();
 
-    if (isOnline) {
+    // Só tenta fazer requisição online se o usuário estiver autenticado
+    if (isOnline && isAuthenticated) {
       try {
         const updatedGoals = await onlineGoalsApi.updateStreak();
         await databaseService.saveUserGoals(updatedGoals);

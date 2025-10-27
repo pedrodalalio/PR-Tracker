@@ -14,22 +14,50 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
+model User {
+  id        String   @id @default(uuid())
+  username  String   @unique
+  email     String   @unique
+  password  String   // bcrypt hash
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  workouts  Workout[]
+  userGoals UserGoals?
+
+  @@map("users")
+}
+
 model Exercise {
   id          String   @id @default(uuid())
   name        String   @unique
   category    Category
-  muscleGroups String[]
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   // Relations
   workoutExercises WorkoutExercise[]
+  muscleGroups     ExerciseMuscleGroup[]
 
   @@map("exercises")
 }
 
+model ExerciseMuscleGroup {
+  id         String   @id @default(uuid())
+  exerciseId String
+  muscleGroup String
+
+  // Relations
+  exercise   Exercise @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@unique([exerciseId, muscleGroup])
+  @@map("exercise_muscle_groups")
+}
+
 model Workout {
   id          String      @id @default(uuid())
+  userId      String
   name        String
   date        DateTime
   workoutType WorkoutType
@@ -41,6 +69,7 @@ model Workout {
   updatedAt   DateTime    @updatedAt
 
   // Relations
+  user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   exercises WorkoutExercise[]
 
   @@map("workouts")
@@ -77,6 +106,7 @@ model Set {
 
 model UserGoals {
   id                   String   @id @default(uuid())
+  userId               String   @unique
   weeklyWorkoutGoal    Int      @default(3)
   currentStreak        Int      @default(0)
   bestStreak          Int      @default(0)
@@ -85,27 +115,30 @@ model UserGoals {
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
   @@map("user_goals")
 }
 
 enum Category {
-  Upper
-  Lower
+  Superiores
+  Inferiores
   Cardio
 }
 
 enum WorkoutType {
-  upper
-  legs
+  superiores
+  inferiores
   cardio
 }
 
 enum WeekDay {
-  monday
-  tuesday
-  wednesday
-  thursday
-  friday
-  saturday
-  sunday
+  segunda
+  terça
+  quarta
+  quinta
+  sexta
+  sabado
+  domingo
 }

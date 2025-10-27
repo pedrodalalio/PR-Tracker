@@ -7,6 +7,9 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
   fastify.get('/exercises', async (request, reply) => {
     try {
       const exercises = await prisma.exercise.findMany({
+        include: {
+          muscleGroups: true
+        },
         orderBy: { name: 'asc' }
       });
       return { exercises };
@@ -21,7 +24,10 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
     try {
       const { id } = request.params;
       const exercise = await prisma.exercise.findUnique({
-        where: { id }
+        where: { id },
+        include: {
+          muscleGroups: true
+        }
       });
 
       if (!exercise) {
@@ -45,7 +51,14 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
         data: {
           name,
           category,
-          muscleGroups
+          muscleGroups: {
+            create: muscleGroups.map(muscleGroup => ({
+              muscleGroup
+            }))
+          }
+        },
+        include: {
+          muscleGroups: true
         }
       });
 
@@ -65,11 +78,24 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
   fastify.put<{ Params: { id: string }, Body: Partial<CreateExerciseRequest> }>('/exercises/:id', async (request, reply) => {
     try {
       const { id } = request.params;
-      const updates = request.body;
+      const { muscleGroups, ...updates } = request.body;
 
       const exercise = await prisma.exercise.update({
         where: { id },
-        data: updates
+        data: {
+          ...updates,
+          ...(muscleGroups && {
+            muscleGroups: {
+              deleteMany: {},
+              create: muscleGroups.map(muscleGroup => ({
+                muscleGroup
+              }))
+            }
+          })
+        },
+        include: {
+          muscleGroups: true
+        }
       });
 
       return { exercise };
@@ -113,6 +139,9 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
       const { category } = request.params;
       const exercises = await prisma.exercise.findMany({
         where: { category: category as any },
+        include: {
+          muscleGroups: true
+        },
         orderBy: { name: 'asc' }
       });
       return { exercises };
@@ -129,6 +158,9 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
 
       if (!muscle) {
         const exercises = await prisma.exercise.findMany({
+          include: {
+            muscleGroups: true
+          },
           orderBy: { name: 'asc' }
         });
         return { exercises };
@@ -137,8 +169,16 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
       const exercises = await prisma.exercise.findMany({
         where: {
           muscleGroups: {
-            hasSome: [muscle]
+            some: {
+              muscleGroup: {
+                contains: muscle,
+                mode: 'insensitive'
+              }
+            }
           }
+        },
+        include: {
+          muscleGroups: true
         },
         orderBy: { name: 'asc' }
       });

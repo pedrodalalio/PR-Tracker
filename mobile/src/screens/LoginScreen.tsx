@@ -15,10 +15,14 @@ interface LoginScreenProps {
   onLogin: (
     type: "admin" | "guest",
     credentials?: { username: string; password: string },
-  ) => void;
+  ) => Promise<boolean>;
+  onShowRegister?: () => void;
 }
 
-export default function LoginScreen({ onLogin }: LoginScreenProps) {
+export default function LoginScreen({
+  onLogin,
+  onShowRegister,
+}: LoginScreenProps) {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
@@ -26,28 +30,45 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
 
   const handleAdminLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert("Error", "Please enter both username and password");
+      Alert.alert("Erro", "Por favor, insira usuário e senha");
       return;
     }
 
     setIsLoading(true);
     try {
-      await new Promise((resolve) => setTimeout(resolve, 500));
-      onLogin("admin", { username, password });
+      const success = await onLogin("admin", { username, password });
+      if (!success) {
+        Alert.alert(
+          "Erro de Login",
+          "Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.",
+        );
+      }
     } catch (error) {
-      Alert.alert("Error", "Login failed. Please try again.");
+      console.error("Login error:", error);
+      Alert.alert(
+        "Erro de Conexão",
+        "Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.",
+      );
     } finally {
       setIsLoading(false);
     }
   };
 
-  const handleGuestLogin = () => {
-    console.log("Demo button pressed!");
+  const handleGuestLogin = async () => {
     try {
-      onLogin("guest");
+      const success = await onLogin("guest");
+      if (!success) {
+        Alert.alert(
+          "Erro",
+          "Não foi possível iniciar o modo demo. Tente novamente.",
+        );
+      }
     } catch (error) {
       console.error("Error during guest login:", error);
-      Alert.alert("Error", "Unable to start demo mode. Please try again.");
+      Alert.alert(
+        "Erro",
+        "Não foi possível iniciar o modo demo. Tente novamente.",
+      );
     }
   };
 
@@ -56,11 +77,11 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
       <View style={styles.header}>
         <Ionicons name="fitness" size={60} color="#007AFF" />
         <Text style={styles.title}>PR Tracker</Text>
-        <Text style={styles.subtitle}>Track your fitness journey</Text>
+        <Text style={styles.subtitle}>Acompanhe sua jornada fitness</Text>
       </View>
 
       <View style={styles.loginSection}>
-        <Text style={styles.sectionTitle}>Admin Login</Text>
+        <Text style={styles.sectionTitle}>Login</Text>
 
         <View style={styles.inputContainer}>
           <Ionicons
@@ -71,7 +92,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           />
           <TextInput
             style={styles.input}
-            placeholder="Username"
+            placeholder="Usuário ou Email"
             value={username}
             onChangeText={setUsername}
             autoCapitalize="none"
@@ -88,7 +109,7 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           />
           <TextInput
             style={[styles.input, styles.passwordInput]}
-            placeholder="Password"
+            placeholder="Senha"
             value={password}
             onChangeText={setPassword}
             secureTextEntry={!showPassword}
@@ -113,21 +134,22 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
           disabled={isLoading}
         >
           <Text style={styles.loginButtonText}>
-            {isLoading ? "Logging in..." : "Login as Admin"}
+            {isLoading ? "Entrando..." : "Entrar"}
           </Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.divider}>
         <View style={styles.dividerLine} />
-        <Text style={styles.dividerText}>OR</Text>
+        <Text style={styles.dividerText}>OU</Text>
         <View style={styles.dividerLine} />
       </View>
 
       <View style={styles.guestSection}>
-        <Text style={styles.sectionTitle}>Try Demo</Text>
+        <Text style={styles.sectionTitle}>Experimentar Demo</Text>
         <Text style={styles.guestDescription}>
-          Explore the app with sample data - perfect for portfolio viewing
+          Explore o app com dados de exemplo - perfeito para visualizar o
+          portfólio
         </Text>
 
         <TouchableOpacity
@@ -140,14 +162,27 @@ export default function LoginScreen({ onLogin }: LoginScreenProps) {
             color="#FFF"
             style={styles.buttonIcon}
           />
-          <Text style={styles.loginButtonText}>View Demo</Text>
+          <Text style={styles.loginButtonText}>Ver Demo</Text>
         </TouchableOpacity>
       </View>
 
       <View style={styles.footer}>
         <Text style={styles.footerText}>
-          This app is part of my portfolio. Use demo mode to explore features.
+          Este app faz parte do meu portfólio. Use o modo demo para explorar as
+          funcionalidades.
         </Text>
+
+        {onShowRegister && (
+          <TouchableOpacity
+            style={styles.createAccountButton}
+            onPress={onShowRegister}
+          >
+            <Text style={styles.createAccountText}>
+              Não tem uma conta?{" "}
+              <Text style={styles.createAccountLink}>Criar conta</Text>
+            </Text>
+          </TouchableOpacity>
+        )}
       </View>
     </ScrollView>
   );
@@ -284,5 +319,18 @@ const styles = StyleSheet.create({
     color: "#999",
     textAlign: "center",
     lineHeight: 18,
+  },
+  createAccountButton: {
+    marginTop: 20,
+    padding: 15,
+  },
+  createAccountText: {
+    fontSize: 14,
+    color: "#666",
+    textAlign: "center",
+  },
+  createAccountLink: {
+    color: "#007AFF",
+    fontWeight: "600",
   },
 });

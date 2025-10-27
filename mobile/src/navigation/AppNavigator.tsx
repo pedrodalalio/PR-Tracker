@@ -16,6 +16,7 @@ import NewWorkoutScreen from "../screens/NewWorkoutScreen";
 import ManageExercisesScreen from "../screens/ManageExercisesScreen";
 import GoalSettingsScreen from "../screens/GoalSettingsScreen";
 import LoginScreen from "../screens/LoginScreen";
+import RegisterScreen from "../screens/RegisterScreen";
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -41,10 +42,16 @@ export type ExerciseStackParamList = {
   ManageExercises: undefined;
 };
 
+export type AuthStackParamList = {
+  Login: undefined;
+  Register: undefined;
+};
+
 const RootStack = createNativeStackNavigator<RootStackParamList>();
 const Tab = createBottomTabNavigator<RootTabParamList>();
 const WorkoutStack = createNativeStackNavigator<WorkoutStackParamList>();
 const ExerciseStack = createNativeStackNavigator<ExerciseStackParamList>();
+const AuthStack = createNativeStackNavigator<AuthStackParamList>();
 
 const getTabTitle = (routeName: string): string => {
   const titles: { [key: string]: string } = {
@@ -120,7 +127,6 @@ function TabNavigator() {
   const { logout, user, isGuest } = useAuth();
 
   const handleLogout = () => {
-    console.log("Logout button pressed");
     Alert.alert(
       "Sair",
       `Tem certeza que deseja sair?${isGuest ? " Você perderá todas as alterações feitas no modo demo." : ""}`,
@@ -130,10 +136,8 @@ function TabNavigator() {
           text: "Sair",
           style: "destructive",
           onPress: async () => {
-            console.log("User confirmed logout");
             try {
               await logout();
-              console.log("Logout completed successfully");
             } catch (error) {
               console.error("Logout failed:", error);
               Alert.alert("Erro", "Falha ao sair. Tente novamente.");
@@ -214,27 +218,77 @@ function TabNavigator() {
             : undefined,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
-      <Tab.Screen name="Workouts" component={WorkoutStackNavigator} options={{ title: 'Treinos' }} />
-      <Tab.Screen name="Exercises" component={ExerciseStackNavigator} options={{ title: 'Exercícios' }} />
-      <Tab.Screen name="Progress" component={ProgressScreen} options={{ title: 'Progresso' }} />
-      <Tab.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Calendário' }} />
+      <Tab.Screen
+        name="Home"
+        component={HomeScreen}
+        options={{ title: "Home" }}
+      />
+      <Tab.Screen
+        name="Workouts"
+        component={WorkoutStackNavigator}
+        options={{ title: "Treinos" }}
+      />
+      <Tab.Screen
+        name="Exercises"
+        component={ExerciseStackNavigator}
+        options={{ title: "Exercícios" }}
+      />
+      <Tab.Screen
+        name="Progress"
+        component={ProgressScreen}
+        options={{ title: "Progresso" }}
+      />
+      <Tab.Screen
+        name="Calendar"
+        component={CalendarScreen}
+        options={{ title: "Calendário" }}
+      />
     </Tab.Navigator>
   );
 }
 
-export default function AppNavigator() {
-  const { isAuthenticated, isLoading, login } = useAuth();
+function AuthNavigator() {
+  const { login, register } = useAuth();
 
   const handleLogin = async (
     type: "admin" | "guest",
     credentials?: { username: string; password: string },
-  ) => {
-    const success = await login(type, credentials);
-    if (!success && type === "admin") {
-      Alert.alert("Falha no Login", "Credenciais inválidas. Tente novamente.");
-    }
+  ): Promise<boolean> => {
+    return await login(type, credentials);
   };
+
+  const handleRegister = async (userData: {
+    username: string;
+    email: string;
+    password: string;
+  }): Promise<boolean> => {
+    return await register(userData);
+  };
+
+  return (
+    <AuthStack.Navigator screenOptions={{ headerShown: false }}>
+      <AuthStack.Screen name="Login">
+        {({ navigation }) => (
+          <LoginScreen
+            onLogin={handleLogin}
+            onShowRegister={() => navigation.navigate("Register")}
+          />
+        )}
+      </AuthStack.Screen>
+      <AuthStack.Screen name="Register">
+        {({ navigation }) => (
+          <RegisterScreen
+            onRegister={handleRegister}
+            onBackToLogin={() => navigation.navigate("Login")}
+          />
+        )}
+      </AuthStack.Screen>
+    </AuthStack.Navigator>
+  );
+}
+
+export default function AppNavigator() {
+  const { isAuthenticated, isLoading } = useAuth();
 
   if (isLoading) {
     return (
@@ -262,7 +316,7 @@ export default function AppNavigator() {
           />
         </RootStack.Navigator>
       ) : (
-        <LoginScreen onLogin={handleLogin} />
+        <AuthNavigator />
       )}
     </NavigationContainer>
   );
