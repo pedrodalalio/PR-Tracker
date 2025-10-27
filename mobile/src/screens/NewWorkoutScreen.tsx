@@ -75,6 +75,39 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     }
   };
 
+  const loadLastWorkoutExercises = async () => {
+    if (!workoutType) return;
+
+    try {
+      // Get all workouts and filter by type, excluding today's date
+      const workouts = await workoutApi.getWorkouts();
+      const workoutsOfSameType = workouts
+        .filter(workout =>
+          workout.workoutType === workoutType &&
+          workout.date !== selectedDate
+        )
+        .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+
+      if (workoutsOfSameType.length > 0) {
+        const lastWorkout = workoutsOfSameType[0];
+
+        // Convert the exercises from the last workout to new WorkoutExercise objects
+        const lastWorkoutExercises: WorkoutExercise[] = lastWorkout.exercises.map((workoutExercise, index) => ({
+          id: `${Date.now()}_${index}`,
+          exerciseId: workoutExercise.exercise.id,
+          exercise: workoutExercise.exercise,
+          sets: [], // Start with empty sets so user can add their own
+          notes: workoutExercise.notes || '', // Keep notes from last workout
+        }));
+
+        setSelectedExercises(lastWorkoutExercises);
+      }
+    } catch (error) {
+      console.error('Failed to load last workout exercises:', error);
+      // Don't show error to user, just proceed normally
+    }
+  };
+
   const handleSearch = (query: string) => {
     setSearchQuery(query);
     if (query.trim() === '') {
@@ -226,7 +259,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     setWorkoutType(suggestedType);
   };
 
-  const handleContinueToExercises = () => {
+  const handleContinueToExercises = async () => {
     if (!workoutType || !selectedDate) {
       Alert.alert('Erro', 'Por favor selecione a data e tipo de treino');
       return;
@@ -239,7 +272,12 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     }
 
     setStep('exercises');
-    loadExercises();
+
+    // Load exercises and last workout exercises concurrently
+    await Promise.all([
+      loadExercises(),
+      loadLastWorkoutExercises()
+    ]);
   };
 
   // Helper function to calculate pace in minutes per kilometer
@@ -766,7 +804,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
           onPress={() => setShowExerciseList(true)}
         >
           <Ionicons name="add-circle" size={24} color="#007AFF" />
-          <Text style={styles.addExerciseText}>Add {getWorkoutTypeName(workoutType!)} Exercise</Text>
+          <Text style={styles.addExerciseText}>Adicionar Exercício de {getWorkoutTypeName(workoutType!)}</Text>
         </TouchableOpacity>
 
         {selectedExercises.map((exercise, index) => renderSelectedExercise(exercise, index))}
