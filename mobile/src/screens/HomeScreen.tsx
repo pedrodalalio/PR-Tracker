@@ -62,7 +62,7 @@ export default function HomeScreen({ navigation }: any) {
       setStreakInfo(streak);
       calculateDashboardStats(sortedWorkouts, weekProgress);
     } catch (error) {
-      Alert.alert("Error", "Failed to load dashboard data");
+      Alert.alert("Erro", "Falha ao carregar dados do painel");
       console.error("Dashboard loading error:", error);
     } finally {
       setLoading(false);
@@ -132,8 +132,8 @@ export default function HomeScreen({ navigation }: any) {
 
   const getWorkoutTypeName = (type: WorkoutType): string => {
     const types = {
-      upper: 'Upper Body',
-      legs: 'Legs',
+      upper: 'Membros Superiores',
+      legs: 'Pernas',
       cardio: 'Cardio'
     };
     return types[type];
@@ -150,9 +150,9 @@ export default function HomeScreen({ navigation }: any) {
 
   const getGreeting = () => {
     const hour = new Date().getHours();
-    if (hour < 12) return 'Good Morning! 🌅';
-    if (hour < 17) return 'Good Afternoon! ☀️';
-    return 'Good Evening! 🌙';
+    if (hour < 12) return 'Bom Dia! 🌅';
+    if (hour < 17) return 'Boa Tarde! ☀️';
+    return 'Boa Noite! 🌙';
   };
 
   const getWeekProgress = () => {
@@ -162,7 +162,7 @@ export default function HomeScreen({ navigation }: any) {
   };
 
   const renderWeeklyProgress = () => {
-    const days = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+    const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
     const today = new Date();
     const currentDay = today.getDay();
 
@@ -171,7 +171,7 @@ export default function HomeScreen({ navigation }: any) {
 
     return (
       <View style={styles.weekProgressContainer}>
-        <Text style={styles.sectionTitle}>This Week's Progress</Text>
+        <Text style={styles.sectionTitle}>Progresso da Semana</Text>
         <View style={styles.weekDays}>
           {days.map((day, index) => {
             const dayDate = new Date(startOfWeek);
@@ -205,7 +205,7 @@ export default function HomeScreen({ navigation }: any) {
             <View style={[styles.progressFill, { width: `${getWeekProgress()}%` }]} />
           </View>
           <Text style={styles.progressText}>
-            {dashboardStats.thisWeekWorkouts}/{userGoals?.weeklyWorkoutGoal ?? 3} workouts this week
+            {dashboardStats.thisWeekWorkouts}/{userGoals?.weeklyWorkoutGoal ?? 3} treinos esta semana
           </Text>
         </View>
       </View>
@@ -215,7 +215,7 @@ export default function HomeScreen({ navigation }: any) {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={styles.loadingText}>Loading your dashboard...</Text>
+        <Text style={styles.loadingText}>Carregando seu painel...</Text>
       </View>
     );
   }
@@ -227,16 +227,16 @@ export default function HomeScreen({ navigation }: any) {
         <View style={styles.headerTop}>
           <View style={styles.greetingContainer}>
             <Text style={styles.greeting}>{getGreeting()}</Text>
-            <Text style={styles.subtitle}>Let's crush your fitness goals!</Text>
+            <Text style={styles.subtitle}>Vamos alcançar seus objetivos fitness!</Text>
           </View>
           <SyncStatusIndicator style={styles.syncStatus} />
         </View>
         {streakInfo && streakInfo.currentStreak > 0 && (
           <View style={styles.streakBadge}>
             <Ionicons name="flame" size={16} color="#FF6B35" />
-            <Text style={styles.streakText}>{streakInfo.currentStreak} week streak!</Text>
+            <Text style={styles.streakText}>{streakInfo.currentStreak} semanas seguidas!</Text>
             {streakInfo.bestStreak > streakInfo.currentStreak && (
-              <Text style={styles.bestStreakText}>Best: {streakInfo.bestStreak}</Text>
+              <Text style={styles.bestStreakText}>Melhor: {streakInfo.bestStreak}</Text>
             )}
           </View>
         )}
@@ -250,8 +250,8 @@ export default function HomeScreen({ navigation }: any) {
         <Ionicons name="add-circle" size={24} color="white" />
         <Text style={styles.primaryButtonText}>
           {dashboardStats.nextWorkoutType
-            ? `Start ${getWorkoutTypeName(dashboardStats.nextWorkoutType)}`
-            : 'Start New Workout'}
+            ? `Iniciar ${getWorkoutTypeName(dashboardStats.nextWorkoutType)}`
+            : 'Novo Treino'}
         </Text>
         {dashboardStats.nextWorkoutType && (
           <Ionicons
@@ -268,7 +268,7 @@ export default function HomeScreen({ navigation }: any) {
       {/* Stats Grid */}
       <View style={styles.statsSection}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Your Stats</Text>
+          <Text style={styles.sectionTitle}>Suas Estatísticas</Text>
           <TouchableOpacity onPress={() => navigation.navigate('GoalSettings')}>
             <Ionicons name="settings-outline" size={24} color="#007AFF" />
           </TouchableOpacity>
@@ -277,19 +277,19 @@ export default function HomeScreen({ navigation }: any) {
           <View style={styles.statCard}>
             <Ionicons name="fitness" size={28} color="#007AFF" />
             <Text style={styles.statNumber}>{dashboardStats.totalWorkouts}</Text>
-            <Text style={styles.statLabel}>Total Workouts</Text>
+            <Text style={styles.statLabel}>Total de Treinos</Text>
           </View>
 
           <View style={styles.statCard}>
             <Ionicons name="calendar" size={28} color="#34C759" />
             <Text style={styles.statNumber}>{dashboardStats.thisWeekWorkouts}</Text>
-            <Text style={styles.statLabel}>This Week</Text>
+            <Text style={styles.statLabel}>Esta Semana</Text>
           </View>
 
           <View style={styles.statCard}>
             <Ionicons name="flame" size={28} color="#FF6B35" />
             <Text style={styles.statNumber}>{streakInfo?.currentStreak ?? 0}</Text>
-            <Text style={styles.statLabel}>Week Streak</Text>
+            <Text style={styles.statLabel}>Sequência</Text>
           </View>
         </View>
       </View>
@@ -297,17 +297,17 @@ export default function HomeScreen({ navigation }: any) {
       {/* Recent Workouts */}
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Recent Activity</Text>
+          <Text style={styles.sectionTitle}>Atividade Recente</Text>
           <TouchableOpacity onPress={() => navigation.navigate("Workouts")}>
-            <Text style={styles.seeAllText}>See All</Text>
+            <Text style={styles.seeAllText}>Ver Todos</Text>
           </TouchableOpacity>
         </View>
 
         {allWorkouts.length === 0 ? (
           <View style={styles.emptyState}>
             <Ionicons name="barbell-outline" size={48} color="#ccc" />
-            <Text style={styles.emptyTitle}>No workouts yet!</Text>
-            <Text style={styles.emptySubtitle}>Start your fitness journey today</Text>
+            <Text style={styles.emptyTitle}>Nenhum treino ainda!</Text>
+            <Text style={styles.emptySubtitle}>Comece sua jornada fitness hoje</Text>
           </View>
         ) : (
           allWorkouts.slice(0, 3).map((workout) => (
@@ -335,7 +335,7 @@ export default function HomeScreen({ navigation }: any) {
                 </Text>
               </View>
               <Text style={styles.workoutDetails}>
-                {workout.exercises.length} exercises • {workout.exercises.reduce((total, ex) => total + ex.sets.length, 0)} sets
+                {workout.exercises.length} exercícios • {workout.exercises.reduce((total, ex) => total + ex.sets.length, 0)} séries
               </Text>
             </TouchableOpacity>
           ))
@@ -352,12 +352,12 @@ export default function HomeScreen({ navigation }: any) {
           />
           <Text style={styles.motivationText}>
             {streakInfo.currentStreak >= 4
-              ? `${streakInfo.currentStreak} week streak! You're unstoppable! 🏆`
+              ? `${streakInfo.currentStreak} semanas seguidas! Você é imparável! 🏆`
               : streakInfo.isOnTrack
-              ? `Week goal achieved! Keep the streak alive! 💪`
+              ? `Meta da semana alcançada! Mantenha a sequência! 💪`
               : streakInfo.daysUntilDeadline > 0
-              ? `${streakInfo.daysUntilDeadline} days left to save your streak! 🔥`
-              : "Your streak is at risk! Time to workout! ⚡"
+              ? `${streakInfo.daysUntilDeadline} dias restantes para salvar sua sequência! 🔥`
+              : "Sua sequência está em risco! Hora de treinar! ⚡"
             }
           </Text>
         </View>

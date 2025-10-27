@@ -1,21 +1,21 @@
-import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
-import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { createNativeStackNavigator } from '@react-navigation/native-stack';
-import { TouchableOpacity, View, ActivityIndicator, Alert } from 'react-native';
-import { Ionicons } from '@expo/vector-icons';
-import { useAuth } from '../contexts/AuthContext';
+import React from "react";
+import { NavigationContainer } from "@react-navigation/native";
+import { createBottomTabNavigator } from "@react-navigation/bottom-tabs";
+import { createNativeStackNavigator } from "@react-navigation/native-stack";
+import { TouchableOpacity, View, ActivityIndicator, Alert } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
+import { useAuth } from "../contexts/AuthContext";
 
-import HomeScreen from '../screens/HomeScreen';
-import WorkoutsScreen from '../screens/WorkoutsScreen';
-import WorkoutDetailScreen from '../screens/WorkoutDetailScreen';
-import ExercisesScreen from '../screens/ExercisesScreen';
-import ProgressScreen from '../screens/ProgressScreen';
-import CalendarScreen from '../screens/CalendarScreen';
-import NewWorkoutScreen from '../screens/NewWorkoutScreen';
-import ManageExercisesScreen from '../screens/ManageExercisesScreen';
-import GoalSettingsScreen from '../screens/GoalSettingsScreen';
-import LoginScreen from '../screens/LoginScreen';
+import HomeScreen from "../screens/HomeScreen";
+import WorkoutsScreen from "../screens/WorkoutsScreen";
+import WorkoutDetailScreen from "../screens/WorkoutDetailScreen";
+import ExercisesScreen from "../screens/ExercisesScreen";
+import ProgressScreen from "../screens/ProgressScreen";
+import CalendarScreen from "../screens/CalendarScreen";
+import NewWorkoutScreen from "../screens/NewWorkoutScreen";
+import ManageExercisesScreen from "../screens/ManageExercisesScreen";
+import GoalSettingsScreen from "../screens/GoalSettingsScreen";
+import LoginScreen from "../screens/LoginScreen";
 
 export type RootStackParamList = {
   MainTabs: undefined;
@@ -46,6 +46,17 @@ const Tab = createBottomTabNavigator<RootTabParamList>();
 const WorkoutStack = createNativeStackNavigator<WorkoutStackParamList>();
 const ExerciseStack = createNativeStackNavigator<ExerciseStackParamList>();
 
+const getTabTitle = (routeName: string): string => {
+  const titles: { [key: string]: string } = {
+    Home: "Home",
+    Workouts: "Treinos",
+    Exercises: "Exercícios",
+    Progress: "Progresso",
+    Calendar: "Calendário",
+  };
+  return titles[routeName] || routeName;
+};
+
 function WorkoutStackNavigator() {
   return (
     <WorkoutStack.Navigator>
@@ -53,11 +64,11 @@ function WorkoutStackNavigator() {
         name="WorkoutsList"
         component={WorkoutsScreen}
         options={({ navigation }) => ({
-          title: 'My Workouts',
+          title: "Meus Treinos",
           headerRight: () => (
             <TouchableOpacity
               style={{ marginRight: 16 }}
-              onPress={() => navigation.navigate('NewWorkout')}
+              onPress={() => navigation.navigate("NewWorkout")}
             >
               <Ionicons name="add" size={24} color="#007AFF" />
             </TouchableOpacity>
@@ -67,7 +78,7 @@ function WorkoutStackNavigator() {
       <WorkoutStack.Screen
         name="WorkoutDetail"
         component={WorkoutDetailScreen}
-        options={{ title: 'Workout Details' }}
+        options={{ title: "Detalhes do Treino" }}
       />
       <WorkoutStack.Screen
         name="NewWorkout"
@@ -85,11 +96,11 @@ function ExerciseStackNavigator() {
         name="ExercisesList"
         component={ExercisesScreen}
         options={({ navigation }) => ({
-          title: 'Exercises',
+          title: "Exercícios",
           headerRight: () => (
             <TouchableOpacity
               style={{ marginRight: 16 }}
-              onPress={() => navigation.navigate('ManageExercises')}
+              onPress={() => navigation.navigate("ManageExercises")}
             >
               <Ionicons name="settings" size={24} color="#007AFF" />
             </TouchableOpacity>
@@ -109,23 +120,27 @@ function TabNavigator() {
   const { logout, user, isGuest } = useAuth();
 
   const handleLogout = () => {
-    console.log('Logout button pressed');
+    console.log("Logout button pressed");
     Alert.alert(
-      'Logout',
-      `Are you sure you want to logout?${isGuest ? ' You will lose any demo changes made.' : ''}`,
+      "Sair",
+      `Tem certeza que deseja sair?${isGuest ? " Você perderá todas as alterações feitas no modo demo." : ""}`,
       [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Logout', style: 'destructive', onPress: async () => {
-          console.log('User confirmed logout');
-          try {
-            await logout();
-            console.log('Logout completed successfully');
-          } catch (error) {
-            console.error('Logout failed:', error);
-            Alert.alert('Error', 'Failed to logout. Please try again.');
-          }
-        }}
-      ]
+        { text: "Cancelar", style: "cancel" },
+        {
+          text: "Sair",
+          style: "destructive",
+          onPress: async () => {
+            console.log("User confirmed logout");
+            try {
+              await logout();
+              console.log("Logout completed successfully");
+            } catch (error) {
+              console.error("Logout failed:", error);
+              Alert.alert("Erro", "Falha ao sair. Tente novamente.");
+            }
+          },
+        },
+      ],
     );
   };
 
@@ -136,59 +151,74 @@ function TabNavigator() {
           let iconName: keyof typeof Ionicons.glyphMap;
 
           switch (route.name) {
-            case 'Home':
-              iconName = focused ? 'home' : 'home-outline';
+            case "Home":
+              iconName = focused ? "home" : "home-outline";
               break;
-            case 'Workouts':
-              iconName = focused ? 'fitness' : 'fitness-outline';
+            case "Workouts":
+              iconName = focused ? "fitness" : "fitness-outline";
               break;
-            case 'Exercises':
-              iconName = focused ? 'barbell' : 'barbell-outline';
+            case "Exercises":
+              iconName = focused ? "barbell" : "barbell-outline";
               break;
-            case 'Progress':
-              iconName = focused ? 'trending-up' : 'trending-up-outline';
+            case "Progress":
+              iconName = focused ? "trending-up" : "trending-up-outline";
               break;
-            case 'Calendar':
-              iconName = focused ? 'calendar' : 'calendar-outline';
+            case "Calendar":
+              iconName = focused ? "calendar" : "calendar-outline";
               break;
             default:
-              iconName = 'ellipse';
+              iconName = "ellipse";
           }
 
           return <Ionicons name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#007AFF',
-        tabBarInactiveTintColor: 'gray',
-        headerShown: route.name === 'Home',
-        headerTitle: route.name,
+        tabBarActiveTintColor: "#007AFF",
+        tabBarInactiveTintColor: "gray",
+        headerShown: route.name === "Home",
+        headerTitle: getTabTitle(route.name),
         headerTitleStyle: {
-          fontWeight: 'bold',
+          fontWeight: "bold",
         },
-        headerRight: route.name === 'Home' ? () => (
-          <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
-            {isGuest && (
-              <View style={{
-                backgroundColor: '#34C759',
-                paddingHorizontal: 8,
-                paddingVertical: 4,
-                borderRadius: 12,
-                marginRight: 10,
-              }}>
-                <Ionicons name="eye-outline" size={12} color="white" />
-              </View>
-            )}
-            <TouchableOpacity onPress={handleLogout}>
-              <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
-            </TouchableOpacity>
-          </View>
-        ) : undefined,
+        headerRight:
+          route.name === "Home"
+            ? () => (
+                <View
+                  style={{
+                    flexDirection: "row",
+                    alignItems: "center",
+                    marginRight: 16,
+                  }}
+                >
+                  {isGuest && (
+                    <View
+                      style={{
+                        backgroundColor: "#34C759",
+                        paddingHorizontal: 8,
+                        paddingVertical: 4,
+                        borderRadius: 12,
+                        marginRight: 10,
+                      }}
+                    >
+                      <Ionicons name="eye-outline" size={12} color="white" />
+                    </View>
+                  )}
+                  <TouchableOpacity onPress={handleLogout}>
+                    <Ionicons
+                      name="log-out-outline"
+                      size={24}
+                      color="#FF3B30"
+                    />
+                  </TouchableOpacity>
+                </View>
+              )
+            : undefined,
       })}
     >
-      <Tab.Screen name="Home" component={HomeScreen} />
-      <Tab.Screen name="Workouts" component={WorkoutStackNavigator} />
-      <Tab.Screen name="Exercises" component={ExerciseStackNavigator} />
-      <Tab.Screen name="Progress" component={ProgressScreen} />
-      <Tab.Screen name="Calendar" component={CalendarScreen} />
+      <Tab.Screen name="Home" component={HomeScreen} options={{ title: 'Home' }} />
+      <Tab.Screen name="Workouts" component={WorkoutStackNavigator} options={{ title: 'Treinos' }} />
+      <Tab.Screen name="Exercises" component={ExerciseStackNavigator} options={{ title: 'Exercícios' }} />
+      <Tab.Screen name="Progress" component={ProgressScreen} options={{ title: 'Progresso' }} />
+      <Tab.Screen name="Calendar" component={CalendarScreen} options={{ title: 'Calendário' }} />
     </Tab.Navigator>
   );
 }
@@ -196,16 +226,26 @@ function TabNavigator() {
 export default function AppNavigator() {
   const { isAuthenticated, isLoading, login } = useAuth();
 
-  const handleLogin = async (type: 'admin' | 'guest', credentials?: { username: string; password: string }) => {
+  const handleLogin = async (
+    type: "admin" | "guest",
+    credentials?: { username: string; password: string },
+  ) => {
     const success = await login(type, credentials);
-    if (!success && type === 'admin') {
-      Alert.alert('Login Failed', 'Invalid credentials. Please try again.');
+    if (!success && type === "admin") {
+      Alert.alert("Falha no Login", "Credenciais inválidas. Tente novamente.");
     }
   };
 
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#F8F9FA' }}>
+      <View
+        style={{
+          flex: 1,
+          justifyContent: "center",
+          alignItems: "center",
+          backgroundColor: "#F8F9FA",
+        }}
+      >
         <ActivityIndicator size="large" color="#007AFF" />
       </View>
     );
@@ -216,7 +256,10 @@ export default function AppNavigator() {
       {isAuthenticated ? (
         <RootStack.Navigator screenOptions={{ headerShown: false }}>
           <RootStack.Screen name="MainTabs" component={TabNavigator} />
-          <RootStack.Screen name="GoalSettings" component={GoalSettingsScreen} />
+          <RootStack.Screen
+            name="GoalSettings"
+            component={GoalSettingsScreen}
+          />
         </RootStack.Navigator>
       ) : (
         <LoginScreen onLogin={handleLogin} />

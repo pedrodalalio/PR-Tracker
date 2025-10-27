@@ -46,7 +46,7 @@ export default function ManageExercisesScreen({ navigation }: any) {
       const exercisesData = await exerciseApi.getExercises();
       setExercises(exercisesData);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load exercises');
+      Alert.alert('Erro', 'Falha ao carregar exercícios');
     } finally {
       setLoading(false);
     }
@@ -87,12 +87,12 @@ export default function ManageExercisesScreen({ navigation }: any) {
 
   const saveExercise = async () => {
     if (!exerciseName.trim()) {
-      Alert.alert('Error', 'Please enter an exercise name');
+      Alert.alert('Erro', 'Por favor insira o nome do exercício');
       return;
     }
 
     if (muscleGroups.length === 0) {
-      Alert.alert('Error', 'Please add at least one muscle group');
+      Alert.alert('Erro', 'Por favor adicione pelo menos um grupo muscular');
       return;
     }
 
@@ -113,35 +113,35 @@ export default function ManageExercisesScreen({ navigation }: any) {
             ex.id === editingExercise.id ? updatedExercise : ex,
           ),
         );
-        Alert.alert('Success', 'Exercise updated successfully!');
+        Alert.alert('Sucesso', 'Exercício atualizado com sucesso!');
       } else {
         const newExercise = await exerciseApi.createExercise(exerciseData);
         setExercises([...exercises, newExercise]);
-        Alert.alert('Success', 'Exercise created successfully!');
+        Alert.alert('Sucesso', 'Exercício criado com sucesso!');
       }
 
       setShowCreateModal(false);
       resetForm();
     } catch (error) {
-      Alert.alert('Error', 'Failed to save exercise');
+      Alert.alert('Erro', 'Falha ao salvar exercício');
     }
   };
 
   const deleteExercise = async (exerciseId: string) => {
     Alert.alert(
-      'Delete Exercise',
+      'Excluir Exercício',
       'Are you sure you want to delete this exercise?',
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
             try {
               await exerciseApi.deleteExercise(exerciseId);
               setExercises(exercises.filter(ex => ex.id !== exerciseId));
             } catch (error) {
-              Alert.alert('Error', 'Failed to delete exercise');
+              Alert.alert('Erro', 'Falha ao excluir exercício');
             }
           },
         },
@@ -174,7 +174,12 @@ export default function ManageExercisesScreen({ navigation }: any) {
               { backgroundColor: getCategoryColor(item.category) },
             ]}
           >
-            <Text style={styles.categoryBadgeText}>{item.category}</Text>
+            <Text style={styles.categoryBadgeText}>
+              {item.category === 'Upper' ? 'Superiores' :
+               item.category === 'Lower' ? 'Inferiores' :
+               item.category === 'Cardio' ? 'Cardio' :
+               item.category}
+            </Text>
           </View>
         </View>
         <View style={styles.exerciseActions}>
@@ -208,7 +213,7 @@ export default function ManageExercisesScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
         </TouchableOpacity>
-        <Text style={styles.title}>Manage Exercises</Text>
+        <Text style={styles.title}>Gerenciar Exercícios</Text>
         <TouchableOpacity style={styles.addButton} onPress={openCreateModal}>
           <Ionicons name="add" size={24} color="white" />
         </TouchableOpacity>
@@ -232,7 +237,11 @@ export default function ManageExercisesScreen({ navigation }: any) {
                     styles.categoryButtonTextActive,
                 ]}
               >
-                {category === 'all' ? 'All' : category}
+                {category === 'all' ? 'Todos' :
+                 category === 'Upper' ? 'Superiores' :
+                 category === 'Lower' ? 'Inferiores' :
+                 category === 'Cardio' ? 'Cardio' :
+                 category}
               </Text>
             </TouchableOpacity>
           ))}
@@ -252,9 +261,9 @@ export default function ManageExercisesScreen({ navigation }: any) {
           ListEmptyComponent={
             <View style={styles.centerContainer}>
               <Ionicons name="barbell-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyTitle}>No exercises found</Text>
+              <Text style={styles.emptyTitle}>Nenhum exercício encontrado</Text>
               <Text style={styles.emptySubtitle}>
-                Create your first exercise!
+                Crie seu primeiro exercício!
               </Text>
             </View>
           }
@@ -270,29 +279,29 @@ export default function ManageExercisesScreen({ navigation }: any) {
         <View style={styles.modalContainer}>
           <View style={styles.modalHeader}>
             <TouchableOpacity onPress={() => setShowCreateModal(false)}>
-              <Text style={styles.cancelText}>Cancel</Text>
+              <Text style={styles.cancelText}>Cancelar</Text>
             </TouchableOpacity>
             <Text style={styles.modalTitle}>
-              {editingExercise ? 'Edit Exercise' : 'New Exercise'}
+              {editingExercise ? 'Editar Exercício' : 'Novo Exercício'}
             </Text>
             <TouchableOpacity onPress={saveExercise}>
-              <Text style={styles.saveText}>Save</Text>
+              <Text style={styles.saveText}>Salvar</Text>
             </TouchableOpacity>
           </View>
 
           <ScrollView style={styles.modalContent}>
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Exercise Name</Text>
+              <Text style={styles.label}>Nome do Exercício</Text>
               <TextInput
                 style={styles.input}
-                placeholder="Enter exercise name"
+                placeholder="Digite o nome do exercício"
                 value={exerciseName}
                 onChangeText={setExerciseName}
               />
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Category</Text>
+              <Text style={styles.label}>Categoria</Text>
               <View style={styles.categorySelector}>
                 {categories.map(category => (
                   <TouchableOpacity
@@ -311,7 +320,10 @@ export default function ManageExercisesScreen({ navigation }: any) {
                           styles.categorySelectorTextActive,
                       ]}
                     >
-                      {category}
+                      {category === 'Upper' ? 'Superiores' :
+                       category === 'Lower' ? 'Inferiores' :
+                       category === 'Cardio' ? 'Cardio' :
+                       category}
                     </Text>
                   </TouchableOpacity>
                 ))}
@@ -319,11 +331,11 @@ export default function ManageExercisesScreen({ navigation }: any) {
             </View>
 
             <View style={styles.formGroup}>
-              <Text style={styles.label}>Muscle Groups</Text>
+              <Text style={styles.label}>Grupos Musculares</Text>
               <View style={styles.muscleGroupInput}>
                 <TextInput
                   style={styles.muscleGroupTextInput}
-                  placeholder="Enter muscle group"
+                  placeholder="Digite o grupo muscular"
                   value={muscleGroupInput}
                   onChangeText={setMuscleGroupInput}
                   onSubmitEditing={addMuscleGroup}

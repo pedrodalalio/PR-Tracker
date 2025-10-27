@@ -38,8 +38,8 @@ export default function GoalSettingsScreen({ navigation }: any) {
     } catch (error) {
       console.error('Goals loading error:', error);
       Alert.alert(
-        'Connection Error',
-        'Failed to load goals data. Please check if the backend server is running.\n\nError: ' + (error instanceof Error ? error.message : 'Unknown error')
+        'Erro de Conexão',
+        'Falha ao carregar dados de metas. Verifique se o servidor backend está executando.\n\nErro: ' + (error instanceof Error ? error.message : 'Erro desconhecido')
       );
     } finally {
       setLoading(false);
@@ -64,12 +64,12 @@ export default function GoalSettingsScreen({ navigation }: any) {
       }
 
       Alert.alert(
-        'Goal Updated! 🎯',
-        `Your new weekly goal is ${newGoal} workouts. Your streak will be recalculated based on this new target.`
+        'Meta Atualizada! 🎯',
+        `Sua nova meta semanal é ${newGoal} treinos. Sua sequência será recalculada com base nesta nova meta.`
       );
     } catch (error) {
       console.error('Failed to update goal:', error);
-      Alert.alert('Error', `Failed to update goal: ${error instanceof Error ? error.message : 'Unknown error'}`);
+      Alert.alert('Erro', `Falha ao atualizar meta: ${error instanceof Error ? error.message : 'Erro desconhecido'}`);
     } finally {
       setLoading(false);
     }
@@ -84,9 +84,9 @@ export default function GoalSettingsScreen({ navigation }: any) {
     >
       <View style={styles.modalOverlay}>
         <View style={styles.modalContent}>
-          <Text style={styles.modalTitle}>Choose Weekly Goal</Text>
+          <Text style={styles.modalTitle}>Escolher Meta Semanal</Text>
           <Text style={styles.modalSubtitle}>
-            How many workouts do you want to complete each week?
+            Quantos treinos você quer completar por semana?
           </Text>
 
           <View style={styles.goalOptions}>
@@ -110,7 +110,7 @@ export default function GoalSettingsScreen({ navigation }: any) {
                   styles.goalOptionLabel,
                   userGoals?.weeklyWorkoutGoal === goal && styles.selectedGoalOptionText
                 ]}>
-                  workout{goal !== 1 ? 's' : ''}
+                  treino{goal !== 1 ? 's' : ''}
                 </Text>
                 {userGoals?.weeklyWorkoutGoal === goal && (
                   <View style={styles.selectedIndicator}>
@@ -130,7 +130,7 @@ export default function GoalSettingsScreen({ navigation }: any) {
             style={styles.cancelButton}
             onPress={() => setShowGoalPicker(false)}
           >
-            <Text style={styles.cancelButtonText}>Cancel</Text>
+            <Text style={styles.cancelButtonText}>Cancelar</Text>
           </TouchableOpacity>
         </View>
       </View>
@@ -140,7 +140,7 @@ export default function GoalSettingsScreen({ navigation }: any) {
   if (loading) {
     return (
       <View style={[styles.container, styles.centered]}>
-        <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingText}>Carregando...</Text>
       </View>
     );
   }
@@ -152,13 +152,13 @@ export default function GoalSettingsScreen({ navigation }: any) {
         <TouchableOpacity onPress={() => navigation.goBack()}>
           <Ionicons name="arrow-back" size={24} color="white" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Goal Settings</Text>
+        <Text style={styles.headerTitle}>Configurações de Metas</Text>
         <View style={{ width: 24 }} />
       </View>
 
       {/* Current Goal Section */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Weekly Workout Goal</Text>
+        <Text style={styles.sectionTitle}>Meta Semanal de Treinos</Text>
         <TouchableOpacity
           style={styles.goalCard}
           onPress={() => setShowGoalPicker(true)}
@@ -166,12 +166,12 @@ export default function GoalSettingsScreen({ navigation }: any) {
           <View style={styles.goalCardContent}>
             <View style={styles.goalDisplay}>
               <Text style={styles.goalNumber}>{userGoals?.weeklyWorkoutGoal ?? 3}</Text>
-              <Text style={styles.goalLabel}>workouts per week</Text>
+              <Text style={styles.goalLabel}>treinos por semana</Text>
             </View>
             <Ionicons name="chevron-forward" size={24} color="#666" />
           </View>
           <Text style={styles.goalDescription}>
-            Complete this many workouts each week to maintain your streak
+            Complete esta quantidade de treinos por semana para manter sua sequência
           </Text>
         </TouchableOpacity>
       </View>
@@ -179,49 +179,49 @@ export default function GoalSettingsScreen({ navigation }: any) {
       {/* Streak Information */}
       {streakInfo && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Streak Statistics</Text>
+          <Text style={styles.sectionTitle}>Estatísticas de Sequência</Text>
 
           <View style={styles.streakGrid}>
             <View style={styles.streakCard}>
               <Ionicons name="flame" size={32} color="#FF6B35" />
               <Text style={styles.streakNumber}>{streakInfo.currentStreak}</Text>
-              <Text style={styles.streakLabel}>Current Streak</Text>
-              <Text style={styles.streakSubLabel}>weeks</Text>
+              <Text style={styles.streakLabel}>Sequência Atual</Text>
+              <Text style={styles.streakSubLabel}>semanas</Text>
             </View>
 
             <View style={styles.streakCard}>
               <Ionicons name="trophy" size={32} color="#FFD700" />
               <Text style={styles.streakNumber}>{streakInfo.bestStreak}</Text>
-              <Text style={styles.streakLabel}>Best Streak</Text>
-              <Text style={styles.streakSubLabel}>weeks</Text>
+              <Text style={styles.streakLabel}>Melhor Sequência</Text>
+              <Text style={styles.streakSubLabel}>semanas</Text>
             </View>
 
             <View style={styles.streakCard}>
               <Ionicons name="checkmark-circle" size={32} color="#34C759" />
               <Text style={styles.streakNumber}>{streakInfo.totalWeeksCompleted}</Text>
-              <Text style={styles.streakLabel}>Total Weeks</Text>
-              <Text style={styles.streakSubLabel}>completed</Text>
+              <Text style={styles.streakLabel}>Total de Semanas</Text>
+              <Text style={styles.streakSubLabel}>concluídas</Text>
             </View>
           </View>
 
           {/* Current Week Status */}
           <View style={styles.weekStatusCard}>
             <View style={styles.weekStatusHeader}>
-              <Text style={styles.weekStatusTitle}>This Week</Text>
+              <Text style={styles.weekStatusTitle}>Esta Semana</Text>
               <View style={[
                 styles.statusBadge,
                 { backgroundColor: streakInfo.isOnTrack ? '#34C759' : '#FF6B35' }
               ]}>
                 <Text style={styles.statusBadgeText}>
-                  {streakInfo.isOnTrack ? 'On Track' : 'At Risk'}
+                  {streakInfo.isOnTrack ? 'No Caminho' : 'Em Risco'}
                 </Text>
               </View>
             </View>
             <Text style={styles.weekStatusDescription}>
               {streakInfo.isOnTrack
-                ? 'Great job! You\'ve met your weekly goal.'
+                ? 'Parabéns! Você atingiu sua meta semanal.'
                 : streakInfo.daysUntilDeadline > 0
-                ? `${streakInfo.daysUntilDeadline} days left to save your streak!`
+                ? `${streakInfo.daysUntilDeadline} dias restantes para salvar sua sequência!`
                 : 'Week ended - streak may be broken.'
               }
             </Text>
@@ -231,30 +231,30 @@ export default function GoalSettingsScreen({ navigation }: any) {
 
       {/* How It Works */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>How Streaks Work</Text>
+        <Text style={styles.sectionTitle}>Como as Sequências Funcionam</Text>
         <View style={styles.infoCard}>
           <View style={styles.infoItem}>
             <Ionicons name="checkmark-circle" size={20} color="#34C759" />
             <Text style={styles.infoText}>
-              Complete your weekly goal to maintain your streak
+              Complete sua meta semanal para manter sua sequência
             </Text>
           </View>
           <View style={styles.infoItem}>
             <Ionicons name="calendar" size={20} color="#007AFF" />
             <Text style={styles.infoText}>
-              Weeks run from Monday to Sunday
+              Semanas vão de segunda a domingo
             </Text>
           </View>
           <View style={styles.infoItem}>
             <Ionicons name="warning" size={20} color="#FF6B35" />
             <Text style={styles.infoText}>
-              Miss a week and your streak resets to 0
+              Perca uma semana e sua sequência será zerada
             </Text>
           </View>
           <View style={styles.infoItem}>
             <Ionicons name="trophy" size={20} color="#FFD700" />
             <Text style={styles.infoText}>
-              Your best streak is always remembered
+              Sua melhor sequência é sempre lembrada
             </Text>
           </View>
         </View>

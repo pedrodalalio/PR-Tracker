@@ -17,6 +17,76 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
   const [workout, setWorkout] = useState<Workout | null>(null);
   const [loading, setLoading] = useState(true);
 
+  const translateWorkoutName = (workoutName: string): string => {
+    const translations: { [key: string]: string } = {
+      // Common workout patterns
+      "Upper Workout": "Treino de Superiores",
+      "Upper Body Workout": "Treino de Membros Superiores",
+      "Legs Workout": "Treino de Pernas",
+      "Lower Body Workout": "Treino de Membros Inferiores",
+      "Cardio Workout": "Treino de Cardio",
+      "Full Body Workout": "Treino de Corpo Inteiro",
+      "Push Workout": "Treino de Empurrar",
+      "Pull Workout": "Treino de Puxar",
+      "Chest Workout": "Treino de Peito",
+      "Back Workout": "Treino de Costas",
+      "Shoulder Workout": "Treino de Ombros",
+      "Arms Workout": "Treino de Braços",
+      "Core Workout": "Treino de Core",
+      "HIIT Workout": "Treino HIIT",
+      "Strength Training": "Treino de Força",
+      "Running Session": "Sessão de Corrida",
+      "Morning Workout": "Treino Matinal",
+      "Evening Workout": "Treino Noturno",
+      "Quick Workout": "Treino Rápido",
+      "Intense Workout": "Treino Intenso",
+
+      // Day-based workouts
+      "Monday Workout": "Treino de Segunda",
+      "Tuesday Workout": "Treino de Terça",
+      "Wednesday Workout": "Treino de Quarta",
+      "Thursday Workout": "Treino de Quinta",
+      "Friday Workout": "Treino de Sexta",
+      "Saturday Workout": "Treino de Sábado",
+      "Sunday Workout": "Treino de Domingo",
+
+      // Specific patterns that might come from backend
+      "Upper": "Superiores",
+      "Lower": "Pernas",
+      "Cardio": "Cardio",
+      "Legs": "Pernas",
+      "Arms": "Braços",
+      "Chest": "Peito",
+      "Back": "Costas",
+      "Shoulders": "Ombros",
+    };
+
+    // Try exact match first
+    if (translations[workoutName]) {
+      return translations[workoutName];
+    }
+
+    // Try partial matches for common patterns
+    let translatedName = workoutName;
+
+    // Replace common English words with Portuguese equivalents
+    translatedName = translatedName.replace(/\bWorkout\b/gi, 'Treino');
+    translatedName = translatedName.replace(/\bUpper\b/gi, 'Superiores');
+    translatedName = translatedName.replace(/\bLower\b/gi, 'Pernas');
+    translatedName = translatedName.replace(/\bLegs\b/gi, 'Pernas');
+    translatedName = translatedName.replace(/\bArms\b/gi, 'Braços');
+    translatedName = translatedName.replace(/\bChest\b/gi, 'Peito');
+    translatedName = translatedName.replace(/\bBack\b/gi, 'Costas');
+    translatedName = translatedName.replace(/\bShoulders\b/gi, 'Ombros');
+    translatedName = translatedName.replace(/\bCardio\b/gi, 'Cardio');
+    translatedName = translatedName.replace(/\bCore\b/gi, 'Core');
+    translatedName = translatedName.replace(/\bMorning\b/gi, 'Matinal');
+    translatedName = translatedName.replace(/\bEvening\b/gi, 'Noturno');
+    translatedName = translatedName.replace(/\bSession\b/gi, 'Sessão');
+
+    return translatedName;
+  };
+
   useEffect(() => {
     loadWorkout();
   }, []);
@@ -26,7 +96,7 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
       const workoutData = await workoutApi.getWorkout(workoutId);
       setWorkout(workoutData);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load workout details');
+      Alert.alert('Erro', 'Falha ao carregar detalhes do treino');
       navigation.goBack();
     } finally {
       setLoading(false);
@@ -34,13 +104,14 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
   };
 
   const deleteWorkout = async () => {
+    const translatedName = translateWorkoutName(workout?.name || '');
     Alert.alert(
-      'Delete Workout',
-      `Are you sure you want to delete "${workout?.name}"? This action cannot be undone.`,
+      'Excluir Treino',
+      `Tem certeza que deseja excluir "${translatedName}"? Esta ação não pode ser desfeita.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -48,8 +119,8 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
 
               Toast.show({
                 type: 'success',
-                text1: 'Workout Deleted! 🗑️',
-                text2: `"${workout?.name}" has been removed`,
+                text1: 'Treino Excluído! 🗑️',
+                text2: `"${translatedName}" foi removido`,
                 visibilityTime: 3000,
               });
 
@@ -58,8 +129,8 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
             } catch (error) {
               Toast.show({
                 type: 'error',
-                text1: 'Delete Failed',
-                text2: 'Unable to delete workout. Please try again.',
+                text1: 'Falha na Exclusão',
+                text2: 'Não foi possível excluir o treino. Tente novamente.',
                 visibilityTime: 3000,
               });
             }
@@ -96,7 +167,7 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.loadingText}>Loading workout...</Text>
+        <Text style={styles.loadingText}>Carregando treino...</Text>
       </View>
     );
   }
@@ -104,7 +175,7 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
   if (!workout) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.errorText}>Workout not found</Text>
+        <Text style={styles.errorText}>Treino não encontrado</Text>
       </View>
     );
   }
@@ -113,7 +184,7 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <View style={styles.headerInfo}>
-          <Text style={styles.workoutName}>{workout.name}</Text>
+          <Text style={styles.workoutName}>{translateWorkoutName(workout.name)}</Text>
           <Text style={styles.workoutDate}>{formatDate(workout.date)}</Text>
         </View>
         <TouchableOpacity style={styles.deleteButton} onPress={deleteWorkout}>
@@ -124,13 +195,13 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
       <View style={styles.statsContainer}>
         <View style={styles.statItem}>
           <Text style={styles.statNumber}>{workout.exercises.length}</Text>
-          <Text style={styles.statLabel}>Exercises</Text>
+          <Text style={styles.statLabel}>Exercícios</Text>
         </View>
       </View>
 
       {workout.notes && (
         <View style={styles.notesContainer}>
-          <Text style={styles.notesTitle}>Notes</Text>
+          <Text style={styles.notesTitle}>Observações</Text>
           <Text style={styles.notesText}>{workout.notes}</Text>
         </View>
       )}
@@ -149,7 +220,7 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
       )}
 
       <View style={styles.exercisesContainer}>
-        <Text style={styles.exercisesTitle}>Exercises</Text>
+        <Text style={styles.exercisesTitle}>Exercícios</Text>
         {workout.exercises.map((exercise, index) => (
           <View key={exercise.id} style={styles.exerciseCard}>
             <View style={styles.exerciseHeader}>
@@ -163,7 +234,7 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
             {exercise.sets.length > 0 && (
               <View style={styles.setsContainer}>
                 <View style={styles.setsHeader}>
-                  <Text style={styles.setsHeaderText}>Weight</Text>
+                  <Text style={styles.setsHeaderText}>Peso</Text>
                   <Text style={styles.setsHeaderText}>Reps</Text>
                 </View>
                 {exercise.sets.map((set, setIndex) => (

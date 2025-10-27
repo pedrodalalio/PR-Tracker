@@ -34,7 +34,7 @@ export default function WorkoutsScreen({ navigation }: any) {
       );
       setWorkouts(sortedWorkouts);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load workouts');
+      Alert.alert('Erro', 'Falha ao carregar treinos');
     } finally {
       setLoading(false);
       setRefreshing(false);
@@ -47,13 +47,14 @@ export default function WorkoutsScreen({ navigation }: any) {
   };
 
   const handleDeleteWorkout = async (workoutId: string, workoutName: string) => {
+    const translatedName = translateWorkoutName(workoutName);
     Alert.alert(
-      'Delete Workout',
-      `Are you sure you want to delete "${workoutName}"? This action cannot be undone.`,
+      'Excluir Treino',
+      `Tem certeza que deseja excluir "${translatedName}"? Esta ação não pode ser desfeita.`,
       [
-        { text: 'Cancel', style: 'cancel' },
+        { text: 'Cancelar', style: 'cancel' },
         {
-          text: 'Delete',
+          text: 'Excluir',
           style: 'destructive',
           onPress: async () => {
             try {
@@ -62,15 +63,15 @@ export default function WorkoutsScreen({ navigation }: any) {
 
               Toast.show({
                 type: 'success',
-                text1: 'Workout Deleted! 🗑️',
-                text2: `"${workoutName}" has been removed`,
+                text1: 'Treino Excluído! 🗑️',
+                text2: `"${translatedName}" foi removido`,
                 visibilityTime: 3000,
               });
             } catch (error) {
               Toast.show({
                 type: 'error',
-                text1: 'Delete Failed',
-                text2: 'Unable to delete workout. Please try again.',
+                text1: 'Falha na Exclusão',
+                text2: 'Não foi possível excluir o treino. Tente novamente.',
                 visibilityTime: 3000,
               });
             }
@@ -83,7 +84,7 @@ export default function WorkoutsScreen({ navigation }: any) {
   const formatDate = (dateString: string) => {
     const [year, month, day] = dateString.split('-');
     const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-    return date.toLocaleDateString('en-US', {
+    return date.toLocaleDateString('pt-BR', {
       weekday: 'short',
       month: 'short',
       day: 'numeric',
@@ -114,9 +115,9 @@ export default function WorkoutsScreen({ navigation }: any) {
     const diffTime = today.getTime() - workoutDate.getTime();
     const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
 
-    if (diffDays === 0) return 'Today';
-    if (diffDays === 1) return 'Yesterday';
-    if (diffDays < 7) return `${diffDays} days ago`;
+    if (diffDays === 0) return 'Hoje';
+    if (diffDays === 1) return 'Ontem';
+    if (diffDays < 7) return `${diffDays} dias atrás`;
     return formatDate(dateString);
   };
 
@@ -138,6 +139,76 @@ export default function WorkoutsScreen({ navigation }: any) {
     const hours = Math.floor(duration / 60);
     const mins = Math.round(duration % 60);
     return `${hours}h ${mins}m`;
+  };
+
+  const translateWorkoutName = (workoutName: string): string => {
+    const translations: { [key: string]: string } = {
+      // Common workout patterns
+      "Upper Workout": "Treino de Superiores",
+      "Upper Body Workout": "Treino de Membros Superiores",
+      "Legs Workout": "Treino de Pernas",
+      "Lower Body Workout": "Treino de Membros Inferiores",
+      "Cardio Workout": "Treino de Cardio",
+      "Full Body Workout": "Treino de Corpo Inteiro",
+      "Push Workout": "Treino de Empurrar",
+      "Pull Workout": "Treino de Puxar",
+      "Chest Workout": "Treino de Peito",
+      "Back Workout": "Treino de Costas",
+      "Shoulder Workout": "Treino de Ombros",
+      "Arms Workout": "Treino de Braços",
+      "Core Workout": "Treino de Core",
+      "HIIT Workout": "Treino HIIT",
+      "Strength Training": "Treino de Força",
+      "Running Session": "Sessão de Corrida",
+      "Morning Workout": "Treino Matinal",
+      "Evening Workout": "Treino Noturno",
+      "Quick Workout": "Treino Rápido",
+      "Intense Workout": "Treino Intenso",
+
+      // Day-based workouts
+      "Monday Workout": "Treino de Segunda",
+      "Tuesday Workout": "Treino de Terça",
+      "Wednesday Workout": "Treino de Quarta",
+      "Thursday Workout": "Treino de Quinta",
+      "Friday Workout": "Treino de Sexta",
+      "Saturday Workout": "Treino de Sábado",
+      "Sunday Workout": "Treino de Domingo",
+
+      // Specific patterns that might come from backend
+      "Upper": "Superiores",
+      "Lower": "Pernas",
+      "Cardio": "Cardio",
+      "Legs": "Pernas",
+      "Arms": "Braços",
+      "Chest": "Peito",
+      "Back": "Costas",
+      "Shoulders": "Ombros",
+    };
+
+    // Try exact match first
+    if (translations[workoutName]) {
+      return translations[workoutName];
+    }
+
+    // Try partial matches for common patterns
+    let translatedName = workoutName;
+
+    // Replace common English words with Portuguese equivalents
+    translatedName = translatedName.replace(/\bWorkout\b/gi, 'Treino');
+    translatedName = translatedName.replace(/\bUpper\b/gi, 'Superiores');
+    translatedName = translatedName.replace(/\bLower\b/gi, 'Pernas');
+    translatedName = translatedName.replace(/\bLegs\b/gi, 'Pernas');
+    translatedName = translatedName.replace(/\bArms\b/gi, 'Braços');
+    translatedName = translatedName.replace(/\bChest\b/gi, 'Peito');
+    translatedName = translatedName.replace(/\bBack\b/gi, 'Costas');
+    translatedName = translatedName.replace(/\bShoulders\b/gi, 'Ombros');
+    translatedName = translatedName.replace(/\bCardio\b/gi, 'Cardio');
+    translatedName = translatedName.replace(/\bCore\b/gi, 'Core');
+    translatedName = translatedName.replace(/\bMorning\b/gi, 'Matinal');
+    translatedName = translatedName.replace(/\bEvening\b/gi, 'Noturno');
+    translatedName = translatedName.replace(/\bSession\b/gi, 'Sessão');
+
+    return translatedName;
   };
 
   const renderWorkoutItem = ({ item }: { item: Workout }) => {
@@ -162,7 +233,7 @@ export default function WorkoutsScreen({ navigation }: any) {
               />
             </View>
             <View style={styles.workoutMainInfo}>
-              <Text style={styles.workoutName}>{item.name}</Text>
+              <Text style={styles.workoutName}>{translateWorkoutName(item.name)}</Text>
               <Text style={styles.workoutDate}>{getDaysSinceWorkout(item.date)}</Text>
             </View>
           </View>
@@ -177,16 +248,16 @@ export default function WorkoutsScreen({ navigation }: any) {
         <View style={styles.workoutStats}>
           <View style={styles.statItem}>
             <Ionicons name="barbell" size={16} color="#666" />
-            <Text style={styles.statLabel}>{item.exercises.length} exercises</Text>
+            <Text style={styles.statLabel}>{item.exercises.length} exercícios</Text>
           </View>
         </View>
 
         {item.exercises.length > 0 && (
           <View style={styles.exercisePreview}>
-            <Text style={styles.exercisePreviewTitle}>Exercises:</Text>
+            <Text style={styles.exercisePreviewTitle}>Exercícios:</Text>
             <Text style={styles.exercisePreviewText}>
               {item.exercises.slice(0, 3).map(ex => ex.exercise.name).join(', ')}
-              {item.exercises.length > 3 && ` +${item.exercises.length - 3} more`}
+              {item.exercises.length > 3 && ` +${item.exercises.length - 3} mais`}
             </Text>
           </View>
         )}
@@ -200,7 +271,10 @@ export default function WorkoutsScreen({ navigation }: any) {
               styles.workoutTypeBadgeText,
               { color: getWorkoutTypeColor(item.workoutType) }
             ]}>
-              {item.workoutType.toUpperCase()}
+              {item.workoutType === 'upper' ? 'SUPERIORES' :
+               item.workoutType === 'legs' ? 'PERNAS' :
+               item.workoutType === 'cardio' ? 'CARDIO' :
+               item.workoutType.toUpperCase()}
             </Text>
           </View>
           <Ionicons name="chevron-forward" size={16} color="#ccc" />
@@ -226,18 +300,18 @@ export default function WorkoutsScreen({ navigation }: any) {
 
       {loading ? (
         <View style={styles.centerContainer}>
-          <Text style={styles.loadingText}>Loading workouts...</Text>
+          <Text style={styles.loadingText}>Carregando treinos...</Text>
         </View>
       ) : workouts.length === 0 ? (
         <View style={styles.centerContainer}>
           <Ionicons name="fitness-outline" size={64} color="#ccc" />
-          <Text style={styles.emptyTitle}>No workouts yet</Text>
-          <Text style={styles.emptySubtitle}>Start tracking your gym progress!</Text>
+          <Text style={styles.emptyTitle}>Nenhum treino ainda</Text>
+          <Text style={styles.emptySubtitle}>Comece a acompanhar seu progresso na academia!</Text>
           <TouchableOpacity
             style={styles.startButton}
             onPress={() => navigation.navigate('NewWorkout')}
           >
-            <Text style={styles.startButtonText}>Create First Workout</Text>
+            <Text style={styles.startButtonText}>Criar Primeiro Treino</Text>
           </TouchableOpacity>
         </View>
       ) : (

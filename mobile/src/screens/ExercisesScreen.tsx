@@ -34,7 +34,7 @@ export default function ExercisesScreen({ navigation }: any) {
       const exercisesData = await exerciseApi.getExercises();
       setExercises(exercisesData);
     } catch (error) {
-      Alert.alert("Error", "Failed to load exercises");
+      Alert.alert("Erro", "Falha ao carregar exercícios");
     } finally {
       setLoading(false);
     }
@@ -94,7 +94,11 @@ export default function ExercisesScreen({ navigation }: any) {
                 selectedCategory === item && styles.categoryButtonTextActive,
               ]}
             >
-              {item.charAt(0).toUpperCase() + item.slice(1)}
+              {item === 'all' ? 'Todos' :
+               item === 'Upper' ? 'Superiores' :
+               item === 'Lower' ? 'Inferiores' :
+               item === 'Cardio' ? 'Cardio' :
+               item.charAt(0).toUpperCase() + item.slice(1)}
             </Text>
           </TouchableOpacity>
         )}
@@ -112,7 +116,12 @@ export default function ExercisesScreen({ navigation }: any) {
             { backgroundColor: getCategoryColor(item.category) },
           ]}
         >
-          <Text style={styles.categoryBadgeText}>{item.category}</Text>
+          <Text style={styles.categoryBadgeText}>
+            {item.category === 'Upper' ? 'Superiores' :
+             item.category === 'Lower' ? 'Inferiores' :
+             item.category === 'Cardio' ? 'Cardio' :
+             item.category}
+          </Text>
         </View>
       </View>
       <View style={styles.muscleGroupsContainer}>
@@ -140,7 +149,7 @@ export default function ExercisesScreen({ navigation }: any) {
           />
           <TextInput
             style={styles.searchInput}
-            placeholder="Search exercises or muscle groups..."
+            placeholder="Buscar exercícios ou grupos musculares..."
             value={searchQuery}
             onChangeText={setSearchQuery}
           />
@@ -159,7 +168,7 @@ export default function ExercisesScreen({ navigation }: any) {
 
       {loading ? (
         <View style={styles.centerContainer}>
-          <Text style={styles.loadingText}>Loading exercises...</Text>
+          <Text style={styles.loadingText}>Carregando exercícios...</Text>
         </View>
       ) : (
         <FlatList
@@ -170,9 +179,9 @@ export default function ExercisesScreen({ navigation }: any) {
           ListEmptyComponent={
             <View style={styles.centerContainer}>
               <Ionicons name="barbell-outline" size={64} color="#ccc" />
-              <Text style={styles.emptyTitle}>No exercises found</Text>
+              <Text style={styles.emptyTitle}>Nenhum exercício encontrado</Text>
               <Text style={styles.emptySubtitle}>
-                Try adjusting your search or category filter
+                Tente ajustar sua busca ou filtro de categoria
               </Text>
             </View>
           }

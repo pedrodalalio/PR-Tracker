@@ -71,7 +71,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
       setExercises(typeFilteredExercises);
       setFilteredExercises(typeFilteredExercises);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load exercises');
+      Alert.alert('Erro', 'Falha ao carregar exercícios');
     }
   };
 
@@ -151,14 +151,14 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     if (selectedWorkoutType === 'upper' && hasLegs) {
       return {
         allowed: false,
-        message: 'Cannot combine Upper Body and Legs on the same day!'
+        message: 'Não é possível combinar Membros Superiores e Pernas no mesmo dia!'
       };
     }
 
     if (selectedWorkoutType === 'legs' && hasUpper) {
       return {
         allowed: false,
-        message: 'Cannot combine Legs and Upper Body on the same day!'
+        message: 'Não é possível combinar Pernas e Membros Superiores no mesmo dia!'
       };
     }
 
@@ -188,11 +188,11 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     const hasCardio = dayWorkouts.some(w => w.workoutType === 'cardio');
 
     if ((hasUpper || hasLegs) && !hasCardio) {
-      return 'You can add Cardio to this day!';
+      return 'Você pode adicionar Cardio neste dia!';
     }
 
     if (hasUpper && hasLegs) {
-      return 'Great! You can still add more Cardio.';
+      return 'Ótimo! Você ainda pode adicionar mais Cardio.';
     }
 
     return '';
@@ -200,21 +200,21 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
   const getDayName = (dayKey: WeekDay): string => {
     const days = {
-      monday: 'Monday',
-      tuesday: 'Tuesday',
-      wednesday: 'Wednesday',
-      thursday: 'Thursday',
-      friday: 'Friday',
-      saturday: 'Saturday',
-      sunday: 'Sunday'
+      monday: 'Segunda',
+      tuesday: 'Terça',
+      wednesday: 'Quarta',
+      thursday: 'Quinta',
+      friday: 'Sexta',
+      saturday: 'Sábado',
+      sunday: 'Domingo'
     };
     return days[dayKey];
   };
 
   const getWorkoutTypeName = (type: WorkoutType): string => {
     const types = {
-      upper: 'Upper Body',
-      legs: 'Legs',
+      upper: 'Membros Superiores',
+      legs: 'Pernas',
       cardio: 'Cardio'
     };
     return types[type];
@@ -228,13 +228,13 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
   const handleContinueToExercises = () => {
     if (!workoutType || !selectedDate) {
-      Alert.alert('Error', 'Please select date and workout type');
+      Alert.alert('Erro', 'Por favor selecione a data e tipo de treino');
       return;
     }
 
     const validation = isWorkoutAllowed(workoutType);
     if (!validation.allowed) {
-      Alert.alert('Workout Not Allowed', validation.message || 'This workout combination is not allowed.');
+      Alert.alert('Treino Não Permitido', validation.message || 'Esta combinação de treinos não é permitida.');
       return;
     }
 
@@ -348,7 +348,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
   const saveWorkout = async () => {
     if (selectedExercises.length === 0) {
-      Alert.alert('Error', 'Please add at least one exercise');
+      Alert.alert('Erro', 'Por favor adicione pelo menos um exercício');
       return;
     }
 
@@ -367,8 +367,8 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
     if (invalidExercises.length > 0) {
       const errorMessage = invalidExercises.some(ex => ex.exercise.category === 'Cardio')
-        ? 'Please add distance and time for all running sets'
-        : 'Please add sets with reps and weight for all exercises';
+        ? 'Por favor adicione distância e tempo para todas as corridas'
+        : 'Por favor adicione séries com repetições e peso para todos os exercícios';
       Alert.alert('Error', errorMessage);
       return;
     }
@@ -386,15 +386,15 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
       Toast.show({
         type: 'success',
-        text1: 'Workout Saved! 💪',
-        text2: `${workoutName} completed successfully`,
+        text1: 'Treino Salvo! 💪',
+        text2: `${workoutName} concluído com sucesso`,
         visibilityTime: 3000,
       });
 
       // Navigate to home screen
       navigation.navigate('Home');
     } catch (error) {
-      Alert.alert('Error', 'Failed to save workout');
+      Alert.alert('Erro', 'Falha ao salvar treino');
     } finally {
       setLoading(false);
     }
@@ -434,7 +434,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
                 <Ionicons name="map" size={16} color="#666" />
                 <TextInput
                   style={styles.setInput}
-                  placeholder="Distance (km)"
+                  placeholder="Distância (km)"
                   value={set.distance ? (set.distance / 1000).toString() : ''}
                   onChangeText={(text) => updateSet(exercise.id, set.id, 'distance', (parseFloat(text) || 0) * 1000)}
                   keyboardType="numeric"
@@ -445,7 +445,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
                 <Ionicons name="time" size={16} color="#666" />
                 <TextInput
                   style={styles.setInput}
-                  placeholder="Time (MM:SS)"
+                  placeholder="Tempo (MM:SS)"
                   value={set.duration ? formatTimeInput(set.duration) : ''}
                   onChangeText={(text) => updateSet(exercise.id, set.id, 'duration', parseTimeInput(text))}
                   keyboardType="numbers-and-punctuation"
@@ -467,7 +467,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
                 <Ionicons name="barbell" size={16} color="#666" />
                 <TextInput
                   style={styles.setInput}
-                  placeholder="Weight (kg)"
+                  placeholder="Peso (kg)"
                   value={set.weight?.toString() || ''}
                   onChangeText={(text) => updateSet(exercise.id, set.id, 'weight', parseFloat(text) || 0)}
                   keyboardType="numeric"
@@ -478,7 +478,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
                 <Ionicons name="repeat" size={16} color="#666" />
                 <TextInput
                   style={styles.setInput}
-                  placeholder="Reps"
+                  placeholder="Repetições"
                   value={set.reps?.toString() || ''}
                   onChangeText={(text) => updateSet(exercise.id, set.id, 'reps', parseInt(text) || 0)}
                   keyboardType="numeric"
@@ -503,7 +503,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
             onPress={() => addSet(exercise.id)}
           >
             <Ionicons name="add" size={16} color="#007AFF" />
-            <Text style={styles.addSetText}>Quick Add Run</Text>
+            <Text style={styles.addSetText}>Adicionar Corrida Rápida</Text>
           </TouchableOpacity>
 
           <TouchableOpacity
@@ -511,7 +511,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
             onPress={() => handleEnhancedRun(exercise)}
           >
             <Ionicons name="analytics" size={16} color="#34C759" />
-            <Text style={styles.enhancedRunText}>Enhanced Run Log</Text>
+            <Text style={styles.enhancedRunText}>Log de Corrida Avançado</Text>
           </TouchableOpacity>
         </View>
       ) : (
@@ -520,7 +520,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
           onPress={() => addSet(exercise.id)}
         >
           <Ionicons name="add" size={16} color="#007AFF" />
-          <Text style={styles.addSetText}>Add Set (Reps + Weight)</Text>
+          <Text style={styles.addSetText}>Adicionar Série (Repetições + Peso)</Text>
         </TouchableOpacity>
       )}
     </View>
@@ -537,7 +537,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
           }}>
             <Ionicons name="arrow-back" size={24} color="#007AFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Select Exercise</Text>
+          <Text style={styles.headerTitle}>Selecionar Exercício</Text>
           <View style={{ width: 24 }} />
         </View>
 
@@ -546,7 +546,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
             <Ionicons name="search" size={20} color="#666" style={styles.searchIcon} />
             <TextInput
               style={styles.searchInput}
-              placeholder="Search exercises..."
+              placeholder="Buscar exercícios..."
               value={searchQuery}
               onChangeText={handleSearch}
               autoCapitalize="none"
@@ -563,9 +563,9 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
         {filteredExercises.length === 0 ? (
           <View style={styles.noResultsContainer}>
             <Ionicons name="search-outline" size={48} color="#ccc" />
-            <Text style={styles.noResultsTitle}>No exercises found</Text>
+            <Text style={styles.noResultsTitle}>Nenhum exercício encontrado</Text>
             <Text style={styles.noResultsSubtitle}>
-              Try searching with different keywords
+              Tente buscar com palavras-chave diferentes
             </Text>
           </View>
         ) : (
@@ -589,12 +589,12 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="close" size={24} color="#007AFF" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>New Workout</Text>
+          <Text style={styles.headerTitle}>Novo Treino</Text>
           <View style={{ width: 24 }} />
         </View>
 
         <ScrollView style={styles.content}>
-          <Text style={styles.sectionTitle}>Select Date</Text>
+          <Text style={styles.sectionTitle}>Selecionar Data</Text>
           <View style={styles.calendarContainer}>
             <Calendar
               onDayPress={(day: DateData) => {
@@ -606,6 +606,22 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
                 const dayOfWeekFromDate = dayNames[date.getDay()];
                 setDayOfWeek(dayOfWeekFromDate);
                 setWorkoutType(getWorkoutTypeFromDay(dayOfWeekFromDate));
+              }}
+              locale={{
+                monthNames: [
+                  'Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho',
+                  'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'
+                ],
+                monthNamesShort: [
+                  'Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun',
+                  'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'
+                ],
+                dayNames: [
+                  'Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira',
+                  'Quinta-feira', 'Sexta-feira', 'Sábado'
+                ],
+                dayNamesShort: ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'],
+                today: 'Hoje'
               }}
               markedDates={{
                 [selectedDate]: {
@@ -642,7 +658,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
           {selectedDate && (
             <View style={styles.selectedDateInfo}>
               <Text style={styles.selectedDateText}>
-                Selected: {new Date(selectedDate).toLocaleDateString('en-US', {
+                Selecionado: {new Date(selectedDate).toLocaleDateString('pt-BR', {
                   weekday: 'long',
                   year: 'numeric',
                   month: 'long',
@@ -654,7 +670,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
           {selectedDate && (
             <View style={styles.workoutTypeSection}>
-              <Text style={styles.sectionTitle}>Workout Type</Text>
+              <Text style={styles.sectionTitle}>Tipo de Treino</Text>
 
               {/* Show recommendation */}
               {getWorkoutTypeRecommendation() && (
@@ -719,7 +735,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
               style={styles.continueButton}
               onPress={handleContinueToExercises}
             >
-              <Text style={styles.continueButtonText}>Continue to Exercises</Text>
+              <Text style={styles.continueButtonText}>Continuar para Exercícios</Text>
               <Ionicons name="arrow-forward" size={20} color="white" />
             </TouchableOpacity>
           )}
@@ -740,7 +756,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
           onPress={saveWorkout}
           disabled={loading}
         >
-          <Text style={[styles.saveText, loading && styles.disabledText]}>Save</Text>
+          <Text style={[styles.saveText, loading && styles.disabledText]}>Salvar</Text>
         </TouchableOpacity>
       </View>
 

@@ -42,7 +42,7 @@ export default function CalendarScreen() {
       const workoutsData = await workoutApi.getWorkouts();
       setWorkouts(workoutsData);
     } catch (error) {
-      Alert.alert('Error', 'Failed to load workouts');
+      Alert.alert('Erro', 'Falha ao carregar treinos');
     } finally {
       setLoading(false);
     }
@@ -156,7 +156,7 @@ export default function CalendarScreen() {
   };
 
   const formatMonthYear = (): string => {
-    return currentDate.toLocaleDateString('en-US', {
+    return currentDate.toLocaleDateString('pt-BR', {
       month: 'long',
       year: 'numeric',
     });
@@ -180,7 +180,7 @@ export default function CalendarScreen() {
             // Could navigate to workout details or show modal
             Alert.alert(
               `${dayNumber}/${date.getMonth() + 1}`,
-              `Workouts: ${workouts.map(w => w.workoutType).join(', ')}`
+              `Treinos: ${workouts.map(w => w.workoutType).join(', ')}`
             );
           }
         }}
@@ -218,7 +218,7 @@ export default function CalendarScreen() {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <Text style={styles.loadingText}>Loading calendar...</Text>
+        <Text style={styles.loadingText}>Carregando calendário...</Text>
       </View>
     );
   }
@@ -227,7 +227,7 @@ export default function CalendarScreen() {
     <ScrollView style={styles.container}>
       <View style={styles.header}>
         <TouchableOpacity style={styles.todayButton} onPress={goToToday}>
-          <Text style={styles.todayButtonText}>Today</Text>
+          <Text style={styles.todayButtonText}>Hoje</Text>
         </TouchableOpacity>
       </View>
 
@@ -262,7 +262,7 @@ export default function CalendarScreen() {
 
       {/* Day Headers */}
       <View style={styles.dayHeaders}>
-        {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map((day, index) => (
+        {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day, index) => (
           <Text key={index} style={styles.dayHeader}>{day}</Text>
         ))}
       </View>
@@ -274,15 +274,15 @@ export default function CalendarScreen() {
 
       {/* Legend */}
       <View style={styles.legend}>
-        <Text style={styles.legendTitle}>Workout Types:</Text>
+        <Text style={styles.legendTitle}>Tipos de Treino:</Text>
         <View style={styles.legendItems}>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: getWorkoutTypeColor('upper') }]} />
-            <Text style={styles.legendText}>Upper Body</Text>
+            <Text style={styles.legendText}>Membros Superiores</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: getWorkoutTypeColor('legs') }]} />
-            <Text style={styles.legendText}>Legs</Text>
+            <Text style={styles.legendText}>Pernas</Text>
           </View>
           <View style={styles.legendItem}>
             <View style={[styles.legendDot, { backgroundColor: getWorkoutTypeColor('cardio') }]} />
