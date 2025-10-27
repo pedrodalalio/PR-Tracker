@@ -159,12 +159,12 @@ function TabNavigator() {
         },
         tabBarActiveTintColor: '#007AFF',
         tabBarInactiveTintColor: 'gray',
-        headerShown: true,
+        headerShown: route.name === 'Home',
         headerTitle: route.name,
         headerTitleStyle: {
           fontWeight: 'bold',
         },
-        headerRight: () => (
+        headerRight: route.name === 'Home' ? () => (
           <View style={{ flexDirection: 'row', alignItems: 'center', marginRight: 16 }}>
             {isGuest && (
               <View style={{
@@ -181,7 +181,7 @@ function TabNavigator() {
               <Ionicons name="log-out-outline" size={24} color="#FF3B30" />
             </TouchableOpacity>
           </View>
-        ),
+        ) : undefined,
       })}
     >
       <Tab.Screen name="Home" component={HomeScreen} />

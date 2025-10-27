@@ -226,7 +226,6 @@ export default function CalendarScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Workout Calendar</Text>
         <TouchableOpacity style={styles.todayButton} onPress={goToToday}>
           <Text style={styles.todayButtonText}>Today</Text>
         </TouchableOpacity>
@@ -313,17 +312,11 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: 'white',
     padding: 20,
-    paddingTop: 60,
     flexDirection: 'row',
-    justifyContent: 'space-between',
+    justifyContent: 'flex-end',
     alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#e1e1e1',
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: 'bold',
-    color: '#333',
   },
   todayButton: {
     backgroundColor: '#007AFF',

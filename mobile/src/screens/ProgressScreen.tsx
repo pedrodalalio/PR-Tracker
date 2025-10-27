@@ -813,7 +813,6 @@ export default function ProgressScreen() {
   return (
     <ScrollView style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.title}>Exercise Progress</Text>
         <View style={styles.headerControls}>
           <View style={styles.viewModeSelector}>
             {(["individual", "comparison"] as ViewMode[]).map((mode) => (
@@ -1127,17 +1126,11 @@ const styles = StyleSheet.create({
   header: {
     backgroundColor: "white",
     padding: 20,
-    paddingTop: 60,
     flexDirection: "row",
-    justifyContent: "space-between",
+    justifyContent: "flex-end",
     alignItems: "center",
     borderBottomWidth: 1,
     borderBottomColor: "#e1e1e1",
-  },
-  title: {
-    fontSize: 24,
-    fontWeight: "bold",
-    color: "#333",
   },
   timeRangeSelector: {
     flexDirection: "row",
