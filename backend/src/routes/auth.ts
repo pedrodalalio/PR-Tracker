@@ -18,7 +18,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         if (error) {
           return reply.status(400).send({
             error: "Validation failed",
-            details: error.details.map((d) => d.message),
+            details: error.details.map((d: any) => d.message),
           });
         }
 
@@ -100,7 +100,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         if (error) {
           return reply.status(400).send({
             error: "Validation failed",
-            details: error.details.map((d) => d.message),
+            details: error.details.map((d: any) => d.message),
           });
         }
 
