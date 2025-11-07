@@ -10,6 +10,7 @@ import {
   ScrollView,
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
+import { ToastService } from "../services/toastService";
 
 interface LoginScreenProps {
   onLogin: (
@@ -30,7 +31,7 @@ export default function LoginScreen({
 
   const handleAdminLogin = async () => {
     if (!username.trim() || !password.trim()) {
-      Alert.alert("Erro", "Por favor, insira usuário e senha");
+      ToastService.showError("Por favor, insira usuário e senha", "Campos obrigatórios");
       return;
     }
 
@@ -38,16 +39,14 @@ export default function LoginScreen({
     try {
       const success = await onLogin("admin", { username, password });
       if (!success) {
-        Alert.alert(
-          "Erro de Login",
-          "Usuário ou senha incorretos. Verifique suas credenciais e tente novamente.",
-        );
+        // O error já foi tratado pelo ToastService no AuthContext
+        // Não precisamos mostrar mensagem adicional aqui
       }
     } catch (error) {
       console.error("Login error:", error);
-      Alert.alert(
-        "Erro de Conexão",
+      ToastService.showError(
         "Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.",
+        "Erro de Conexão"
       );
     } finally {
       setIsLoading(false);

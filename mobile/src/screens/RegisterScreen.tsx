@@ -12,6 +12,7 @@ import {
 } from "react-native";
 import { Ionicons } from "@expo/vector-icons";
 import { useAuth } from "../contexts/AuthContext";
+import { ToastService } from "../services/toastService";
 
 interface RegisterScreenProps {
   onSuccess: () => void;
@@ -88,13 +89,13 @@ export default function RegisterScreen({
     setErrors(newErrors);
 
     if (hasErrors) {
-      // Show alert with the first error found
+      // Show toast with the first error found
       const firstError =
         newErrors.username ||
         newErrors.email ||
         newErrors.password ||
         newErrors.confirmPassword;
-      Alert.alert("Erro de Validação", firstError);
+      ToastService.showError(firstError, "Erro de Validação");
       return false;
     }
 
@@ -122,26 +123,21 @@ export default function RegisterScreen({
       });
 
       if (success) {
-        Alert.alert(
-          "Conta Criada! 🎉",
-          "Sua conta foi criada com sucesso. Você agora está logado!",
-          [{ text: "OK", onPress: onSuccess }],
-        );
+        // O sucesso já é tratado no AuthContext com ToastService
+        onSuccess();
       } else {
-        Alert.alert(
-          "Erro ao Criar Conta",
-          "Não foi possível criar sua conta. Tente novamente."
-        );
+        // O erro já foi tratado pelo ToastService no AuthContext
+        // Não precisamos mostrar mensagem adicional aqui
       }
     } catch (error) {
       console.error("Registration error:", error);
 
       if (error instanceof Error) {
-        Alert.alert("Erro ao Criar Conta", error.message);
+        ToastService.showError(error.message, "Erro ao Criar Conta");
       } else {
-        Alert.alert(
-          "Erro de Conexão",
+        ToastService.showError(
           "Não foi possível conectar ao servidor. Verifique sua conexão com a internet e tente novamente.",
+          "Erro de Conexão"
         );
       }
     }

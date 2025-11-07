@@ -1,6 +1,7 @@
 import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
+import "./types/fastify"; // Import type augmentation
 import { workoutRoutes } from "./routes/workouts";
 import { exerciseRoutes } from "./routes/exercises";
 import { goalsRoutes } from "./routes/goals";

@@ -14,6 +14,7 @@ import {
 } from "../types/workout";
 import { MockDataService } from "./mockDataService";
 import { ENV_CONFIG } from "../config/environment";
+import { ToastService } from "./toastService";
 
 const AUTH_STORAGE_KEY = "@pr_tracker_auth";
 
@@ -21,6 +22,39 @@ const api = axios.create({
   baseURL: ENV_CONFIG.apiBaseUrl,
   timeout: 10000,
 });
+
+// Add request interceptor to include auth token
+api.interceptors.request.use(
+  async (config) => {
+    try {
+      const token = await AsyncStorage.getItem("@pr_tracker_token");
+      if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+      }
+    } catch (error) {
+      console.warn("Failed to get auth token:", error);
+    }
+    return config;
+  },
+  (error) => {
+    return Promise.reject(error);
+  }
+);
+
+// Add response interceptor to handle errors
+api.interceptors.response.use(
+  (response) => response,
+  (error) => {
+    // Only show toast for non-guest users and if error is not from auth endpoints
+    const isAuthError = error?.config?.url?.includes('/auth/');
+
+    if (!isAuthError) {
+      ToastService.handleApiError(error);
+    }
+
+    return Promise.reject(error);
+  }
+);
 
 async function isGuestUser(): Promise<boolean> {
   try {

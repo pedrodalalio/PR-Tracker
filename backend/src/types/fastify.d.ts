@@ -1,7 +1,1 @@
-import { JWTPayload } from './auth';
-
-declare module 'fastify' {
-  interface FastifyRequest {
-    user?: JWTPayload;
-  }
-}
+// This file is now empty - moved to fastify.ts

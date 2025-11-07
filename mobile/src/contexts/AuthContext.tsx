@@ -7,6 +7,7 @@ import React, {
 } from "react";
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApi, AuthResponse } from "../services/authApi";
+import { ToastService } from "../services/toastService";
 
 export type UserType = "admin" | "guest";
 
@@ -124,9 +125,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
           ]);
 
           setUser(userData);
+          ToastService.showSuccess(`Bem-vindo, ${response.user.username}!`);
           return true;
         } catch (error) {
           console.error("Login failed:", error);
+          ToastService.handleApiError(error, "Falha no login");
           return false;
         }
       } else if (type === "guest") {
@@ -173,9 +176,11 @@ export function AuthProvider({ children }: AuthProviderProps) {
         ]);
 
         setUser(newUser);
+        ToastService.showSuccess(`Conta criada com sucesso! Bem-vindo, ${response.user.username}!`);
         return true;
       } catch (error) {
         console.error("Registration failed:", error);
+        ToastService.handleApiError(error, "Falha no cadastro");
         return false;
       }
     } catch (error) {

@@ -5,6 +5,7 @@ import Toast from "react-native-toast-message";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { appInitializer } from "./src/services/appInitializer";
 import { AuthProvider } from "./src/contexts/AuthContext";
+import { toastConfig } from "./src/components/ToastConfig";
 
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
@@ -37,7 +38,7 @@ export default function App() {
     <AuthProvider>
       <AppNavigator />
       <StatusBar style="auto" />
-      <Toast />
+      <Toast config={toastConfig} />
     </AuthProvider>
   );
 }
