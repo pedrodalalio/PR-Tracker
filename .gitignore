@@ -29,7 +29,6 @@ lerna-debug.log*
 dist/
 build/
 out/
-lib/
 web-build/
 
 # ================================
