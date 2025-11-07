@@ -6,98 +6,98 @@ export const exercises: Exercise[] = [
   {
     id: '1',
     name: 'Bench Press',
-    category: 'Upper',
+    category: 'Superiores',
     muscleGroups: ['chest', 'triceps', 'shoulders']
   },
   {
     id: '2',
     name: 'Pull-ups',
-    category: 'Upper',
+    category: 'Superiores',
     muscleGroups: ['back', 'biceps']
   },
   {
     id: '3',
     name: 'Overhead Press',
-    category: 'Upper',
+    category: 'Superiores',
     muscleGroups: ['shoulders', 'triceps', 'core']
   },
   {
     id: '4',
     name: 'Barbell Row',
-    category: 'Upper',
+    category: 'Superiores',
     muscleGroups: ['back', 'biceps']
   },
   {
     id: '5',
     name: 'Incline Dumbbell Press',
-    category: 'Upper',
+    category: 'Superiores',
     muscleGroups: ['chest', 'shoulders', 'triceps']
   },
   {
     id: '6',
     name: 'Dips',
-    category: 'Upper',
+    category: 'Superiores',
     muscleGroups: ['triceps', 'chest', 'shoulders']
   },
   {
     id: '7',
     name: 'Lat Pulldown',
-    category: 'Upper',
+    category: 'Superiores',
     muscleGroups: ['back', 'biceps']
   },
   {
     id: '8',
     name: 'Bicep Curls',
-    category: 'Upper',
+    category: 'Superiores',
     muscleGroups: ['biceps']
   },
   // Lower Body Exercises
   {
     id: '9',
     name: 'Squat',
-    category: 'Lower',
+    category: 'Inferiores',
     muscleGroups: ['quadriceps', 'glutes', 'hamstrings']
   },
   {
     id: '10',
     name: 'Deadlift',
-    category: 'Lower',
+    category: 'Inferiores',
     muscleGroups: ['hamstrings', 'glutes', 'back']
   },
   {
     id: '11',
     name: 'Romanian Deadlift',
-    category: 'Lower',
+    category: 'Inferiores',
     muscleGroups: ['hamstrings', 'glutes']
   },
   {
     id: '12',
     name: 'Bulgarian Split Squat',
-    category: 'Lower',
+    category: 'Inferiores',
     muscleGroups: ['quadriceps', 'glutes']
   },
   {
     id: '13',
     name: 'Hip Thrust',
-    category: 'Lower',
+    category: 'Inferiores',
     muscleGroups: ['glutes', 'hamstrings']
   },
   {
     id: '14',
     name: 'Leg Press',
-    category: 'Lower',
+    category: 'Inferiores',
     muscleGroups: ['quadriceps', 'glutes']
   },
   {
     id: '15',
     name: 'Calf Raises',
-    category: 'Lower',
+    category: 'Inferiores',
     muscleGroups: ['calves']
   },
   {
     id: '16',
     name: 'Walking Lunges',
-    category: 'Lower',
+    category: 'Inferiores',
     muscleGroups: ['quadriceps', 'glutes', 'hamstrings']
   },
   // Cardio Exercises - Focused on Running
