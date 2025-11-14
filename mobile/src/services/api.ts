@@ -266,8 +266,25 @@ export const exerciseApi = {
       const mockService = await getMockService();
       return mockService.updateExercise(id, updates);
     }
-    const response = await api.put(`/exercises/${id}`, updates);
-    return response.data.exercise;
+
+    // Mapear categoria para inglês antes de enviar ao backend
+    const updatedData = {
+      ...updates,
+      ...(updates.category && {
+        category: mapCategoryToBackend(updates.category as FrontendCategory)
+      })
+    };
+
+    const response = await api.put(`/exercises/${id}`, updatedData);
+
+    // Mapear categoria de volta para português na resposta e transformar muscleGroups
+    const exerciseResponse = {
+      ...response.data.exercise,
+      category: mapCategoryToFrontend(response.data.exercise.category as BackendCategory),
+      muscleGroups: response.data.exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+    };
+
+    return exerciseResponse;
   },
 
   // Delete exercise

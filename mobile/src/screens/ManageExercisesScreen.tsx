@@ -68,7 +68,7 @@ export default function ManageExercisesScreen({ navigation }: any) {
   const resetForm = () => {
     setEditingExercise(null);
     setExerciseName('');
-    setExerciseCategory('Upper');
+    setExerciseCategory('Superiores');
     setMuscleGroupInput('');
     setMuscleGroups([]);
   };
@@ -156,8 +156,8 @@ export default function ManageExercisesScreen({ navigation }: any) {
 
   const getCategoryColor = (category: string) => {
     const colors = {
-      Upper: '#FF6B6B',
-      Lower: '#4ECDC4',
+      Superiores: '#FF6B6B',
+      Inferiores: '#4ECDC4',
       Cardio: '#45B7D1',
     };
     return colors[category as keyof typeof colors] || '#666';
@@ -175,8 +175,8 @@ export default function ManageExercisesScreen({ navigation }: any) {
             ]}
           >
             <Text style={styles.categoryBadgeText}>
-              {item.category === 'Upper' ? 'Superiores' :
-               item.category === 'Lower' ? 'Inferiores' :
+              {item.category === 'Superiores' ? 'Superiores' :
+               item.category === 'Inferiores' ? 'Inferiores' :
                item.category === 'Cardio' ? 'Cardio' :
                item.category}
             </Text>
@@ -295,6 +295,7 @@ export default function ManageExercisesScreen({ navigation }: any) {
               <TextInput
                 style={styles.input}
                 placeholder="Digite o nome do exercício"
+                placeholderTextColor="#999"
                 value={exerciseName}
                 onChangeText={setExerciseName}
               />
@@ -336,6 +337,7 @@ export default function ManageExercisesScreen({ navigation }: any) {
                 <TextInput
                   style={styles.muscleGroupTextInput}
                   placeholder="Digite o grupo muscular"
+                  placeholderTextColor="#999"
                   value={muscleGroupInput}
                   onChangeText={setMuscleGroupInput}
                   onSubmitEditing={addMuscleGroup}
