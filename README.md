@@ -15,7 +15,7 @@ A comprehensive workout and fitness tracking application with a mobile React Nat
 
 ### Backend
 - **Framework**: Fastify with TypeScript
-- **Database**: PostgreSQL with Prisma ORM
+- **Database**: SQLite with Prisma ORM
 - **API**: RESTful API with CORS support
 - **Port**: 3000
 
@@ -30,7 +30,6 @@ A comprehensive workout and fitness tracking application with a mobile React Nat
 ### Prerequisites
 
 - Node.js 18+
-- PostgreSQL database
 - pnpm (recommended) or npm
 - Expo CLI (for mobile development)
 
@@ -44,11 +43,8 @@ A comprehensive workout and fitness tracking application with a mobile React Nat
 
 2. **Database setup:**
    ```bash
-   # Copy environment template
+   # Copy environment template (SQLite database file will be created automatically)
    cp .env.example .env
-
-   # Edit .env with your database credentials
-   # DATABASE_URL="postgresql://username:password@localhost:5432/database_name"
    ```
 
 3. **Run database migrations:**
@@ -141,7 +137,7 @@ pnpm prisma studio
 - Fastify
 - TypeScript
 - Prisma ORM
-- PostgreSQL
+- SQLite
 - Helmet (security)
 
 **Mobile:**

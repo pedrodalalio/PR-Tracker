@@ -189,7 +189,6 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
               some: {
                 muscleGroup: {
                   contains: muscle,
-                  mode: "insensitive",
                 },
               },
             },
