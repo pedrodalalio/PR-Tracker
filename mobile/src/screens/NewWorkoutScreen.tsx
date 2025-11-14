@@ -63,8 +63,8 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
       const exercisesData = await exerciseApi.getExercises();
       // Filter exercises based on workout type
       const typeFilteredExercises = exercisesData.filter(exercise => {
-        if (workoutType === 'upper') return exercise.category === 'Upper';
-        if (workoutType === 'legs') return exercise.category === 'Lower';
+        if (workoutType === 'upper') return exercise.category === 'Superiores';
+        if (workoutType === 'legs') return exercise.category === 'Inferiores';
         if (workoutType === 'cardio') return exercise.category === 'Cardio';
         return true;
       });

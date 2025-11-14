@@ -1,10 +1,10 @@
-export type WorkoutType = 'superiores' | 'inferiores' | 'cardio';
+export type WorkoutType = 'upper' | 'lower' | 'cardio';
 export type WeekDay = 'segunda' | 'terça' | 'quarta' | 'quinta' | 'sexta' | 'sabado' | 'domingo';
 
 export interface Exercise {
   id: string;
   name: string;
-  category: 'Superiores' | 'Inferiores' | 'Cardio';
+  category: 'Upper' | 'Lower' | 'Cardio';
   muscleGroups: string[];
 }
 

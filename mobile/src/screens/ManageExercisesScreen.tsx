@@ -20,20 +20,20 @@ export default function ManageExercisesScreen({ navigation }: any) {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingExercise, setEditingExercise] = useState<Exercise | null>(null);
   const [selectedCategory, setSelectedCategory] = useState<
-    'Upper' | 'Lower' | 'Cardio' | 'all'
+    'Superiores' | 'Inferiores' | 'Cardio' | 'all'
   >('all');
 
   // Form state
   const [exerciseName, setExerciseName] = useState('');
   const [exerciseCategory, setExerciseCategory] = useState<
-    'Upper' | 'Lower' | 'Cardio'
-  >('Upper');
+    'Superiores' | 'Inferiores' | 'Cardio'
+  >('Superiores');
   const [muscleGroupInput, setMuscleGroupInput] = useState('');
   const [muscleGroups, setMuscleGroups] = useState<string[]>([]);
 
-  const categories: ('Upper' | 'Lower' | 'Cardio')[] = [
-    'Upper',
-    'Lower',
+  const categories: ('Superiores' | 'Inferiores' | 'Cardio')[] = [
+    'Superiores',
+    'Inferiores',
     'Cardio',
   ];
 
@@ -238,8 +238,8 @@ export default function ManageExercisesScreen({ navigation }: any) {
                 ]}
               >
                 {category === 'all' ? 'Todos' :
-                 category === 'Upper' ? 'Superiores' :
-                 category === 'Lower' ? 'Inferiores' :
+                 category === 'Superiores' ? 'Superiores' :
+                 category === 'Inferiores' ? 'Inferiores' :
                  category === 'Cardio' ? 'Cardio' :
                  category}
               </Text>
@@ -320,8 +320,8 @@ export default function ManageExercisesScreen({ navigation }: any) {
                           styles.categorySelectorTextActive,
                       ]}
                     >
-                      {category === 'Upper' ? 'Superiores' :
-                       category === 'Lower' ? 'Inferiores' :
+                      {category === 'Superiores' ? 'Superiores' :
+                       category === 'Inferiores' ? 'Inferiores' :
                        category === 'Cardio' ? 'Cardio' :
                        category}
                     </Text>

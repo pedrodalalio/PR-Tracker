@@ -52,6 +52,10 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
       try {
         const { name, category, muscleGroups } = request.body;
 
+        console.log("Request body:", request.body);
+        console.log("Category received:", category);
+        console.log("Category type:", typeof category);
+
         const exercise = await prisma.exercise.create({
           data: {
             name,

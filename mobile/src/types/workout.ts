@@ -18,7 +18,7 @@ export type WeekDay = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday'
 export interface Exercise {
   id: string;
   name: string;
-  category: 'Upper' | 'Lower' | 'Cardio';
+  category: 'Superiores' | 'Inferiores' | 'Cardio';
   muscleGroups: string[];
 }
 

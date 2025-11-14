@@ -122,14 +122,14 @@ model UserGoals {
 }
 
 enum Category {
-  Superiores
-  Inferiores
+  Upper
+  Lower
   Cardio
 }
 
 enum WorkoutType {
-  superiores
-  inferiores
+  upper
+  lower
   cardio
 }
 

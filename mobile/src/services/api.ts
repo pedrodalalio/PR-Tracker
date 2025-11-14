@@ -15,6 +15,14 @@ import {
 import { MockDataService } from "./mockDataService";
 import { ENV_CONFIG } from "../config/environment";
 import { ToastService } from "./toastService";
+import {
+  mapCategoryToBackend,
+  mapCategoryToFrontend,
+  mapWorkoutTypeToBackend,
+  mapWorkoutTypeToFrontend,
+  type FrontendCategory,
+  type BackendCategory
+} from "../utils/categoryMapping";
 
 const AUTH_STORAGE_KEY = "@pr_tracker_auth";
 
@@ -152,7 +160,15 @@ export const exerciseApi = {
       return mockService.getExercises();
     }
     const response = await api.get("/exercises");
-    return response.data.exercises;
+
+    // Mapear categorias de volta para português e transformar muscleGroups
+    const exercises = response.data.exercises.map((exercise: any) => ({
+      ...exercise,
+      category: mapCategoryToFrontend(exercise.category as BackendCategory),
+      muscleGroups: exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+    }));
+
+    return exercises;
   },
 
   // Get exercise by ID
@@ -162,7 +178,15 @@ export const exerciseApi = {
       return mockService.getExercise(id);
     }
     const response = await api.get(`/exercises/${id}`);
-    return response.data.exercise;
+
+    // Mapear categoria de volta para português e transformar muscleGroups
+    const exercise = {
+      ...response.data.exercise,
+      category: mapCategoryToFrontend(response.data.exercise.category as BackendCategory),
+      muscleGroups: response.data.exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+    };
+
+    return exercise;
   },
 
   // Get exercises by category
@@ -171,8 +195,19 @@ export const exerciseApi = {
       const mockService = await getMockService();
       return mockService.getExercisesByCategory(category);
     }
-    const response = await api.get(`/exercises/category/${category}`);
-    return response.data.exercises;
+
+    // Mapear categoria para inglês antes de enviar
+    const backendCategory = mapCategoryToBackend(category as FrontendCategory);
+    const response = await api.get(`/exercises/category/${backendCategory}`);
+
+    // Mapear categorias de volta para português e transformar muscleGroups
+    const exercises = response.data.exercises.map((exercise: any) => ({
+      ...exercise,
+      category: mapCategoryToFrontend(exercise.category as BackendCategory),
+      muscleGroups: exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+    }));
+
+    return exercises;
   },
 
   // Search exercises by muscle group
@@ -184,7 +219,15 @@ export const exerciseApi = {
     const response = await api.get("/exercises/search", {
       params: muscle ? { muscle } : {},
     });
-    return response.data.exercises;
+
+    // Mapear categorias de volta para português e transformar muscleGroups
+    const exercises = response.data.exercises.map((exercise: any) => ({
+      ...exercise,
+      category: mapCategoryToFrontend(exercise.category as BackendCategory),
+      muscleGroups: exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+    }));
+
+    return exercises;
   },
 
   // Create new exercise
@@ -195,8 +238,23 @@ export const exerciseApi = {
       const mockService = await getMockService();
       return mockService.createExercise(exercise);
     }
-    const response = await api.post("/exercises", exercise);
-    return response.data.exercise;
+
+    // Mapear categoria para inglês antes de enviar ao backend
+    const exerciseData = {
+      ...exercise,
+      category: mapCategoryToBackend(exercise.category as FrontendCategory)
+    };
+
+    const response = await api.post("/exercises", exerciseData);
+
+    // Mapear categoria de volta para português na resposta e transformar muscleGroups
+    const exerciseResponse = {
+      ...response.data.exercise,
+      category: mapCategoryToFrontend(response.data.exercise.category as BackendCategory),
+      muscleGroups: response.data.exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+    };
+
+    return exerciseResponse;
   },
 
   // Update exercise
