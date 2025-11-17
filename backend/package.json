@@ -21,10 +21,12 @@
     "@prisma/client": "^6.17.0",
     "@types/bcryptjs": "^3.0.0",
     "@types/jsonwebtoken": "^9.0.10",
+    "@types/pg": "^8.15.6",
     "bcryptjs": "^3.0.2",
     "fastify": "^5.6.1",
     "joi": "^18.0.1",
     "jsonwebtoken": "^9.0.2",
+    "pg": "^8.16.3",
     "prisma": "^6.17.0"
   },
   "devDependencies": {

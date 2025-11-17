@@ -1,11 +1,11 @@
 # Docker Compose configuration for PR-Tracker
-# Note: With SQLite, no external database containers are needed
-# The SQLite database file (dev.db) will be created locally
+# Note: Using external PostgreSQL (Neon), no local database containers needed
+# Backend connects to cloud PostgreSQL database
 
 version: '3.8'
 
-# No services needed for SQLite development
+# No services needed for cloud PostgreSQL development
 # Backend runs directly with: pnpm dev
-# Database is a local file: ./backend/dev.db
+# Database is hosted on Neon cloud
 
 # If you need other services in the future, add them here

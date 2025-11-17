@@ -42,7 +42,6 @@ web-build/
 # ================================
 # Prisma
 backend/src/generated/prisma
-backend/prisma/migrations/
 
 # Database files
 *.sqlite
