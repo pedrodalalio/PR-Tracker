@@ -8,15 +8,19 @@ import {
   FlatList,
   Alert,
   ScrollView,
+  KeyboardAvoidingView,
+  Platform,
 } from 'react-native';
 import { Calendar, DateData } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { workoutApi, exerciseApi } from '../services/api';
 import { Exercise, Set, WorkoutExercise, WorkoutType, WeekDay, Workout } from '../types/workout';
 import RunningEnhancer from '../components/RunningEnhancer';
 
 export default function NewWorkoutScreen({ navigation, route }: any) {
+  const insets = useSafeAreaInsets();
   const selectedDateFromRoute = route?.params?.selectedDate;
   const [selectedDate, setSelectedDate] = useState(selectedDateFromRoute || new Date().toISOString().split('T')[0]);
   const [workoutType, setWorkoutType] = useState<WorkoutType | null>(null);
@@ -68,8 +72,14 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
         if (workoutType === 'cardio') return exercise.category === 'Cardio';
         return true;
       });
-      setExercises(typeFilteredExercises);
-      setFilteredExercises(typeFilteredExercises);
+
+      // Filter out already selected exercises
+      const availableExercises = typeFilteredExercises.filter(exercise =>
+        !selectedExercises.some(selected => selected.exercise.id === exercise.id)
+      );
+
+      setExercises(availableExercises);
+      setFilteredExercises(availableExercises);
     } catch (error) {
       Alert.alert('Erro', 'Falha ao carregar exercícios');
     }
@@ -131,14 +141,53 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
       sets: [],
       notes: '',
     };
-    setSelectedExercises([...selectedExercises, workoutExercise]);
+
+    // Add to selected exercises
+    const updatedSelectedExercises = [...selectedExercises, workoutExercise];
+    setSelectedExercises(updatedSelectedExercises);
+
+    // Remove from available exercises to prevent duplicates
+    const updatedAvailableExercises = exercises.filter(ex => ex.id !== exercise.id);
+    setExercises(updatedAvailableExercises);
+    setFilteredExercises(updatedAvailableExercises);
+
     setShowExerciseList(false);
     setSearchQuery('');
-    setFilteredExercises(exercises);
   };
 
   const removeExercise = (exerciseId: string) => {
-    setSelectedExercises(selectedExercises.filter(ex => ex.id !== exerciseId));
+    // Find the exercise being removed
+    const removedExercise = selectedExercises.find(ex => ex.id === exerciseId);
+
+    // Remove from selected exercises
+    const updatedSelectedExercises = selectedExercises.filter(ex => ex.id !== exerciseId);
+    setSelectedExercises(updatedSelectedExercises);
+
+    // Add back to available exercises if it matches the current workout type
+    if (removedExercise) {
+      const exercise = removedExercise.exercise;
+      const shouldAddBack =
+        (workoutType === 'upper' && exercise.category === 'Superiores') ||
+        (workoutType === 'legs' && exercise.category === 'Inferiores') ||
+        (workoutType === 'cardio' && exercise.category === 'Cardio');
+
+      if (shouldAddBack) {
+        const updatedAvailableExercises = [...exercises, exercise];
+        setExercises(updatedAvailableExercises);
+        // Update filtered exercises if there's a search query
+        if (searchQuery.trim() === '') {
+          setFilteredExercises(updatedAvailableExercises);
+        } else {
+          const filtered = updatedAvailableExercises.filter(ex =>
+            ex.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            ex.muscleGroups.some(muscle =>
+              muscle.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+          );
+          setFilteredExercises(filtered);
+        }
+      }
+    }
   };
 
   const addSet = (exerciseId: string) => {
@@ -455,8 +504,15 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
   const renderSelectedExercise = (exercise: WorkoutExercise, index: number) => (
     <View key={exercise.id} style={styles.selectedExercise}>
       <View style={styles.exerciseHeader}>
-        <Text style={styles.selectedExerciseName}>{exercise.exercise.name}</Text>
-        <TouchableOpacity onPress={() => removeExercise(exercise.id)}>
+        <View style={styles.exerciseInfo}>
+          <Text style={styles.selectedExerciseName}>{exercise.exercise.name}</Text>
+          <Text style={styles.exerciseCategory}>{exercise.exercise.category}</Text>
+        </View>
+        <TouchableOpacity
+          style={styles.removeExerciseButton}
+          onPress={() => removeExercise(exercise.id)}
+          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+        >
           <Ionicons name="trash-outline" size={20} color="#FF3B30" />
         </TouchableOpacity>
       </View>
@@ -566,7 +622,10 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
   if (showExerciseList) {
     return (
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={[styles.container, { paddingTop: insets.top }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => {
             setShowExerciseList(false);
@@ -612,17 +671,22 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
             renderItem={renderExerciseItem}
             keyExtractor={(item) => item.id}
             style={styles.exerciseList}
+            contentContainerStyle={styles.exerciseListContent}
             keyboardShouldPersistTaps="handled"
+            showsVerticalScrollIndicator={true}
           />
         )}
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 
   // Setup step - day and workout type selection
   if (step === 'setup') {
     return (
-      <View style={styles.container}>
+      <KeyboardAvoidingView
+        style={[styles.container, { paddingTop: insets.top }]}
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+      >
         <View style={styles.header}>
           <TouchableOpacity onPress={() => navigation.goBack()}>
             <Ionicons name="close" size={24} color="#007AFF" />
@@ -778,13 +842,16 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
             </TouchableOpacity>
           )}
         </ScrollView>
-      </View>
+      </KeyboardAvoidingView>
     );
   }
 
   // Exercise selection and workout building step
   return (
-    <View style={styles.container}>
+    <KeyboardAvoidingView
+      style={[styles.container, { paddingTop: insets.top }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+    >
       <View style={styles.header}>
         <TouchableOpacity onPress={() => setStep('setup')}>
           <Ionicons name="arrow-back" size={24} color="#007AFF" />
@@ -793,12 +860,17 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
         <TouchableOpacity
           onPress={saveWorkout}
           disabled={loading}
+          style={styles.saveButton}
         >
           <Text style={[styles.saveText, loading && styles.disabledText]}>Salvar</Text>
         </TouchableOpacity>
       </View>
 
-      <ScrollView style={styles.content}>
+      <ScrollView
+        style={styles.content}
+        contentContainerStyle={styles.scrollContent}
+        showsVerticalScrollIndicator={true}
+      >
         <TouchableOpacity
           style={styles.addExerciseButton}
           onPress={() => setShowExerciseList(true)}
@@ -818,7 +890,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
         }}
         onSaveRun={handleSaveEnhancedRun}
       />
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -890,8 +962,27 @@ const styles = StyleSheet.create({
   exerciseHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     marginBottom: 12,
+  },
+  exerciseInfo: {
+    flex: 1,
+    marginRight: 12,
+  },
+  removeExerciseButton: {
+    padding: 8,
+    backgroundColor: '#FFF5F5',
+    borderRadius: 6,
+    minWidth: 36,
+    minHeight: 36,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  saveButton: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    minWidth: 60,
+    alignItems: 'center',
   },
   selectedExerciseName: {
     fontSize: 18,
@@ -942,6 +1033,14 @@ const styles = StyleSheet.create({
   },
   exerciseList: {
     flex: 1,
+  },
+  exerciseListContent: {
+    paddingBottom: 20,
+    flexGrow: 1,
+  },
+  scrollContent: {
+    paddingBottom: 100,
+    flexGrow: 1,
   },
   exerciseItem: {
     flexDirection: 'row',

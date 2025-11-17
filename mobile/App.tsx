@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { StatusBar } from "expo-status-bar";
 import { View, Text, StyleSheet, ActivityIndicator } from "react-native";
+import { SafeAreaProvider } from 'react-native-safe-area-context';
 import Toast from "react-native-toast-message";
 import AppNavigator from "./src/navigation/AppNavigator";
 import { appInitializer } from "./src/services/appInitializer";
@@ -35,11 +36,13 @@ export default function App() {
   }
 
   return (
-    <AuthProvider>
-      <AppNavigator />
-      <StatusBar style="auto" />
-      <Toast config={toastConfig} />
-    </AuthProvider>
+    <SafeAreaProvider>
+      <AuthProvider>
+        <AppNavigator />
+        <StatusBar style="auto" />
+        <Toast config={toastConfig} />
+      </AuthProvider>
+    </SafeAreaProvider>
   );
 }
 
