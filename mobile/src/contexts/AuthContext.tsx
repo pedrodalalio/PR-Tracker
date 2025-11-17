@@ -8,6 +8,7 @@ import React, {
 import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApi, AuthResponse } from "../services/authApi";
 import { ToastService } from "../services/toastService";
+import { MockDataService } from "../services/mockDataService";
 
 export type UserType = "admin" | "guest";
 
@@ -204,9 +205,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
       // Reset demo data if user was in guest mode
       if (user?.type === "guest") {
         try {
-          const { MockDataService } = await import(
-            "../services/mockDataService"
-          );
           const mockService = MockDataService.getInstance();
           await mockService.resetToDefaults();
         } catch (error) {}
