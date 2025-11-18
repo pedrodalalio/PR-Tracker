@@ -19,7 +19,7 @@ export default function ExercisesScreen({ navigation }: any) {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string>("all");
 
-  const categories = ["all", "Upper", "Lower", "Cardio"];
+  const categories = ["all", "Superiores", "Inferiores", "Cardio"];
 
   useEffect(() => {
     loadExercises();
@@ -34,6 +34,7 @@ export default function ExercisesScreen({ navigation }: any) {
       const exercisesData = await exerciseApi.getExercises();
       setExercises(exercisesData);
     } catch (error) {
+      console.error("Error loading exercises:", error);
       Alert.alert("Erro", "Falha ao carregar exercícios");
     } finally {
       setLoading(false);
@@ -65,9 +66,9 @@ export default function ExercisesScreen({ navigation }: any) {
 
   const getCategoryColor = (category: string) => {
     const colors = {
-      Upper: "#FF6B6B",
-      Lower: "#4ECDC4",
-      Cardio: "#45B7D1",
+      Superiores: "#FF6B6B", // Red for Upper body
+      Inferiores: "#34C759", // Green for Lower body
+      Cardio: "#FF9500", // Orange for Cardio
     };
     return colors[category as keyof typeof colors] || "#666";
   };
@@ -80,28 +81,30 @@ export default function ExercisesScreen({ navigation }: any) {
         contentContainerStyle={styles.categoryFilterContent}
         data={categories}
         keyExtractor={(item) => item}
-        renderItem={({ item }) => (
-          <TouchableOpacity
-            style={[
-              styles.categoryButton,
-              selectedCategory === item && styles.categoryButtonActive,
-            ]}
-            onPress={() => setSelectedCategory(item)}
-          >
-            <Text
+        renderItem={({ item }) => {
+          const isActive = selectedCategory === item;
+          const categoryColor =
+            item !== "all" ? getCategoryColor(item) : "#007AFF";
+
+          return (
+            <TouchableOpacity
               style={[
-                styles.categoryButtonText,
-                selectedCategory === item && styles.categoryButtonTextActive,
+                styles.categoryButton,
+                isActive && { backgroundColor: categoryColor },
               ]}
+              onPress={() => setSelectedCategory(item)}
             >
-              {item === 'all' ? 'Todos' :
-               item === 'Upper' ? 'Superiores' :
-               item === 'Lower' ? 'Inferiores' :
-               item === 'Cardio' ? 'Cardio' :
-               item.charAt(0).toUpperCase() + item.slice(1)}
-            </Text>
-          </TouchableOpacity>
-        )}
+              <Text
+                style={[
+                  styles.categoryButtonText,
+                  isActive && styles.categoryButtonTextActive,
+                ]}
+              >
+                {item === "all" ? "Todos" : item}
+              </Text>
+            </TouchableOpacity>
+          );
+        }}
       />
     </View>
   );
@@ -116,12 +119,7 @@ export default function ExercisesScreen({ navigation }: any) {
             { backgroundColor: getCategoryColor(item.category) },
           ]}
         >
-          <Text style={styles.categoryBadgeText}>
-            {item.category === 'Upper' ? 'Superiores' :
-             item.category === 'Lower' ? 'Inferiores' :
-             item.category === 'Cardio' ? 'Cardio' :
-             item.category}
-          </Text>
+          <Text style={styles.categoryBadgeText}>{item.category}</Text>
         </View>
       </View>
       <View style={styles.muscleGroupsContainer}>
@@ -236,9 +234,6 @@ const styles = StyleSheet.create({
     marginHorizontal: 4,
     borderRadius: 20,
     backgroundColor: "#f8f8f8",
-  },
-  categoryButtonActive: {
-    backgroundColor: "#007AFF",
   },
   categoryButtonText: {
     fontSize: 14,

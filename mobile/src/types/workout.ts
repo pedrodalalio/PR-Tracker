@@ -1,5 +1,5 @@
-export type WorkoutType = 'upper' | 'legs' | 'cardio';
-export type WeekDay = 'monday' | 'tuesday' | 'wednesday' | 'thursday' | 'friday' | 'saturday' | 'sunday';
+export type WorkoutType = 'upper' | 'lower' | 'cardio';
+export type WeekDay = 'segunda' | 'terça' | 'quarta' | 'quinta' | 'sexta' | 'sabado' | 'domingo';
 
 // Workout Schedule:
 // Monday: Upper Body

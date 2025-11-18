@@ -52,7 +52,7 @@ export default function CalendarScreen() {
     switch (type) {
       case 'upper':
         return '#007AFF';
-      case 'legs':
+      case 'lower':
         return '#34C759';
       case 'cardio':
         return '#FF3B30';
@@ -63,7 +63,7 @@ export default function CalendarScreen() {
     switch (type) {
       case 'upper':
         return 'body';
-      case 'legs':
+      case 'lower':
         return 'walk';
       case 'cardio':
         return 'heart';
@@ -281,7 +281,7 @@ export default function CalendarScreen() {
             <Text style={styles.legendText}>Membros Superiores</Text>
           </View>
           <View style={styles.legendItem}>
-            <View style={[styles.legendDot, { backgroundColor: getWorkoutTypeColor('legs') }]} />
+            <View style={[styles.legendDot, { backgroundColor: getWorkoutTypeColor('lower') }]} />
             <Text style={styles.legendText}>Pernas</Text>
           </View>
           <View style={styles.legendItem}>

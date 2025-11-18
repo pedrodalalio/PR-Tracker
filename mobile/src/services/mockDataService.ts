@@ -354,7 +354,7 @@ const createProgressiveMockWorkoutExercise = (
 // Generate comprehensive workout history (12 weeks of data)
 const generateMockWorkouts = (): Workout[] => {
   const workouts: Workout[] = [];
-  const workoutTypes = ["upper", "legs", "cardio", "full"];
+  const workoutTypes = ["upper", "lower", "cardio", "full"];
   const workoutNames = {
     upper: [
       "Upper Body Power",
@@ -363,7 +363,7 @@ const generateMockWorkouts = (): Workout[] => {
       "Pull Day",
       "Push Day",
     ],
-    legs: [
+    lower: [
       "Leg Day",
       "Lower Body Strength",
       "Glutes & Quads",
@@ -421,7 +421,7 @@ const generateMockWorkouts = (): Workout[] => {
             .filter((e) => e.category === "Upper")
             .slice(0, 4 + Math.floor(Math.random() * 2));
           break;
-        case "legs":
+        case "lower":
           selectedExercises = mockExercises
             .filter((e) => e.category === "Lower")
             .slice(0, 4 + Math.floor(Math.random() * 2));
@@ -455,13 +455,13 @@ const generateMockWorkouts = (): Workout[] => {
         date: workoutDate.toISOString(),
         workoutType: workoutType as any,
         dayOfWeek: [
-          "monday",
-          "tuesday",
-          "wednesday",
-          "thursday",
-          "friday",
-          "saturday",
-          "sunday",
+          "domingo",
+          "segunda",
+          "terça",
+          "quarta",
+          "quinta",
+          "sexta",
+          "sabado",
         ][workoutDate.getDay()] as any,
         startTime: startTime.toISOString(),
         endTime: endTime.toISOString(),

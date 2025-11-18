@@ -88,11 +88,11 @@ export default function HomeScreen({ navigation }: any) {
 
     let nextWorkoutType: WorkoutType | null = null;
 
-    // Follow the schedule: Mon/Thu = upper, Tue/Fri = legs, rest = cardio
+    // Follow the schedule: Mon/Thu = upper, Tue/Fri = lower, rest = cardio
     if (dayOfWeek === 1 || dayOfWeek === 4) { // Monday or Thursday
       nextWorkoutType = 'upper';
     } else if (dayOfWeek === 2 || dayOfWeek === 5) { // Tuesday or Friday
-      nextWorkoutType = 'legs';
+      nextWorkoutType = 'lower';
     } else { // Wednesday, Saturday, Sunday
       nextWorkoutType = 'cardio';
     }
@@ -105,8 +105,8 @@ export default function HomeScreen({ navigation }: any) {
       const hasScheduledWorkout = todayWorkouts.some(w => w.workoutType === nextWorkoutType);
 
       if (hasScheduledWorkout) {
-        // If scheduled workout is done, suggest cardio (if not upper/legs already)
-        const hasUpperOrLegs = todayWorkouts.some(w => w.workoutType === 'upper' || w.workoutType === 'legs');
+        // If scheduled workout is done, suggest cardio (if not upper/lower already)
+        const hasUpperOrLower = todayWorkouts.some(w => w.workoutType === 'upper' || w.workoutType === 'lower');
         if (!hasUpperOrLegs || !todayWorkouts.some(w => w.workoutType === 'cardio')) {
           nextWorkoutType = 'cardio';
         } else {
@@ -133,7 +133,7 @@ export default function HomeScreen({ navigation }: any) {
   const getWorkoutTypeName = (type: WorkoutType): string => {
     const types = {
       upper: 'Membros Superiores',
-      legs: 'Pernas',
+      lower: 'Pernas',
       cardio: 'Cardio'
     };
     return types[type];
@@ -142,7 +142,7 @@ export default function HomeScreen({ navigation }: any) {
   const getWorkoutTypeIcon = (type: WorkoutType): string => {
     const icons = {
       upper: 'body',
-      legs: 'walk',
+      lower: 'walk',
       cardio: 'heart'
     };
     return icons[type];
@@ -178,7 +178,9 @@ export default function HomeScreen({ navigation }: any) {
             dayDate.setDate(startOfWeek.getDate() + index);
             const dateString = dayDate.toISOString().split('T')[0];
 
-            const hasWorkout = weeklyProgress?.workouts.some(workout => workout.date === dateString) ?? false;
+            const hasWorkout = weeklyProgress?.workouts.some(workout =>
+              workout.date.split('T')[0] === dateString
+            ) ?? false;
             const isToday = index === currentDay;
             const isPast = index < currentDay;
             const isFuture = index > currentDay;

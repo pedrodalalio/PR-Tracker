@@ -128,12 +128,12 @@ export async function goalsRoutes(fastify: FastifyInstance) {
         const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Handle Sunday as 0
 
         const weekStart = new Date(now);
-        weekStart.setDate(weekStart.getDate() + mondayOffset);
-        weekStart.setHours(0, 0, 0, 0);
+        weekStart.setUTCDate(weekStart.getUTCDate() + mondayOffset);
+        weekStart.setUTCHours(0, 0, 0, 0);
 
         const weekEnd = new Date(weekStart);
-        weekEnd.setDate(weekStart.getDate() + 6);
-        weekEnd.setHours(23, 59, 59, 999);
+        weekEnd.setUTCDate(weekStart.getUTCDate() + 6);
+        weekEnd.setUTCHours(23, 59, 59, 999);
 
         const workouts = await prisma.workout.findMany({
           where: {
@@ -168,7 +168,7 @@ export async function goalsRoutes(fastify: FastifyInstance) {
           workouts: workouts.map((workout) => ({
             id: workout.id,
             name: workout.name,
-            date: workout.date.toISOString().split("T")[0],
+            date: workout.date.toISOString(),
             workoutType: workout.workoutType,
             dayOfWeek: workout.dayOfWeek,
             startTime: workout.startTime?.toISOString(),

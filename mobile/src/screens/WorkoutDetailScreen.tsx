@@ -228,7 +228,7 @@ export default function WorkoutDetailScreen({ route, navigation }: any) {
             </View>
 
             <Text style={styles.muscleGroups}>
-              {exercise.exercise.muscleGroups.join(', ')}
+              {exercise.exercise.muscleGroups?.join(', ') || 'N/A'}
             </Text>
 
             {exercise.sets.length > 0 && (

@@ -504,7 +504,7 @@ export default function ProgressScreen() {
   const getWorkoutTypeName = (type: WorkoutType): string => {
     const types = {
       upper: "Membros Superiores",
-      legs: "Pernas",
+      lower: "Pernas",
       cardio: "Cardio",
     };
     return types[type];
@@ -673,7 +673,7 @@ export default function ProgressScreen() {
     switch (type) {
       case "upper":
         return "body";
-      case "legs":
+      case "lower":
         return "walk";
       case "cardio":
         return "heart";
@@ -684,7 +684,7 @@ export default function ProgressScreen() {
     switch (type) {
       case "upper":
         return "#007AFF";
-      case "legs":
+      case "lower":
         return "#34C759";
       case "cardio":
         return "#FF3B30";
@@ -1060,7 +1060,7 @@ export default function ProgressScreen() {
 
       {/* Workout Type Selector */}
       <View style={styles.workoutTypeSelector}>
-        {(["upper", "legs", "cardio"] as WorkoutType[]).map((type) => (
+        {(["upper", "lower", "cardio"] as WorkoutType[]).map((type) => (
           <TouchableOpacity
             key={type}
             style={[

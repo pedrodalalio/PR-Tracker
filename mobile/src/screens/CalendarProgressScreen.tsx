@@ -83,7 +83,7 @@ export default function CalendarProgressScreen({ navigation }: any) {
   const getWorkoutTypeColor = (type: WorkoutType): string => {
     switch (type) {
       case 'upper': return '#007AFF';
-      case 'legs': return '#34C759';
+      case 'lower': return '#34C759';
       case 'cardio': return '#FF3B30';
       default: return '#666';
     }
@@ -92,7 +92,7 @@ export default function CalendarProgressScreen({ navigation }: any) {
   const getWorkoutTypeIcon = (type: WorkoutType): string => {
     switch (type) {
       case 'upper': return 'body';
-      case 'legs': return 'walk';
+      case 'lower': return 'walk';
       case 'cardio': return 'heart';
       default: return 'fitness';
     }
@@ -131,7 +131,7 @@ export default function CalendarProgressScreen({ navigation }: any) {
   const getWorkoutTypeName = (type: WorkoutType): string => {
     const types = {
       upper: 'Upper Body',
-      legs: 'Legs',
+      lower: 'Legs',
       cardio: 'Cardio'
     };
     return types[type];
@@ -139,13 +139,13 @@ export default function CalendarProgressScreen({ navigation }: any) {
 
   const getDayName = (dayKey: string): string => {
     const days = {
-      monday: 'Monday',
-      tuesday: 'Tuesday',
-      wednesday: 'Wednesday',
-      thursday: 'Thursday',
-      friday: 'Friday',
-      saturday: 'Saturday',
-      sunday: 'Sunday'
+      segunda: 'Monday',
+      terça: 'Tuesday',
+      quarta: 'Wednesday',
+      quinta: 'Thursday',
+      sexta: 'Friday',
+      sabado: 'Saturday',
+      domingo: 'Sunday'
     };
     return days[dayKey as keyof typeof days] || dayKey;
   };
@@ -244,13 +244,13 @@ export default function CalendarProgressScreen({ navigation }: any) {
     });
 
     const upperWorkouts = monthlyWorkouts.filter(w => w.workoutType === 'upper').length;
-    const legsWorkouts = monthlyWorkouts.filter(w => w.workoutType === 'legs').length;
+    const lowerWorkouts = monthlyWorkouts.filter(w => w.workoutType === 'lower').length;
     const cardioWorkouts = monthlyWorkouts.filter(w => w.workoutType === 'cardio').length;
 
     return {
       total: monthlyWorkouts.length,
       upper: upperWorkouts,
-      legs: legsWorkouts,
+      lower: lowerWorkouts,
       cardio: cardioWorkouts,
     };
   };
@@ -290,7 +290,7 @@ export default function CalendarProgressScreen({ navigation }: any) {
               </View>
               <View style={styles.statTypeRow}>
                 <Ionicons name="walk" size={16} color="#34C759" />
-                <Text style={styles.monthlyStatTypeNumber}>{monthlyStats.legs}</Text>
+                <Text style={styles.monthlyStatTypeNumber}>{monthlyStats.lower}</Text>
               </View>
               <View style={styles.statTypeRow}>
                 <Ionicons name="heart" size={16} color="#FF3B30" />

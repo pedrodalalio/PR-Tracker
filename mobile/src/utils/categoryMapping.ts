@@ -19,14 +19,14 @@ export const WorkoutTypeMapping = {
   // Frontend -> Backend
   toBackend: {
     'upper': 'upper',
-    'legs': 'lower',
+    'lower': 'lower',
     'cardio': 'cardio'
   } as const,
 
   // Backend -> Frontend
   toFrontend: {
     'upper': 'upper',
-    'lower': 'legs',
+    'lower': 'lower',
     'cardio': 'cardio'
   } as const
 };
@@ -35,7 +35,7 @@ export const WorkoutTypeMapping = {
 export type BackendCategory = 'Upper' | 'Lower' | 'Cardio';
 export type FrontendCategory = 'Superiores' | 'Inferiores' | 'Cardio';
 export type BackendWorkoutType = 'upper' | 'lower' | 'cardio';
-export type FrontendWorkoutType = 'upper' | 'legs' | 'cardio';
+export type FrontendWorkoutType = 'upper' | 'lower' | 'cardio';
 
 // Funções utilitárias
 export const mapCategoryToBackend = (category: FrontendCategory): BackendCategory => {

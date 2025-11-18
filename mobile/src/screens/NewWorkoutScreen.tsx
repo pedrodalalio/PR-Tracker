@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,7 @@ import {
 } from 'react-native';
 import { Calendar, DateData } from 'react-native-calendars';
 import { Ionicons } from '@expo/vector-icons';
+import { useFocusEffect } from '@react-navigation/native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Toast from 'react-native-toast-message';
 import { workoutApi, exerciseApi } from '../services/api';
@@ -41,7 +42,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     if (selectedDate) {
       const [year, month, day] = selectedDate.split('-');
       const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(day));
-      const dayNames: WeekDay[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+      const dayNames: WeekDay[] = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sabado'];
       const dayOfWeekFromDate = dayNames[date.getDay()];
       setDayOfWeek(dayOfWeekFromDate);
       setWorkoutType(getWorkoutTypeFromDay(dayOfWeekFromDate));
@@ -52,6 +53,15 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     // Load existing workouts to check for daily restrictions
     loadExistingWorkouts();
   }, []);
+
+  // Reload exercises when screen comes back into focus (e.g., from ManageExercises)
+  useFocusEffect(
+    useCallback(() => {
+      if (workoutType) {
+        loadExercises();
+      }
+    }, [workoutType])
+  );
 
   const loadExistingWorkouts = async () => {
     try {
@@ -68,7 +78,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
       // Filter exercises based on workout type
       const typeFilteredExercises = exercisesData.filter(exercise => {
         if (workoutType === 'upper') return exercise.category === 'Superiores';
-        if (workoutType === 'legs') return exercise.category === 'Inferiores';
+        if (workoutType === 'lower') return exercise.category === 'Inferiores';
         if (workoutType === 'cardio') return exercise.category === 'Cardio';
         return true;
       });
@@ -168,7 +178,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
       const exercise = removedExercise.exercise;
       const shouldAddBack =
         (workoutType === 'upper' && exercise.category === 'Superiores') ||
-        (workoutType === 'legs' && exercise.category === 'Inferiores') ||
+        (workoutType === 'lower' && exercise.category === 'Inferiores') ||
         (workoutType === 'cardio' && exercise.category === 'Cardio');
 
       if (shouldAddBack) {
@@ -211,9 +221,9 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
   };
 
   const getWorkoutTypeFromDay = (day: WeekDay): WorkoutType => {
-    if (day === 'monday' || day === 'thursday') return 'upper';
-    if (day === 'tuesday' || day === 'friday') return 'legs';
-    return 'cardio'; // wednesday, saturday, sunday
+    if (day === 'segunda' || day === 'quinta') return 'upper';
+    if (day === 'terça' || day === 'sexta') return 'lower';
+    return 'cardio'; // quarta, sabado, domingo
   };
 
   const isWorkoutAllowed = (selectedWorkoutType: WorkoutType): { allowed: boolean; message?: string } => {
@@ -226,7 +236,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     }
 
     const hasUpper = dayWorkouts.some(w => w.workoutType === 'upper');
-    const hasLegs = dayWorkouts.some(w => w.workoutType === 'legs');
+    const hasLower = dayWorkouts.some(w => w.workoutType === 'lower');
     const hasCardio = dayWorkouts.some(w => w.workoutType === 'cardio');
 
     // Check for invalid combinations
@@ -237,7 +247,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
       };
     }
 
-    if (selectedWorkoutType === 'legs' && hasUpper) {
+    if (selectedWorkoutType === 'lower' && hasUpper) {
       return {
         allowed: false,
         message: 'Não é possível combinar Pernas e Membros Superiores no mesmo dia!'
@@ -266,7 +276,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     }
 
     const hasUpper = dayWorkouts.some(w => w.workoutType === 'upper');
-    const hasLegs = dayWorkouts.some(w => w.workoutType === 'legs');
+    const hasLower = dayWorkouts.some(w => w.workoutType === 'lower');
     const hasCardio = dayWorkouts.some(w => w.workoutType === 'cardio');
 
     if ((hasUpper || hasLegs) && !hasCardio) {
@@ -282,13 +292,13 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
   const getDayName = (dayKey: WeekDay): string => {
     const days = {
-      monday: 'Segunda',
-      tuesday: 'Terça',
-      wednesday: 'Quarta',
-      thursday: 'Quinta',
-      friday: 'Sexta',
-      saturday: 'Sábado',
-      sunday: 'Domingo'
+      segunda: 'Segunda',
+      terça: 'Terça',
+      quarta: 'Quarta',
+      quinta: 'Quinta',
+      sexta: 'Sexta',
+      sabado: 'Sábado',
+      domingo: 'Domingo'
     };
     return days[dayKey];
   };
@@ -296,7 +306,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
   const getWorkoutTypeName = (type: WorkoutType): string => {
     const types = {
       upper: 'Membros Superiores',
-      legs: 'Pernas',
+      lower: 'Pernas',
       cardio: 'Cardio'
     };
     return types[type];
@@ -664,6 +674,13 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
             <Text style={styles.noResultsSubtitle}>
               Tente buscar com palavras-chave diferentes
             </Text>
+            <TouchableOpacity
+              style={styles.createExerciseButton}
+              onPress={() => navigation.getParent()?.navigate('Exercises', { screen: 'ManageExercises' })}
+            >
+              <Ionicons name="add-circle" size={20} color="#007AFF" />
+              <Text style={styles.createExerciseText}>Criar novo exercício</Text>
+            </TouchableOpacity>
           </View>
         ) : (
           <FlatList
@@ -676,6 +693,14 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
             showsVerticalScrollIndicator={true}
           />
         )}
+
+        {/* Floating Create Exercise Button */}
+        <TouchableOpacity
+          style={styles.floatingCreateButton}
+          onPress={() => navigation.getParent()?.navigate('Exercises', { screen: 'ManageExercises' })}
+        >
+          <Ionicons name="add" size={24} color="white" />
+        </TouchableOpacity>
       </KeyboardAvoidingView>
     );
   }
@@ -704,7 +729,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
                 // Auto-select day of week and suggest workout type
                 const [year, month, dayNum] = day.dateString.split('-');
                 const date = new Date(parseInt(year), parseInt(month) - 1, parseInt(dayNum));
-                const dayNames: WeekDay[] = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
+                const dayNames: WeekDay[] = ['domingo', 'segunda', 'terça', 'quarta', 'quinta', 'sexta', 'sabado'];
                 const dayOfWeekFromDate = dayNames[date.getDay()];
                 setDayOfWeek(dayOfWeekFromDate);
                 setWorkoutType(getWorkoutTypeFromDay(dayOfWeekFromDate));
@@ -782,7 +807,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
               )}
 
               <View style={styles.typeGrid}>
-                {(['upper', 'legs', 'cardio'] as WorkoutType[]).map((type) => {
+                {(['upper', 'lower', 'cardio'] as WorkoutType[]).map((type) => {
                   const isSelected = workoutType === type;
                   const validation = isWorkoutAllowed(type);
                   const isDisabled = !validation.allowed;
@@ -805,7 +830,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
                         disabled={isDisabled}
                       >
                         <Ionicons
-                          name={type === 'upper' ? 'body' : type === 'legs' ? 'walk' : 'heart'}
+                          name={type === 'upper' ? 'body' : type === 'lower' ? 'walk' : 'heart'}
                           size={24}
                           color={isDisabled ? '#ccc' : isSelected ? 'white' : '#007AFF'}
                         />
@@ -1250,5 +1275,43 @@ const styles = StyleSheet.create({
     marginLeft: 4,
     fontWeight: '500',
     fontSize: 12,
+  },
+  createExerciseButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 8,
+    marginTop: 16,
+    borderWidth: 1,
+    borderColor: '#007AFF',
+    borderStyle: 'dashed',
+  },
+  createExerciseText: {
+    fontSize: 16,
+    color: '#007AFF',
+    marginLeft: 8,
+    fontWeight: '600',
+  },
+  floatingCreateButton: {
+    position: 'absolute',
+    bottom: 20,
+    right: 20,
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#007AFF',
+    justifyContent: 'center',
+    alignItems: 'center',
+    elevation: 6,
+    shadowColor: '#000',
+    shadowOffset: {
+      width: 0,
+      height: 3,
+    },
+    shadowOpacity: 0.27,
+    shadowRadius: 4.65,
   },
 });

@@ -94,7 +94,7 @@ export default function WorkoutsScreen({ navigation }: any) {
   const getWorkoutTypeColor = (type: string): string => {
     switch (type.toLowerCase()) {
       case 'upper': return '#007AFF';
-      case 'legs': return '#34C759';
+      case 'lower': return '#34C759';
       case 'cardio': return '#FF3B30';
       default: return '#666';
     }
@@ -103,7 +103,7 @@ export default function WorkoutsScreen({ navigation }: any) {
   const getWorkoutTypeIcon = (type: string): string => {
     switch (type.toLowerCase()) {
       case 'upper': return 'body';
-      case 'legs': return 'walk';
+      case 'lower': return 'walk';
       case 'cardio': return 'heart';
       default: return 'fitness';
     }
@@ -272,7 +272,7 @@ export default function WorkoutsScreen({ navigation }: any) {
               { color: getWorkoutTypeColor(item.workoutType) }
             ]}>
               {item.workoutType === 'upper' ? 'SUPERIORES' :
-               item.workoutType === 'legs' ? 'PERNAS' :
+               item.workoutType === 'lower' ? 'PERNAS' :
                item.workoutType === 'cardio' ? 'CARDIO' :
                item.workoutType.toUpperCase()}
             </Text>
