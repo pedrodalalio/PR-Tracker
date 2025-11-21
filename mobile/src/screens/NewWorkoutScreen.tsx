@@ -36,6 +36,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
   const [existingWorkouts, setExistingWorkouts] = useState<Workout[]>([]);
   const [showRunningEnhancer, setShowRunningEnhancer] = useState(false);
   const [currentRunningExercise, setCurrentRunningExercise] = useState<WorkoutExercise | null>(null);
+  const [exerciseWeights, setExerciseWeights] = useState<{[key: string]: {weight: number, reps: number}}>({});
 
   useEffect(() => {
     // Auto-select day of week based on selected date
@@ -90,6 +91,23 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
       setExercises(availableExercises);
       setFilteredExercises(availableExercises);
+
+      // Load previous weights for strength training exercises
+      const weights: {[key: string]: {weight: number, reps: number}} = {};
+      for (const exercise of availableExercises) {
+        if (exercise.category !== 'Cardio') {
+          try {
+            const lastWeight = await workoutApi.getLastExerciseWeight(exercise.id);
+            if (lastWeight) {
+              weights[exercise.id] = lastWeight;
+            }
+          } catch (error) {
+            // Ignore errors for individual exercises
+            console.warn(`Failed to load weight for exercise ${exercise.id}:`, error);
+          }
+        }
+      }
+      setExerciseWeights(weights);
     } catch (error) {
       Alert.alert('Erro', 'Falha ao carregar exercícios');
     }
@@ -112,13 +130,32 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
         const lastWorkout = workoutsOfSameType[0];
 
         // Convert the exercises from the last workout to new WorkoutExercise objects
-        const lastWorkoutExercises: WorkoutExercise[] = lastWorkout.exercises.map((workoutExercise, index) => ({
-          id: `${Date.now()}_${index}`,
-          exerciseId: workoutExercise.exercise.id,
-          exercise: workoutExercise.exercise,
-          sets: [], // Start with empty sets so user can add their own
-          notes: workoutExercise.notes || '', // Keep notes from last workout
-        }));
+        const lastWorkoutExercises: WorkoutExercise[] = await Promise.all(
+          lastWorkout.exercises.map(async (workoutExercise, index) => {
+            let initialSets: Set[] = [];
+
+            // For strength exercises, get the previous best set as a starting point
+            if (workoutExercise.exercise.category !== 'Cardio' && workoutExercise.sets.length > 0) {
+              const maxWeightSet = workoutExercise.sets.reduce((max, set) =>
+                set.weight > max.weight ? set : max
+              );
+
+              initialSets = [{
+                id: `${Date.now()}_${index}_initial`,
+                reps: maxWeightSet.reps,
+                weight: maxWeightSet.weight,
+              }];
+            }
+
+            return {
+              id: `${Date.now()}_${index}`,
+              exerciseId: workoutExercise.exercise.id,
+              exercise: workoutExercise.exercise,
+              sets: initialSets,
+              notes: workoutExercise.notes || '', // Keep notes from last workout
+            };
+          })
+        );
 
         setSelectedExercises(lastWorkoutExercises);
       }
@@ -143,12 +180,30 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     }
   };
 
-  const addExercise = (exercise: Exercise) => {
+  const addExercise = async (exercise: Exercise) => {
+    // For strength exercises, pre-populate with last weight if available
+    let initialSets: Set[] = [];
+    if (exercise.category !== 'Cardio') {
+      try {
+        const lastWeight = await workoutApi.getLastExerciseWeight(exercise.id);
+        if (lastWeight) {
+          // Create a set with the previous weight and reps as a starting point
+          initialSets = [{
+            id: Date.now().toString(),
+            reps: lastWeight.reps,
+            weight: lastWeight.weight,
+          }];
+        }
+      } catch (error) {
+        console.warn(`Failed to load previous weight for exercise ${exercise.id}:`, error);
+      }
+    }
+
     const workoutExercise: WorkoutExercise = {
       id: Date.now().toString(),
       exerciseId: exercise.id,
       exercise,
-      sets: [],
+      sets: initialSets,
       notes: '',
     };
 
@@ -165,7 +220,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     setSearchQuery('');
   };
 
-  const removeExercise = (exerciseId: string) => {
+  const removeExercise = async (exerciseId: string) => {
     // Find the exercise being removed
     const removedExercise = selectedExercises.find(ex => ex.id === exerciseId);
 
@@ -184,6 +239,22 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
       if (shouldAddBack) {
         const updatedAvailableExercises = [...exercises, exercise];
         setExercises(updatedAvailableExercises);
+
+        // Load previous weight for this exercise if it's not cardio
+        if (exercise.category !== 'Cardio') {
+          try {
+            const lastWeight = await workoutApi.getLastExerciseWeight(exercise.id);
+            if (lastWeight) {
+              setExerciseWeights(prev => ({
+                ...prev,
+                [exercise.id]: lastWeight
+              }));
+            }
+          } catch (error) {
+            console.warn(`Failed to load weight for exercise ${exercise.id}:`, error);
+          }
+        }
+
         // Update filtered exercises if there's a search query
         if (searchQuery.trim() === '') {
           setFilteredExercises(updatedAvailableExercises);
@@ -240,7 +311,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     const hasCardio = dayWorkouts.some(w => w.workoutType === 'cardio');
 
     // Check for invalid combinations
-    if (selectedWorkoutType === 'upper' && hasLegs) {
+    if (selectedWorkoutType === 'upper' && hasLower) {
       return {
         allowed: false,
         message: 'Não é possível combinar Membros Superiores e Pernas no mesmo dia!'
@@ -279,11 +350,11 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     const hasLower = dayWorkouts.some(w => w.workoutType === 'lower');
     const hasCardio = dayWorkouts.some(w => w.workoutType === 'cardio');
 
-    if ((hasUpper || hasLegs) && !hasCardio) {
+    if ((hasUpper || hasLower) && !hasCardio) {
       return 'Você pode adicionar Cardio neste dia!';
     }
 
-    if (hasUpper && hasLegs) {
+    if (hasUpper && hasLower) {
       return 'Ótimo! Você ainda pode adicionar mais Cardio.';
     }
 
@@ -332,11 +403,9 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
 
     setStep('exercises');
 
-    // Load exercises and last workout exercises concurrently
-    await Promise.all([
-      loadExercises(),
-      loadLastWorkoutExercises()
-    ]);
+    // First load last workout exercises, then load available exercises
+    await loadLastWorkoutExercises();
+    await loadExercises();
   };
 
   // Helper function to calculate pace in minutes per kilometer
@@ -497,19 +566,28 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     }
   };
 
-  const renderExerciseItem = ({ item }: { item: Exercise }) => (
-    <TouchableOpacity
-      style={styles.exerciseItem}
-      onPress={() => addExercise(item)}
-    >
-      <View>
-        <Text style={styles.exerciseName}>{item.name}</Text>
-        <Text style={styles.exerciseCategory}>{item.category}</Text>
-        <Text style={styles.muscleGroups}>{item.muscleGroups.join(', ')}</Text>
-      </View>
-      <Ionicons name="add-circle" size={24} color="#007AFF" />
-    </TouchableOpacity>
-  );
+  const renderExerciseItem = ({ item }: { item: Exercise }) => {
+    const lastWeight = exerciseWeights[item.id];
+
+    return (
+      <TouchableOpacity
+        style={styles.exerciseItem}
+        onPress={() => addExercise(item)}
+      >
+        <View>
+          <Text style={styles.exerciseName}>{item.name}</Text>
+          <Text style={styles.exerciseCategory}>{item.category}</Text>
+          <Text style={styles.muscleGroups}>{item.muscleGroups.join(', ')}</Text>
+          {lastWeight && (
+            <Text style={styles.lastWeightText}>
+              Última vez: {lastWeight.weight}kg × {lastWeight.reps} reps
+            </Text>
+          )}
+        </View>
+        <Ionicons name="add-circle" size={24} color="#007AFF" />
+      </TouchableOpacity>
+    );
+  };
 
   const renderSelectedExercise = (exercise: WorkoutExercise, index: number) => (
     <View key={exercise.id} style={styles.selectedExercise}>
@@ -1093,6 +1171,12 @@ const styles = StyleSheet.create({
   muscleGroups: {
     fontSize: 12,
     color: '#666',
+  },
+  lastWeightText: {
+    fontSize: 11,
+    color: '#34C759',
+    fontWeight: '600',
+    marginTop: 4,
   },
   sectionTitle: {
     fontSize: 20,

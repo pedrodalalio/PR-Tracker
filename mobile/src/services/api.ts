@@ -92,6 +92,48 @@ export const workoutApi = {
     return response.data.workouts;
   },
 
+  // Get last weight used for a specific exercise
+  getLastExerciseWeight: async (exerciseId: string): Promise<{ weight: number; reps: number } | null> => {
+    try {
+      if (await isGuestUser()) {
+        const mockService = await getMockService();
+        const workouts = await mockService.getWorkouts();
+
+        // Find the most recent workout that contains this exercise
+        for (const workout of workouts.sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())) {
+          const workoutExercise = workout.exercises.find(ex => ex.exercise.id === exerciseId);
+          if (workoutExercise && workoutExercise.sets.length > 0) {
+            // Return the highest weight from the last workout for this exercise
+            const maxWeightSet = workoutExercise.sets.reduce((max, set) =>
+              set.weight > max.weight ? set : max
+            );
+            return { weight: maxWeightSet.weight, reps: maxWeightSet.reps };
+          }
+        }
+        return null;
+      }
+
+      const response = await api.get("/workouts");
+      const workouts = response.data.workouts;
+
+      // Find the most recent workout that contains this exercise
+      for (const workout of workouts) {
+        const workoutExercise = workout.exercises.find((ex: any) => ex.exercise.id === exerciseId);
+        if (workoutExercise && workoutExercise.sets.length > 0) {
+          // Return the highest weight from the last workout for this exercise
+          const maxWeightSet = workoutExercise.sets.reduce((max: any, set: any) =>
+            set.weight > max.weight ? set : max
+          );
+          return { weight: maxWeightSet.weight, reps: maxWeightSet.reps };
+        }
+      }
+      return null;
+    } catch (error) {
+      console.error('Failed to get last exercise weight:', error);
+      return null;
+    }
+  },
+
   // Get workout by ID
   getWorkout: async (id: string): Promise<Workout> => {
     if (await isGuestUser()) {
