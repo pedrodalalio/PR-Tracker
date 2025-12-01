@@ -419,22 +419,132 @@ class OfflineGoalsApi {
       }
     }
 
-    // Calculate offline streak info
+    // Calculate offline streak info using weekly logic
     const goals = await databaseService.getUserGoals();
     const weekProgress = await this.getWeekProgress();
+    const workouts = await databaseService.getWorkouts();
+
+    if (!goals) {
+      return {
+        currentStreak: 0,
+        bestStreak: 0,
+        totalWeeksCompleted: 0,
+        isOnTrack: false,
+        daysUntilDeadline: 7,
+        lastWorkoutDate: ''
+      };
+    }
 
     const now = new Date();
     const weekEnd = new Date(weekProgress.weekEndDate);
     const daysUntilDeadline = Math.ceil((weekEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 
+    // Calculate consecutive weeks with goal met, starting from current week backwards
+    const { currentStreak, totalWeeksCompleted } = this.calculateWeeklyStreak(workouts, goals.weeklyWorkoutGoal);
+
     return {
-      currentStreak: goals?.currentStreak || 0,
-      bestStreak: goals?.bestStreak || 0,
-      totalWeeksCompleted: goals?.totalWeeksCompleted || 0,
+      currentStreak,
+      bestStreak: Math.max(goals.bestStreak || 0, currentStreak),
+      totalWeeksCompleted,
       isOnTrack: weekProgress.isCompleted,
       daysUntilDeadline: Math.max(0, daysUntilDeadline),
       lastWorkoutDate: goals?.lastWorkoutDate || ''
     };
+  }
+
+  // Helper function to calculate weekly streak
+  private calculateWeeklyStreak(workouts: any[], weeklyWorkoutGoal: number): { currentStreak: number, totalWeeksCompleted: number } {
+    console.log('[DEBUG] calculateWeeklyStreak called with:', {
+      totalWorkouts: workouts.length,
+      weeklyWorkoutGoal,
+      workoutDates: workouts.map(w => w.date).slice(0, 10) // Show first 10 dates
+    });
+
+    const now = new Date();
+    const currentDayOfWeek = now.getDay();
+    const currentMondayOffset = currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+
+    const currentWeekStart = new Date(now);
+    currentWeekStart.setDate(currentWeekStart.getDate() + currentMondayOffset);
+    currentWeekStart.setHours(0, 0, 0, 0);
+
+    console.log('[DEBUG] Current week start:', currentWeekStart.toISOString());
+
+    let currentStreak = 0;
+    let totalWeeksCompleted = 0;
+    let weekOffset = 0;
+    let streakBroken = false;
+
+    // Check current week and previous weeks for consecutive streak
+    while (weekOffset < 52) {
+      const weekStartCalc = new Date(currentWeekStart);
+      weekStartCalc.setDate(currentWeekStart.getDate() - weekOffset * 7);
+
+      const weekEndCalc = new Date(weekStartCalc);
+      weekEndCalc.setDate(weekStartCalc.getDate() + 6);
+      weekEndCalc.setHours(23, 59, 59, 999);
+
+      // Count workouts in this week
+      const workoutsInWeek = workouts.filter(workout => {
+        const workoutDate = new Date(workout.date);
+        return workoutDate >= weekStartCalc && workoutDate <= weekEndCalc;
+      }).length;
+
+      // Check if this is current week and it's incomplete
+      const isCurrentWeek = weekOffset === 0;
+      const weekIsComplete = now > weekEndCalc;
+
+      console.log(`[DEBUG] Week ${weekOffset}: ${weekStartCalc.toDateString()} - ${weekEndCalc.toDateString()}`);
+      console.log(`[DEBUG] Workouts in week: ${workoutsInWeek}/${weeklyWorkoutGoal}`);
+      console.log(`[DEBUG] Is current week: ${isCurrentWeek}, Week complete: ${weekIsComplete}`);
+
+      if (workoutsInWeek >= weeklyWorkoutGoal) {
+        currentStreak++;
+        totalWeeksCompleted++;
+        console.log(`[DEBUG] Streak continues: ${currentStreak}`);
+      } else if (isCurrentWeek && !weekIsComplete) {
+        // Current week is incomplete, skip it for streak calculation but don't break
+        console.log(`[DEBUG] Current week incomplete, skipping for streak but continuing...`);
+        weekOffset++;
+        continue;
+      } else {
+        console.log(`[DEBUG] Streak broken at week ${weekOffset}`);
+        // Stop counting streak when we find a completed week that doesn't meet the goal
+        break;
+      }
+
+      weekOffset++;
+
+      // Safety check - only check recent weeks for debugging
+      if (weekOffset > 10) break;
+    }
+
+    // Continue counting total weeks completed (non-consecutive)
+    while (weekOffset < 52) {
+      const weekStartCalc = new Date(currentWeekStart);
+      weekStartCalc.setDate(currentWeekStart.getDate() - weekOffset * 7);
+
+      const weekEndCalc = new Date(weekStartCalc);
+      weekEndCalc.setDate(weekStartCalc.getDate() + 6);
+      weekEndCalc.setHours(23, 59, 59, 999);
+
+      const workoutsInWeek = workouts.filter(workout => {
+        const workoutDate = new Date(workout.date);
+        return workoutDate >= weekStartCalc && workoutDate <= weekEndCalc;
+      }).length;
+
+      if (workoutsInWeek >= weeklyWorkoutGoal) {
+        totalWeeksCompleted++;
+      }
+
+      weekOffset++;
+
+      // Safety check
+      if (weekOffset > 52) break;
+    }
+
+    console.log('[DEBUG] Final results:', { currentStreak, totalWeeksCompleted });
+    return { currentStreak, totalWeeksCompleted };
   }
 
   async updateStreak(): Promise<UserGoals> {
@@ -452,25 +562,26 @@ class OfflineGoalsApi {
       }
     }
 
-    // Update streak offline
+    // Update streak offline using weekly logic
     const goals = await databaseService.getUserGoals();
     if (!goals) {
       throw new Error('No goals found');
     }
 
-    const today = new Date().toISOString().split('T')[0];
-    const lastWorkoutDate = goals.lastWorkoutDate.split('T')[0];
+    const workouts = await databaseService.getWorkouts();
+    const { currentStreak, totalWeeksCompleted } = this.calculateWeeklyStreak(workouts, goals.weeklyWorkoutGoal);
 
-    let currentStreak = goals.currentStreak;
-    if (lastWorkoutDate !== today) {
-      currentStreak += 1;
-    }
+    // Get last workout date
+    const lastWorkout = workouts
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())[0];
+    const lastWorkoutDate = lastWorkout ? lastWorkout.date : goals.lastWorkoutDate;
 
     const updatedGoals = {
       ...goals,
       currentStreak,
-      bestStreak: Math.max(goals.bestStreak, currentStreak),
-      lastWorkoutDate: new Date().toISOString()
+      bestStreak: Math.max(goals.bestStreak || 0, currentStreak),
+      totalWeeksCompleted,
+      lastWorkoutDate: lastWorkoutDate || new Date().toISOString()
     };
 
     return await databaseService.updateUserGoals(updatedGoals);
