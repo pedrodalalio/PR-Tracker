@@ -23,10 +23,25 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  workouts  Workout[]
-  userGoals UserGoals?
+  workouts      Workout[]
+  userGoals     UserGoals?
+  refreshTokens RefreshToken[]
 
   @@map("users")
+}
+
+model RefreshToken {
+  id        String   @id @default(uuid())
+  token     String   @unique
+  userId    String
+  expiresAt DateTime
+  isRevoked Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("refresh_tokens")
 }
 
 model Exercise {

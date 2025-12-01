@@ -16,6 +16,16 @@ export interface AuthResponse {
     email: string;
   };
   token: string;
+  refreshToken: string;
+}
+
+export interface RefreshTokenRequest {
+  refreshToken: string;
+}
+
+export interface RefreshTokenResponse {
+  token: string;
+  refreshToken: string;
 }
 
 export interface JWTPayload {

@@ -2,7 +2,7 @@ import { FastifyInstance } from "fastify";
 import { PrismaClient } from "../generated/prisma";
 import { AuthService } from "../lib/auth";
 import { registerSchema, loginSchema } from "../lib/validation";
-import { RegisterRequest, LoginRequest, AuthResponse } from "../types/auth";
+import { RegisterRequest, LoginRequest, AuthResponse, RefreshTokenRequest, RefreshTokenResponse } from "../types/auth";
 import { authenticateToken } from "../lib/middleware";
 
 const prisma = new PrismaClient();
@@ -64,12 +64,13 @@ export async function authRoutes(fastify: FastifyInstance) {
           },
         });
 
-        // Generate token
+        // Generate tokens
         const token = AuthService.generateToken({
           userId: user.id,
           username: user.username,
           email: user.email,
         });
+        const refreshToken = await AuthService.createRefreshToken(user.id);
 
         const response: AuthResponse = {
           user: {
@@ -78,6 +79,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             email: user.email,
           },
           token,
+          refreshToken,
         };
 
         return reply.status(201).send(response);
@@ -130,12 +132,13 @@ export async function authRoutes(fastify: FastifyInstance) {
           });
         }
 
-        // Generate token
+        // Generate tokens
         const token = AuthService.generateToken({
           userId: user.id,
           username: user.username,
           email: user.email,
         });
+        const refreshToken = await AuthService.createRefreshToken(user.id);
 
         const response: AuthResponse = {
           user: {
@@ -144,6 +147,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             email: user.email,
           },
           token,
+          refreshToken,
         };
 
         return reply.send(response);
@@ -190,16 +194,88 @@ export async function authRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // Logout (client-side token removal, but we can add token blacklisting later)
+  // Refresh access token
+  fastify.post<{ Body: RefreshTokenRequest }>(
+    "/auth/refresh",
+    async (request, reply) => {
+      try {
+        const { refreshToken } = request.body;
+
+        if (!refreshToken) {
+          return reply.status(400).send({
+            error: "Refresh token is required",
+          });
+        }
+
+        const tokenValidation = await AuthService.validateRefreshToken(refreshToken);
+        if (!tokenValidation) {
+          return reply.status(401).send({
+            error: "Invalid or expired refresh token",
+          });
+        }
+
+        // Get user data
+        const user = await prisma.user.findUnique({
+          where: { id: tokenValidation.userId },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+          },
+        });
+
+        if (!user) {
+          return reply.status(404).send({
+            error: "User not found",
+          });
+        }
+
+        // Revoke old refresh token and create new ones
+        await AuthService.revokeRefreshToken(refreshToken);
+
+        const newAccessToken = AuthService.generateToken({
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+        });
+        const newRefreshToken = await AuthService.createRefreshToken(user.id);
+
+        const response: RefreshTokenResponse = {
+          token: newAccessToken,
+          refreshToken: newRefreshToken,
+        };
+
+        return reply.send(response);
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({
+          error: "Internal server error",
+        });
+      }
+    },
+  );
+
+  // Logout (revoke refresh token)
   fastify.post(
     "/auth/logout",
     {
       preHandler: authenticateToken,
     },
     async (request, reply) => {
-      // For now, just return success - token invalidation happens on client
-      // In a more robust system, we'd add the token to a blacklist
-      return reply.send({ message: "Logged out successfully" });
+      try {
+        const authHeader = request.headers.authorization;
+        if (authHeader && authHeader.startsWith('Bearer ')) {
+          const token = authHeader.substring(7);
+          const payload = AuthService.verifyToken(token);
+          if (payload) {
+            await AuthService.revokeAllUserRefreshTokens(payload.userId);
+          }
+        }
+        return reply.send({ message: "Logged out successfully" });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.send({ message: "Logged out successfully" });
+      }
     },
   );
 }

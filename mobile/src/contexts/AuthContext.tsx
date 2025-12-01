@@ -9,6 +9,7 @@ import AsyncStorage from "@react-native-async-storage/async-storage";
 import { authApi, AuthResponse } from "../services/authApi";
 import { ToastService } from "../services/toastService";
 import { MockDataService } from "../services/mockDataService";
+import { secureStorage } from "../services/secureStorage";
 
 export type UserType = "admin" | "guest";
 
@@ -57,30 +58,52 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
   const loadStoredAuth = async () => {
     try {
-      const [storedAuth, storedToken] = await Promise.all([
-        AsyncStorage.getItem(AUTH_STORAGE_KEY),
-        AsyncStorage.getItem(TOKEN_STORAGE_KEY),
-      ]);
+      const authData = await secureStorage.getAuthData();
 
-      if (storedAuth && storedToken) {
-        const authData = JSON.parse(storedAuth);
-
+      if (authData) {
         // Se for um usuário real (não guest), validar o token
         if (authData.type === "admin" && authData.id) {
           try {
-            const response = await authApi.getCurrentUser(storedToken);
-            setUser({
-              ...authData,
-              token: storedToken,
-              ...response.user,
-            });
+            const accessToken = await secureStorage.getAccessToken();
+            if (accessToken) {
+              try {
+                const response = await authApi.getCurrentUser();
+                setUser({
+                  type: "admin",
+                  id: response.user.id,
+                  username: response.user.username,
+                  email: response.user.email,
+                  token: accessToken,
+                });
+              } catch (error) {
+                console.error("User validation failed:", error);
+                // Tentar renovar o token automaticamente
+                try {
+                  await authApi.refreshTokens();
+                  const newAccessToken = await secureStorage.getAccessToken();
+                  const response = await authApi.getCurrentUser();
+                  setUser({
+                    type: "admin",
+                    id: response.user.id,
+                    username: response.user.username,
+                    email: response.user.email,
+                    token: newAccessToken,
+                  });
+                } catch (refreshError) {
+                  console.error("Token refresh failed:", refreshError);
+                  // Tokens inválidos, limpar dados
+                  await secureStorage.clearAll();
+                  await AsyncStorage.multiRemove([
+                    AUTH_STORAGE_KEY,
+                    TOKEN_STORAGE_KEY,
+                  ]);
+                }
+              }
+            } else {
+              console.log("No access token found, user needs to login");
+            }
           } catch (error) {
-            console.error("Token validation failed:", error);
-            // Token inválido, limpar dados
-            await AsyncStorage.multiRemove([
-              AUTH_STORAGE_KEY,
-              TOKEN_STORAGE_KEY,
-            ]);
+            console.error("Error loading user tokens:", error);
           }
         } else {
           // Usuário guest
@@ -119,11 +142,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
             email: response.user.email,
             token: response.token,
           };
-
-          await AsyncStorage.multiSet([
-            [AUTH_STORAGE_KEY, JSON.stringify(userData)],
-            [TOKEN_STORAGE_KEY, response.token],
-          ]);
 
           setUser(userData);
           ToastService.showSuccess(`Bem-vindo, ${response.user.username}!`);
@@ -171,11 +189,6 @@ export function AuthProvider({ children }: AuthProviderProps) {
           token: response.token,
         };
 
-        await AsyncStorage.multiSet([
-          [AUTH_STORAGE_KEY, JSON.stringify(newUser)],
-          [TOKEN_STORAGE_KEY, response.token],
-        ]);
-
         setUser(newUser);
         ToastService.showSuccess(`Conta criada com sucesso! Bem-vindo, ${response.user.username}!`);
         return true;
@@ -196,7 +209,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       if (user?.token) {
         try {
-          await authApi.logout(user.token);
+          await authApi.logout();
         } catch (error) {
           console.warn("AuthContext: Failed to logout from API:", error);
         }
@@ -210,6 +223,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         } catch (error) {}
       }
 
+      await secureStorage.clearAll();
       await AsyncStorage.multiRemove([AUTH_STORAGE_KEY, TOKEN_STORAGE_KEY]);
       setUser(null);
     } catch (error) {
