@@ -207,7 +207,7 @@ export const exerciseApi = {
     const exercises = response.data.exercises.map((exercise: any) => ({
       ...exercise,
       category: mapCategoryToFrontend(exercise.category as BackendCategory),
-      muscleGroups: exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+      muscleGroups: exercise.muscleGroups?.map((mg: any) => mg.muscleGroup) || []
     }));
 
     return exercises;
@@ -225,7 +225,7 @@ export const exerciseApi = {
     const exercise = {
       ...response.data.exercise,
       category: mapCategoryToFrontend(response.data.exercise.category as BackendCategory),
-      muscleGroups: response.data.exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+      muscleGroups: response.data.exercise.muscleGroups?.map((mg: any) => mg.muscleGroup) || []
     };
 
     return exercise;
@@ -246,7 +246,7 @@ export const exerciseApi = {
     const exercises = response.data.exercises.map((exercise: any) => ({
       ...exercise,
       category: mapCategoryToFrontend(exercise.category as BackendCategory),
-      muscleGroups: exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+      muscleGroups: exercise.muscleGroups?.map((mg: any) => mg.muscleGroup) || []
     }));
 
     return exercises;
@@ -266,7 +266,7 @@ export const exerciseApi = {
     const exercises = response.data.exercises.map((exercise: any) => ({
       ...exercise,
       category: mapCategoryToFrontend(exercise.category as BackendCategory),
-      muscleGroups: exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+      muscleGroups: exercise.muscleGroups?.map((mg: any) => mg.muscleGroup) || []
     }));
 
     return exercises;
@@ -293,7 +293,7 @@ export const exerciseApi = {
     const exerciseResponse = {
       ...response.data.exercise,
       category: mapCategoryToFrontend(response.data.exercise.category as BackendCategory),
-      muscleGroups: response.data.exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+      muscleGroups: response.data.exercise.muscleGroups?.map((mg: any) => mg.muscleGroup) || []
     };
 
     return exerciseResponse;
@@ -323,7 +323,7 @@ export const exerciseApi = {
     const exerciseResponse = {
       ...response.data.exercise,
       category: mapCategoryToFrontend(response.data.exercise.category as BackendCategory),
-      muscleGroups: response.data.exercise.muscleGroups.map((mg: any) => mg.muscleGroup)
+      muscleGroups: response.data.exercise.muscleGroups?.map((mg: any) => mg.muscleGroup) || []
     };
 
     return exerciseResponse;

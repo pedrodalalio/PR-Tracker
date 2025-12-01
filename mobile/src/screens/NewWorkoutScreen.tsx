@@ -172,9 +172,9 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
     } else {
       const filtered = exercises.filter(exercise =>
         exercise.name.toLowerCase().includes(query.toLowerCase()) ||
-        exercise.muscleGroups.some(muscle =>
+        (exercise.muscleGroups && exercise.muscleGroups.some(muscle =>
           muscle.toLowerCase().includes(query.toLowerCase())
-        )
+        ))
       );
       setFilteredExercises(filtered);
     }
@@ -577,7 +577,7 @@ export default function NewWorkoutScreen({ navigation, route }: any) {
         <View>
           <Text style={styles.exerciseName}>{item.name}</Text>
           <Text style={styles.exerciseCategory}>{item.category}</Text>
-          <Text style={styles.muscleGroups}>{item.muscleGroups.join(', ')}</Text>
+          <Text style={styles.muscleGroups}>{item.muscleGroups?.join(', ') || 'N/A'}</Text>
           {lastWeight && (
             <Text style={styles.lastWeightText}>
               Última vez: {lastWeight.weight}kg × {lastWeight.reps} reps
