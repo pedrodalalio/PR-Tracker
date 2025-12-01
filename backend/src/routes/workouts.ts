@@ -10,9 +10,14 @@ import { authenticateToken } from "../lib/middleware";
 
 export async function workoutRoutes(fastify: FastifyInstance) {
   // Get all workouts
-  fastify.get("/workouts", async (request, reply) => {
+  fastify.get("/workouts", {
+    preHandler: authenticateToken,
+  }, async (request, reply) => {
     try {
       const workouts = await prisma.workout.findMany({
+        where: {
+          userId: request.user!.userId,
+        },
         include: {
           exercises: {
             include: {
@@ -34,11 +39,17 @@ export async function workoutRoutes(fastify: FastifyInstance) {
   // Get workout by ID
   fastify.get<{ Params: { id: string } }>(
     "/workouts/:id",
+    {
+      preHandler: authenticateToken,
+    },
     async (request, reply) => {
       try {
         const { id } = request.params;
         const workout = await prisma.workout.findUnique({
-          where: { id },
+          where: {
+            id,
+            userId: request.user!.userId,
+          },
           include: {
             exercises: {
               include: {
@@ -138,13 +149,19 @@ export async function workoutRoutes(fastify: FastifyInstance) {
   // Update workout
   fastify.put<{ Params: { id: string }; Body: UpdateWorkoutRequest }>(
     "/workouts/:id",
+    {
+      preHandler: authenticateToken,
+    },
     async (request, reply) => {
       try {
         const { id } = request.params;
         const { name, notes, endTime } = request.body;
 
         const workout = await prisma.workout.update({
-          where: { id },
+          where: {
+            id,
+            userId: request.user!.userId,
+          },
           data: {
             ...(name && { name }),
             ...(notes !== undefined && { notes }),
@@ -175,11 +192,17 @@ export async function workoutRoutes(fastify: FastifyInstance) {
   // Delete workout
   fastify.delete<{ Params: { id: string } }>(
     "/workouts/:id",
+    {
+      preHandler: authenticateToken,
+    },
     async (request, reply) => {
       try {
         const { id } = request.params;
         await prisma.workout.delete({
-          where: { id },
+          where: {
+            id,
+            userId: request.user!.userId,
+          },
         });
 
         reply.code(204);
@@ -199,14 +222,19 @@ export async function workoutRoutes(fastify: FastifyInstance) {
   fastify.post<{
     Params: { workoutId: string };
     Body: { exerciseId: string; sets?: any[] };
-  }>("/workouts/:workoutId/exercises", async (request, reply) => {
+  }>("/workouts/:workoutId/exercises", {
+    preHandler: authenticateToken,
+  }, async (request, reply) => {
     try {
       const { workoutId } = request.params;
       const { exerciseId, sets = [] } = request.body;
 
-      // Check if workout exists
+      // Check if workout exists and belongs to user
       const workout = await prisma.workout.findUnique({
-        where: { id: workoutId },
+        where: {
+          id: workoutId,
+          userId: request.user!.userId,
+        },
       });
 
       if (!workout) {
