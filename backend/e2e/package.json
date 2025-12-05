@@ -1,0 +1,31 @@
+{
+  "name": "e2e",
+  "version": "1.0.0",
+  "description": "End-to-end tests for PR-Tracker application",
+  "main": "index.js",
+  "scripts": {
+    "test": "playwright test",
+    "test:headed": "playwright test --headed",
+    "test:debug": "playwright test --debug",
+    "test:ui": "playwright test --ui",
+    "test:setup": "playwright test tests/setup.spec.ts",
+    "test:auth": "playwright test tests/auth.spec.ts",
+    "test:workout": "playwright test tests/workout.spec.ts",
+    "test:offline": "playwright test tests/offline-sync.spec.ts",
+    "test:chromium": "playwright test --project=chromium",
+    "test:firefox": "playwright test --project=firefox",
+    "test:webkit": "playwright test --project=webkit",
+    "test:mobile": "playwright test --project=\"Mobile Chrome\"",
+    "show-report": "playwright show-report",
+    "install": "playwright install",
+    "install-deps": "playwright install-deps"
+  },
+  "keywords": ["e2e", "testing", "playwright", "react-native", "expo"],
+  "author": "",
+  "license": "ISC",
+  "packageManager": "pnpm@10.13.1",
+  "devDependencies": {
+    "@playwright/test": "^1.57.0",
+    "playwright": "^1.57.0"
+  }
+}

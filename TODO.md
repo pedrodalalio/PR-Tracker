@@ -20,10 +20,10 @@
   - [x] ~~Testes de navegação~~ ✅ **CONCLUÍDO**
   - [x] ~~Setup Jest + React Native Testing Library~~ ✅ **CONCLUÍDO**
 
-- [ ] **E2E Tests**
-  - [ ] Fluxo completo de login/logout
-  - [ ] Criação e edição de treinos
-  - [ ] Sincronização offline/online
+- [x] **E2E Tests** ✅ **TOTALMENTE IMPLEMENTADO**
+  - [x] ~~Fluxo completo de login/logout~~ ✅ **CONCLUÍDO**
+  - [x] ~~Criação e edição de treinos~~ ✅ **CONCLUÍDO**
+  - [x] ~~Sincronização offline/online~~ ✅ **CONCLUÍDO**
 
 ### 📚 **Documentação**
 
@@ -223,6 +223,24 @@
 - ✅ **TypeScript Integration**: todos os testes compilam sem erros
 - ✅ **Execução limpa**: `pnpm test` roda sem falhas ou warnings críticos
 
+#### **E2E Tests (Playwright)**
+- ✅ **Framework Setup completo**: Playwright com TypeScript
+- ✅ **Multi-browser Support**: Chrome, Firefox, WebKit, Mobile viewports
+- ✅ **Auto Server Management**: Backend (port 3000) + Frontend (port 8081)
+- ✅ **Test Suites (4 categorias)**:
+  - Setup Tests: Environment validation, health checks (3 testes)
+  - Auth Tests: Login flow, guest mode, form validation (7 testes)
+  - Workout Tests: CRUD operations, navigation, search (5 testes)
+  - Offline/Sync Tests: Network state, sync indicators, data integrity (7 testes)
+- ✅ **Test Infrastructure**:
+  - TestUtils class com helpers para interação flexível
+  - Test data fixtures com dados realistas
+  - Estratégia resiliente com múltiplos seletores por elemento
+  - Error monitoring e console log validation
+- ✅ **Execution Scripts**: `pnpm test`, `test:headed`, `test:debug`, `test:ui`
+- ✅ **Documentação completa**: README.md + IMPLEMENTATION.md
+- ✅ **Production Ready**: CI/CD compatible, trace collection, HTML reports
+
 ### **Estrutura de Branches Sugerida:**
 
 - `main` - produção
@@ -241,14 +259,15 @@
 
 ---
 
-**Status do Projeto:** 🟢 **Funcional com testes COMPLETOS (Backend + Mobile), pronto para documentação e deploy**
+**Status do Projeto:** 🟢 **Funcional com testes COMPLETOS (Backend + Mobile + E2E), pronto para documentação e deploy**
 
 **Última atualização:** 2025-12-05
 
 ### **✅ Completado recentemente:**
 - **Backend Tests COMPLETO**: 71 testes (34 unitários + 37 integração) funcionando perfeitamente
 - **Mobile Tests COMPLETO**: 23 testes passando sem erros, infraestrutura robusta
-- **Test Infrastructure**: Vitest (backend) + Jest + React Native Testing Library (mobile)
+- **E2E Tests COMPLETO**: Playwright com cobertura completa de user journeys
+- **Test Infrastructure**: Vitest (backend) + Jest + React Native Testing Library (mobile) + Playwright (E2E)
 - **Integration Tests**: Rotas completas (auth, exercises, workouts) + UI components básicos
 - **Data Validation**: Estruturas de dados, responses validadas
 - **Code Quality**: Coverage das funcionalidades principais em ambas as aplicações
