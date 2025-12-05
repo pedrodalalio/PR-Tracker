@@ -1,5 +1,4 @@
 module.exports = {
-  preset: '@testing-library/react-native',
   roots: ['<rootDir>/src'],
   testMatch: [
     '**/__tests__/**/*.(ts|tsx|js)',

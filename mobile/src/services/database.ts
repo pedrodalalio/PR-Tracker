@@ -103,6 +103,11 @@ class DatabaseService {
     return await this.getStoredData(this.STORAGE_KEYS.EXERCISES, []);
   }
 
+  async getExercise(id: string): Promise<Exercise | null> {
+    const exercises = await this.getExercises();
+    return exercises.find(ex => ex.id === id) || null;
+  }
+
   async saveExercises(exercises: Exercise[]): Promise<void> {
     // Keep local exercises and replace server exercises
     const currentExercises = await this.getExercises();

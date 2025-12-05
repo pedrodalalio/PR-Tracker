@@ -1,19 +1,31 @@
-import '@testing-library/react-native/extend-expect';
-
 // Mock react-native modules that Jest can't handle
-jest.mock('react-native', () => {
-  const RN = jest.requireActual('react-native');
-
-  // Mock specific modules
-  RN.NativeModules = {
-    ...RN.NativeModules,
+jest.mock('react-native', () => ({
+  Platform: {
+    OS: 'ios',
+    select: jest.fn(),
+  },
+  StyleSheet: {
+    create: jest.fn((styles) => styles),
+    flatten: jest.fn((styles) => styles),
+  },
+  Dimensions: {
+    get: jest.fn(() => ({ width: 375, height: 812 })),
+  },
+  NativeModules: {
     RNDeviceInfo: {
       getUniqueId: jest.fn(() => 'unique-device-id'),
     },
-  };
-
-  return RN;
-});
+  },
+  View: 'View',
+  Text: 'Text',
+  TextInput: 'TextInput',
+  TouchableOpacity: 'TouchableOpacity',
+  ScrollView: 'ScrollView',
+  Image: 'Image',
+  Alert: {
+    alert: jest.fn(),
+  },
+}));
 
 // Mock Expo modules
 jest.mock('expo-font', () => ({
@@ -103,6 +115,41 @@ global.fetch = jest.fn(() =>
     json: () => Promise.resolve({}),
   })
 );
+
+// Mock __DEV__ global variable
+global.__DEV__ = true;
+
+// Mock axios
+jest.mock('axios', () => ({
+  create: jest.fn(() => ({
+    get: jest.fn(),
+    post: jest.fn(),
+    put: jest.fn(),
+    delete: jest.fn(),
+    interceptors: {
+      request: {
+        use: jest.fn(),
+      },
+      response: {
+        use: jest.fn(),
+      },
+    },
+  })),
+}));
+
+// Mock Expo Vector Icons
+jest.mock('@expo/vector-icons', () => {
+  const mockIcon = (props) => 'Icon';
+
+  return {
+    Ionicons: mockIcon,
+    MaterialIcons: mockIcon,
+    AntDesign: mockIcon,
+    Feather: mockIcon,
+    FontAwesome: mockIcon,
+    Entypo: mockIcon,
+  };
+});
 
 // Reset all mocks between tests
 beforeEach(() => {

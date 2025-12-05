@@ -55,9 +55,7 @@ export function useOfflineWorkout(): OfflineWorkoutHook {
   const createWorkout = async (workoutData: Partial<Workout>): Promise<Workout> => {
     if (!user) throw new Error('User not authenticated');
 
-    const workout: Workout = {
-      id: `local_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
-      userId: user.id!,
+    const workoutWithoutId: Omit<Workout, "id"> = {
       name: workoutData.name || 'Novo Treino',
       date: workoutData.date || new Date().toISOString(),
       workoutType: workoutData.workoutType || 'upper',
@@ -66,19 +64,17 @@ export function useOfflineWorkout(): OfflineWorkoutHook {
       startTime: workoutData.startTime,
       endTime: workoutData.endTime,
       notes: workoutData.notes,
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString(),
     };
 
-    // Save locally first (offline-first approach)
-    await databaseService.saveWorkout(workout);
+    // Save locally first (offline-first approach) - use createWorkout method
+    const createdWorkout = await databaseService.createWorkout(workoutWithoutId);
 
     // Add to sync queue if we have network
     if (isOnline) {
       await syncService.forceSyncNow();
     }
 
-    return workout;
+    return createdWorkout;
   };
 
   const getWorkouts = async (): Promise<Workout[]> => {
@@ -90,13 +86,7 @@ export function useOfflineWorkout(): OfflineWorkoutHook {
     const existingWorkout = await databaseService.getWorkout(id);
     if (!existingWorkout) throw new Error('Workout not found');
 
-    const updatedWorkout: Workout = {
-      ...existingWorkout,
-      ...workoutData,
-      updatedAt: new Date().toISOString(),
-    };
-
-    await databaseService.updateWorkout(updatedWorkout);
+    await databaseService.updateWorkout(id, workoutData);
 
     if (isOnline) {
       await syncService.forceSyncNow();
@@ -135,7 +125,7 @@ export function useOfflineWorkout(): OfflineWorkoutHook {
       updatedAt: new Date().toISOString(),
     };
 
-    await databaseService.updateWorkout(updatedWorkout);
+    await databaseService.updateWorkout(workoutId, updatedWorkout);
 
     if (isOnline) {
       await syncService.forceSyncNow();
@@ -157,7 +147,7 @@ export function useOfflineWorkout(): OfflineWorkoutHook {
       updatedAt: new Date().toISOString(),
     };
 
-    await databaseService.updateWorkout(updatedWorkout);
+    await databaseService.updateWorkout(workoutId, updatedWorkout);
 
     if (isOnline) {
       await syncService.forceSyncNow();
@@ -205,7 +195,7 @@ export function useOfflineWorkout(): OfflineWorkoutHook {
       updatedAt: new Date().toISOString(),
     };
 
-    await databaseService.updateWorkout(updatedWorkout);
+    await databaseService.updateWorkout(targetWorkout.id, updatedWorkout);
 
     if (isOnline) {
       await syncService.forceSyncNow();
@@ -257,7 +247,7 @@ export function useOfflineWorkout(): OfflineWorkoutHook {
       updatedAt: new Date().toISOString(),
     };
 
-    await databaseService.updateWorkout(updatedWorkout);
+    await databaseService.updateWorkout(targetWorkout.id, updatedWorkout);
 
     if (isOnline) {
       await syncService.forceSyncNow();
@@ -298,7 +288,7 @@ export function useOfflineWorkout(): OfflineWorkoutHook {
       updatedAt: new Date().toISOString(),
     };
 
-    await databaseService.updateWorkout(updatedWorkout);
+    await databaseService.updateWorkout(targetWorkout.id, updatedWorkout);
 
     if (isOnline) {
       await syncService.forceSyncNow();
