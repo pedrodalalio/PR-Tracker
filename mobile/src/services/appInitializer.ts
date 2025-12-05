@@ -1,5 +1,6 @@
 import { databaseService } from "./database";
 import { syncService } from "./syncService";
+import { secureStorage } from "./secureStorage";
 
 class AppInitializer {
   private isInitialized = false;
@@ -9,6 +10,16 @@ class AppInitializer {
 
     try {
       await databaseService.initialize();
+
+      // Only proceed with sync if user is authenticated
+      const authData = await secureStorage.getAuthData();
+      const isAuthenticated = authData && authData.type !== "guest";
+
+      if (!isAuthenticated) {
+        this.isInitialized = true;
+        return;
+      }
+
       const localWorkouts = await databaseService.getWorkouts();
       const localExercises = await databaseService.getExercises();
       const localGoals = await databaseService.getUserGoals();

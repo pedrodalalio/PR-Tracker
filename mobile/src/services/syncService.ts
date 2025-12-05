@@ -2,6 +2,7 @@ import NetInfo from "@react-native-community/netinfo";
 import { databaseService, SyncQueueItem } from "./database";
 import { workoutApi, exerciseApi, goalsApi } from "./api";
 import { Workout, Exercise, UserGoals } from "../types/workout";
+import { secureStorage } from "./secureStorage";
 
 export interface SyncStatus {
   isOnline: boolean;
@@ -20,12 +21,21 @@ class SyncService {
     this.initializeNetworkListener();
   }
 
+  private async isUserAuthenticated(): Promise<boolean> {
+    try {
+      const authData = await secureStorage.getAuthData();
+      return authData && authData.type !== "guest";
+    } catch (error) {
+      return false;
+    }
+  }
+
   private initializeNetworkListener(): void {
-    NetInfo.addEventListener((state) => {
+    NetInfo.addEventListener(async (state) => {
       const wasOnline = this.isOnline;
       this.isOnline = state.isConnected === true;
 
-      if (!wasOnline && this.isOnline) {
+      if (!wasOnline && this.isOnline && await this.isUserAuthenticated()) {
         this.syncWithServer();
       }
 
@@ -61,7 +71,7 @@ class SyncService {
   }
 
   async initialDataSync(): Promise<void> {
-    if (!this.isOnline) {
+    if (!this.isOnline || !await this.isUserAuthenticated()) {
       return;
     }
 
@@ -93,7 +103,7 @@ class SyncService {
   }
 
   async syncWithServer(): Promise<void> {
-    if (!this.isOnline || this.isSyncing) {
+    if (!this.isOnline || this.isSyncing || !await this.isUserAuthenticated()) {
       return;
     }
 
@@ -259,7 +269,9 @@ class SyncService {
   }
 
   async forceSyncNow(): Promise<void> {
-    await this.syncWithServer();
+    if (await this.isUserAuthenticated()) {
+      await this.syncWithServer();
+    }
   }
 }
 

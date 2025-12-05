@@ -15,6 +15,7 @@ import {
 import { MockDataService } from "./mockDataService";
 import { ENV_CONFIG } from "../config/environment";
 import { ToastService } from "./toastService";
+import { secureStorage } from "./secureStorage";
 import {
   mapCategoryToBackend,
   mapCategoryToFrontend,
@@ -35,9 +36,12 @@ const api = axios.create({
 api.interceptors.request.use(
   async (config) => {
     try {
-      const token = await AsyncStorage.getItem("@pr_tracker_token");
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      const authData = await secureStorage.getAuthData();
+      if (authData && authData.type !== "guest") {
+        const accessToken = await secureStorage.getAccessToken();
+        if (accessToken) {
+          config.headers.Authorization = `Bearer ${accessToken}`;
+        }
       }
     } catch (error) {
       console.warn("Failed to get auth token:", error);
@@ -49,13 +53,44 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor to handle errors
+// Add response interceptor to handle errors and token refresh
 api.interceptors.response.use(
   (response) => response,
-  (error) => {
-    // Only show toast for non-guest users and if error is not from auth endpoints
+  async (error) => {
+    const originalRequest = error.config;
     const isAuthError = error?.config?.url?.includes('/auth/');
 
+    // Handle 401 errors with token refresh
+    if (error.response?.status === 401 && !originalRequest._retry && !isAuthError) {
+      originalRequest._retry = true;
+
+      try {
+        const authData = await secureStorage.getAuthData();
+        if (authData && authData.type !== "guest") {
+          const refreshToken = await secureStorage.getRefreshToken();
+          if (refreshToken) {
+            const response = await axios.post(`${ENV_CONFIG.apiBaseUrl}/auth/refresh`, {
+              refreshToken,
+            });
+
+            const { token, refreshToken: newRefreshToken } = response.data;
+
+            // Store new tokens
+            await secureStorage.storeTokens(token, newRefreshToken);
+
+            // Retry original request with new token
+            originalRequest.headers.Authorization = `Bearer ${token}`;
+            return api(originalRequest);
+          }
+        }
+      } catch (refreshError) {
+        console.error("Token refresh failed:", refreshError);
+        await secureStorage.clearAll();
+        // Token refresh failed, let the error propagate
+      }
+    }
+
+    // Only show toast for non-auth errors
     if (!isAuthError) {
       ToastService.handleApiError(error);
     }
@@ -66,11 +101,8 @@ api.interceptors.response.use(
 
 async function isGuestUser(): Promise<boolean> {
   try {
-    const storedAuth = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-    if (storedAuth) {
-      const authData = JSON.parse(storedAuth);
-      return authData.type === "guest";
-    }
+    const authData = await secureStorage.getAuthData();
+    return authData?.type === "guest";
   } catch (error) {
     console.error("Error checking user type:", error);
   }

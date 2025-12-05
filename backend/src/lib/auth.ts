@@ -7,7 +7,7 @@ import { PrismaClient } from '../generated/prisma';
 const prisma = new PrismaClient();
 
 const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-change-in-production';
-const JWT_EXPIRES_IN = '30m';
+const JWT_EXPIRES_IN = '7d';
 const REFRESH_TOKEN_EXPIRES_IN_DAYS = 30;
 
 export class AuthService {

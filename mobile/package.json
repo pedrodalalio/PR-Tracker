@@ -8,7 +8,11 @@
     "ios": "expo run:ios",
     "web": "expo start --web",
     "build": "expo export",
-    "build:android": "eas build --platform android"
+    "build:android": "eas build --platform android",
+    "test": "jest",
+    "test:watch": "jest --watch",
+    "test:coverage": "jest --coverage",
+    "test:debug": "jest --detectOpenHandles"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.2",
@@ -38,8 +42,17 @@
   },
   "devDependencies": {
     "@expo/cli": "^54.0.11",
+    "@testing-library/jest-native": "^5.4.3",
+    "@testing-library/react-native": "^13.3.3",
+    "@types/jest": "^30.0.0",
     "@types/react": "~19.1.0",
     "eas-cli": "^16.27.0",
+    "identity-obj-proxy": "^3.0.0",
+    "jest": "^30.2.0",
+    "jest-environment-jsdom": "^30.2.0",
+    "jsdom": "^27.2.0",
+    "react-test-renderer": "^19.2.1",
+    "ts-jest": "^29.4.6",
     "typescript": "~5.9.2"
   },
   "private": true

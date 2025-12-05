@@ -8,6 +8,27 @@ import { appInitializer } from "./src/services/appInitializer";
 import { AuthProvider } from "./src/contexts/AuthContext";
 import { toastConfig } from "./src/components/ToastConfig";
 
+// Suppress React Native web warnings
+if (typeof window !== 'undefined') {
+  const originalConsoleWarn = console.warn;
+  console.warn = (...args) => {
+    const message = args[0];
+    if (
+      typeof message === 'string' &&
+      (message.includes('Invalid DOM property `transform-origin`') ||
+       message.includes('Unknown event handler property `onStartShouldSetResponder`') ||
+       message.includes('Unknown event handler property `onResponderTerminationRequest`') ||
+       message.includes('Unknown event handler property `onResponderGrant`') ||
+       message.includes('Unknown event handler property `onResponderMove`') ||
+       message.includes('Unknown event handler property `onResponderRelease`') ||
+       message.includes('Unknown event handler property `onResponderTerminate`'))
+    ) {
+      return; // Suppress these warnings
+    }
+    originalConsoleWarn(...args);
+  };
+}
+
 export default function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);

@@ -2,6 +2,7 @@ import { databaseService } from './database';
 import { syncService } from './syncService';
 import { workoutApi as onlineWorkoutApi, exerciseApi as onlineExerciseApi, goalsApi as onlineGoalsApi } from './api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { secureStorage } from './secureStorage';
 import {
   Workout,
   Exercise,
@@ -19,10 +20,10 @@ const AUTH_STORAGE_KEY = '@pr_tracker_auth';
 // Função auxiliar para verificar se o usuário está autenticado e não é guest
 async function isAuthenticatedUser(): Promise<boolean> {
   try {
-    const storedAuth = await AsyncStorage.getItem(AUTH_STORAGE_KEY);
-    if (storedAuth) {
-      const authData = JSON.parse(storedAuth);
-      return authData.type === 'admin' && authData.token;
+    const authData = await secureStorage.getAuthData();
+    if (authData && authData.type === 'admin') {
+      const accessToken = await secureStorage.getAccessToken();
+      return !!accessToken;
     }
   } catch (error) {
     console.error('Error checking authentication status:', error);
@@ -33,8 +34,9 @@ async function isAuthenticatedUser(): Promise<boolean> {
 class OfflineWorkoutApi {
   async getWorkouts(): Promise<Workout[]> {
     const isOnline = await syncService.getNetworkStatus();
+    const isAuthenticated = await isAuthenticatedUser();
 
-    if (isOnline) {
+    if (isOnline && isAuthenticated) {
       try {
         const workouts = await onlineWorkoutApi.getWorkouts();
         await databaseService.saveWorkouts(workouts);
@@ -49,8 +51,9 @@ class OfflineWorkoutApi {
 
   async getWorkout(id: string): Promise<Workout> {
     const isOnline = await syncService.getNetworkStatus();
+    const isAuthenticated = await isAuthenticatedUser();
 
-    if (isOnline) {
+    if (isOnline && isAuthenticated) {
       try {
         return await onlineWorkoutApi.getWorkout(id);
       } catch (error) {
