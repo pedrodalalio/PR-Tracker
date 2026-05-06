@@ -9,25 +9,6 @@ export interface LoginRequest {
   password: string;
 }
 
-export interface AuthResponse {
-  user: {
-    id: string;
-    username: string;
-    email: string;
-  };
-  token: string;
-  refreshToken: string;
-}
-
-export interface RefreshTokenRequest {
-  refreshToken: string;
-}
-
-export interface RefreshTokenResponse {
-  token: string;
-  refreshToken: string;
-}
-
 export interface JWTPayload {
   userId: string;
   username: string;

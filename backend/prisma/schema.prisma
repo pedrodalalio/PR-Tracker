@@ -123,6 +123,9 @@ model UserGoals {
   id                   String   @id @default(uuid())
   userId               String   @unique
   weeklyWorkoutGoal    Int      @default(3)
+  // Dias da semana que o usuário pretende treinar (subset dos valores de WeekDay).
+  // Vazio = sem dias planejados específicos (só conta a meta semanal).
+  targetDays          String[] @default([])
   currentStreak        Int      @default(0)
   bestStreak          Int      @default(0)
   totalWeeksCompleted Int      @default(0)

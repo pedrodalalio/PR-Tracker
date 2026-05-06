@@ -1,15 +1,13 @@
 import { FastifyRequest, FastifyReply } from 'fastify';
 import { AuthService } from './auth';
-import { JWTPayload } from '../types/auth';
-
+import { ACCESS_COOKIE } from './cookies';
 
 export async function authenticateToken(
   request: FastifyRequest,
   reply: FastifyReply
 ) {
   try {
-    const authHeader = request.headers.authorization;
-    const token = authHeader && authHeader.split(' ')[1]; // Bearer TOKEN
+    const token = request.cookies?.[ACCESS_COOKIE];
 
     if (!token) {
       return reply.status(401).send({

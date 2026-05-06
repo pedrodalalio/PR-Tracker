@@ -3,16 +3,58 @@ import { PrismaClient } from "../generated/prisma";
 import { authenticateToken } from "../lib/middleware";
 import {
   UserGoals,
-  CreateGoalsRequest,
   UpdateGoalsRequest,
   WeeklyProgress,
   StreakInfo,
+  WeekDay,
 } from "../types/workout";
+
+const VALID_WEEK_DAYS: ReadonlySet<WeekDay> = new Set([
+  "segunda",
+  "terça",
+  "quarta",
+  "quinta",
+  "sexta",
+  "sabado",
+  "domingo",
+]);
+
+function sanitizeTargetDays(input: unknown): WeekDay[] | null {
+  if (input === undefined) return null;
+  if (!Array.isArray(input)) return [];
+  const seen = new Set<WeekDay>();
+  for (const item of input) {
+    if (typeof item === "string" && VALID_WEEK_DAYS.has(item as WeekDay)) {
+      seen.add(item as WeekDay);
+    }
+  }
+  return [...seen];
+}
 
 const prisma = new PrismaClient();
 
-interface GoalsParams {
+function toUserGoalsResponse(goals: {
   id: string;
+  weeklyWorkoutGoal: number;
+  targetDays: string[];
+  currentStreak: number;
+  bestStreak: number;
+  totalWeeksCompleted: number;
+  lastWorkoutDate: Date | null;
+  createdAt: Date;
+  updatedAt: Date;
+}): UserGoals {
+  return {
+    id: goals.id,
+    weeklyWorkoutGoal: goals.weeklyWorkoutGoal,
+    targetDays: goals.targetDays as WeekDay[],
+    currentStreak: goals.currentStreak,
+    bestStreak: goals.bestStreak,
+    totalWeeksCompleted: goals.totalWeeksCompleted,
+    lastWorkoutDate: goals.lastWorkoutDate?.toISOString() || "",
+    createdAt: goals.createdAt.toISOString(),
+    updatedAt: goals.updatedAt.toISOString(),
+  };
 }
 
 export async function goalsRoutes(fastify: FastifyInstance) {
@@ -41,18 +83,7 @@ export async function goalsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        const userGoals: UserGoals = {
-          id: goals.id,
-          weeklyWorkoutGoal: goals.weeklyWorkoutGoal,
-          currentStreak: goals.currentStreak,
-          bestStreak: goals.bestStreak,
-          totalWeeksCompleted: goals.totalWeeksCompleted,
-          lastWorkoutDate: goals.lastWorkoutDate?.toISOString() || "",
-          createdAt: goals.createdAt.toISOString(),
-          updatedAt: goals.updatedAt.toISOString(),
-        };
-
-        reply.send(userGoals);
+        reply.send(toUserGoalsResponse(goals));
       } catch (error) {
         reply.status(500).send({ error: "Failed to fetch goals" });
       }
@@ -71,6 +102,7 @@ export async function goalsRoutes(fastify: FastifyInstance) {
     ) => {
       try {
         const { weeklyWorkoutGoal } = request.body;
+        const sanitizedTargetDays = sanitizeTargetDays(request.body.targetDays);
 
         let goals = await prisma.userGoals.findFirst({
           where: { userId: request.user!.userId },
@@ -81,6 +113,7 @@ export async function goalsRoutes(fastify: FastifyInstance) {
             data: {
               userId: request.user!.userId,
               weeklyWorkoutGoal: weeklyWorkoutGoal || 3,
+              targetDays: sanitizedTargetDays ?? [],
               currentStreak: 0,
               bestStreak: 0,
               totalWeeksCompleted: 0,
@@ -91,22 +124,14 @@ export async function goalsRoutes(fastify: FastifyInstance) {
             where: { id: goals.id },
             data: {
               weeklyWorkoutGoal: weeklyWorkoutGoal ?? goals.weeklyWorkoutGoal,
+              ...(sanitizedTargetDays !== null && {
+                targetDays: sanitizedTargetDays,
+              }),
             },
           });
         }
 
-        const userGoals: UserGoals = {
-          id: goals.id,
-          weeklyWorkoutGoal: goals.weeklyWorkoutGoal,
-          currentStreak: goals.currentStreak,
-          bestStreak: goals.bestStreak,
-          totalWeeksCompleted: goals.totalWeeksCompleted,
-          lastWorkoutDate: goals.lastWorkoutDate?.toISOString() || "",
-          createdAt: goals.createdAt.toISOString(),
-          updatedAt: goals.updatedAt.toISOString(),
-        };
-
-        reply.send(userGoals);
+        reply.send(toUserGoalsResponse(goals));
       } catch (error) {
         reply.status(500).send({ error: "Failed to update goals" });
       }
@@ -492,18 +517,7 @@ export async function goalsRoutes(fastify: FastifyInstance) {
           },
         });
 
-        const userGoals: UserGoals = {
-          id: updatedGoals.id,
-          weeklyWorkoutGoal: updatedGoals.weeklyWorkoutGoal,
-          currentStreak: updatedGoals.currentStreak,
-          bestStreak: updatedGoals.bestStreak,
-          totalWeeksCompleted: updatedGoals.totalWeeksCompleted,
-          lastWorkoutDate: updatedGoals.lastWorkoutDate?.toISOString() || "",
-          createdAt: updatedGoals.createdAt.toISOString(),
-          updatedAt: updatedGoals.updatedAt.toISOString(),
-        };
-
-        reply.send(userGoals);
+        reply.send(toUserGoalsResponse(updatedGoals));
       } catch (error) {
         reply.status(500).send({ error: "Failed to update streak" });
       }

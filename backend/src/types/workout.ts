@@ -48,9 +48,12 @@ export interface CreateWorkoutRequest {
 
 export interface UpdateWorkoutRequest {
   name?: string;
-  exercises?: WorkoutExercise[];
+  date?: string;
+  workoutType?: WorkoutType;
+  dayOfWeek?: WeekDay;
+  exercises?: Omit<WorkoutExercise, "id">[];
   notes?: string;
-  endTime?: string;
+  endTime?: string | null;
 }
 
 export interface CreateExerciseRequest {
@@ -62,6 +65,7 @@ export interface CreateExerciseRequest {
 export interface UserGoals {
   id: string;
   weeklyWorkoutGoal: number; // Target workouts per week (e.g., 3, 5)
+  targetDays: WeekDay[]; // Specific days the user plans to train (optional, can be empty)
   currentStreak: number; // Current streak in days
   bestStreak: number; // Best streak achieved in days
   totalWeeksCompleted: number; // Total weeks where goal was met
@@ -72,10 +76,12 @@ export interface UserGoals {
 
 export interface CreateGoalsRequest {
   weeklyWorkoutGoal: number;
+  targetDays?: WeekDay[];
 }
 
 export interface UpdateGoalsRequest {
   weeklyWorkoutGoal?: number;
+  targetDays?: WeekDay[];
 }
 
 export interface WeeklyProgress {
