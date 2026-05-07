@@ -88,10 +88,10 @@ fastify.get("/health", async () => {
   return { status: "ok", timestamp: new Date().toISOString() };
 });
 
-fastify.register(authRoutes, { prefix: "/api" });
-fastify.register(workoutRoutes, { prefix: "/api" });
-fastify.register(exerciseRoutes, { prefix: "/api" });
-fastify.register(goalsRoutes, { prefix: "/api" });
+fastify.register(authRoutes);
+fastify.register(workoutRoutes);
+fastify.register(exerciseRoutes);
+fastify.register(goalsRoutes);
 
 const start = async () => {
   try {

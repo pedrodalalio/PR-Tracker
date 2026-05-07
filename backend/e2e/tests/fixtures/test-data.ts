@@ -81,10 +81,10 @@ export const testExercises = [
 ];
 
 export const apiEndpoints = {
-  health: '/api/health',
-  login: '/api/auth/login',
-  logout: '/api/auth/logout',
-  workouts: '/api/workouts',
-  exercises: '/api/exercises',
-  goals: '/api/goals'
+  health: '/health',
+  login: '/auth/login',
+  logout: '/auth/logout',
+  workouts: '/workouts',
+  exercises: '/exercises',
+  goals: '/goals'
 };

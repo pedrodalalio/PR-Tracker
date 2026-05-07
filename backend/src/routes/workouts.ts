@@ -128,7 +128,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
         // Update streak after workout creation
         try {
           const authHeader = request.headers.authorization;
-          const goalsResponse = await fetch('http://localhost:3000/api/goals/update-streak', {
+          const goalsResponse = await fetch('http://localhost:3000/goals/update-streak', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
