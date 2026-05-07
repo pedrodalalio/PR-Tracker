@@ -10,6 +10,7 @@ import {
 import { Link } from "react-router";
 import { EmptyState } from "@/components/empty-state";
 import { StatCard } from "@/components/stat-card";
+import { WeightCard } from "@/components/weight-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
@@ -60,6 +61,8 @@ export function HomePage() {
   return (
     <div className="space-y-8">
       <Hero username={user?.username ?? ""} todayPlan={todayPlan} />
+
+      <WeightCard />
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
         <StatCard

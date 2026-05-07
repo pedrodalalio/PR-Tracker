@@ -15,6 +15,7 @@ import {
   TrendingUp,
 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { useSearchParams } from "react-router";
 import {
   CartesianGrid,
   Bar,
@@ -30,6 +31,13 @@ import {
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
+import { WeightProgress } from "@/components/weight-progress";
+import {
+  Tabs,
+  TabsContent,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import {
   Select,
   SelectContent,
@@ -176,6 +184,9 @@ export function ProgressPage() {
     };
   }, [exerciseProgress]);
 
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = searchParams.get("tab") === "peso" ? "peso" : "treinos";
+
   return (
     <div className="space-y-8">
       <PageHeader
@@ -184,6 +195,22 @@ export function ProgressPage() {
         description="Tendências dos últimos três meses, frequência semanal e evolução por exercício."
       />
 
+      <Tabs
+        value={activeTab}
+        onValueChange={(value) => {
+          const next = new URLSearchParams(searchParams);
+          if (value === "treinos") next.delete("tab");
+          else next.set("tab", value);
+          setSearchParams(next, { replace: true });
+        }}
+        className="space-y-6"
+      >
+        <TabsList>
+          <TabsTrigger value="treinos">Treinos</TabsTrigger>
+          <TabsTrigger value="peso">Peso</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="treinos" className="space-y-8">
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard
           label="Sequência"
@@ -483,6 +510,12 @@ export function ProgressPage() {
           semanas no total.
         </p>
       )}
+        </TabsContent>
+
+        <TabsContent value="peso" className="space-y-6">
+          <WeightProgress />
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }

@@ -106,6 +106,16 @@ export function weeklyProgressPercent(p: WeeklyProgress): number {
   return Math.min(100, (p.completedWorkouts / p.targetWorkouts) * 100);
 }
 
+export const weightEntrySchema = z.object({
+  id: z.string(),
+  weight: z.number().positive(),
+  recordedAt: z.string(),
+  notes: z.string().nullable().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+export type WeightEntry = z.infer<typeof weightEntrySchema>;
+
 export const streakInfoSchema = z.object({
   currentStreak: z.number().int().nonnegative(),
   bestStreak: z.number().int().nonnegative(),
