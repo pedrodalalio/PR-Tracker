@@ -1,16 +1,29 @@
-import { Outlet } from "react-router";
+import { Outlet, useLocation } from "react-router";
 import { AppHeader } from "@/components/layout/app-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { cn } from "@/lib/utils";
+
+// Páginas com bastante densidade de gráficos ganham um container mais largo
+// no desktop pra os labels não embolarem.
+const WIDE_PATH_PREFIXES = ["/reports", "/progress"];
 
 export function AppLayout() {
+  const { pathname } = useLocation();
+  const wide = WIDE_PATH_PREFIXES.some((p) => pathname.startsWith(p));
+
   return (
     <div className="flex min-h-dvh">
       <SidebarNav />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppHeader />
         <main className="flex-1 pb-24 md:pb-10">
-          <div className="mx-auto w-full max-w-5xl px-4 py-5 md:px-8 md:py-8">
+          <div
+            className={cn(
+              "mx-auto w-full px-4 py-5 md:px-8 md:py-8",
+              wide ? "max-w-7xl" : "max-w-5xl",
+            )}
+          >
             <Outlet />
           </div>
         </main>

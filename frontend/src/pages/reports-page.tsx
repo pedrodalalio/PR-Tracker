@@ -26,7 +26,10 @@ import {
 import { useMemo } from "react";
 import { useSearchParams } from "react-router";
 import {
+  Bar,
+  BarChart,
   CartesianGrid,
+  Cell,
   Line,
   LineChart,
   ResponsiveContainer,
@@ -45,6 +48,11 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tabs,
+  TabsList,
+  TabsTrigger,
+} from "@/components/ui/tabs";
 import { useGoals, useWeeklyGoalHistory } from "@/hooks/use-goals";
 import { useWeights } from "@/hooks/use-weights";
 import { useWorkouts } from "@/hooks/use-workouts";
@@ -84,7 +92,7 @@ interface PlannedAdherence {
   percent: number;
 }
 
-interface MonthMetrics {
+interface PeriodMetrics {
   workouts: Workout[];
   totalWorkouts: number;
   daysTrained: number;
@@ -96,19 +104,19 @@ interface MonthMetrics {
 // quantos tiveram pelo menos um treino. Para o mês corrente, ignora dias futuros.
 function computePlannedAdherence(
   trainedDays: Set<string>,
-  monthStart: Date,
-  monthEnd: Date,
+  start: Date,
+  end: Date,
   targetDays: WeekDay[],
   today: Date,
 ): PlannedAdherence | null {
   if (targetDays.length === 0) return null;
   const targetSet = new Set(targetDays);
-  const cap = monthEnd < today ? monthEnd : today;
+  const cap = end < today ? end : today;
 
   let plannedCount = 0;
   let metCount = 0;
   for (
-    let d = new Date(monthStart);
+    let d = new Date(start);
     d <= cap;
     d = addDays(d, 1)
   ) {
@@ -129,18 +137,17 @@ function computePlannedAdherence(
 
 function computeMetrics(
   workouts: Workout[],
-  month: Date,
+  start: Date,
+  end: Date,
   targetDays: WeekDay[],
   today: Date,
-): MonthMetrics {
-  const start = startOfMonth(month);
-  const end = endOfMonth(month);
-  const inMonth = workouts.filter((w) =>
+): PeriodMetrics {
+  const inPeriod = workouts.filter((w) =>
     isWithinInterval(new Date(w.date), { start, end }),
   );
 
   const days = new Set(
-    inMonth.map((w) => format(new Date(w.date), "yyyy-MM-dd")),
+    inPeriod.map((w) => format(new Date(w.date), "yyyy-MM-dd")),
   );
 
   const byType: Record<WorkoutType, number> = {
@@ -148,11 +155,11 @@ function computeMetrics(
     lower: 0,
     cardio: 0,
   };
-  for (const w of inMonth) byType[w.workoutType] += 1;
+  for (const w of inPeriod) byType[w.workoutType] += 1;
 
   return {
-    workouts: inMonth,
-    totalWorkouts: inMonth.length,
+    workouts: inPeriod,
+    totalWorkouts: inPeriod.length,
     daysTrained: days.size,
     byType,
     plannedAdherence: computePlannedAdherence(
@@ -163,6 +170,67 @@ function computeMetrics(
       today,
     ),
   };
+}
+
+type RangeMode = "monthly" | "6m" | "12m";
+
+interface PeriodInfo {
+  mode: RangeMode;
+  start: Date;
+  end: Date;
+  monthCount: number;
+}
+
+function buildPeriod(
+  mode: RangeMode,
+  selectedMonth: Date,
+  today: Date,
+): PeriodInfo {
+  if (mode === "monthly") {
+    return {
+      mode,
+      start: startOfMonth(selectedMonth),
+      end: endOfMonth(selectedMonth),
+      monthCount: 1,
+    };
+  }
+  const months = mode === "6m" ? 6 : 12;
+  return {
+    mode,
+    start: startOfMonth(subMonths(today, months - 1)),
+    end: endOfMonth(today),
+    monthCount: months,
+  };
+}
+
+function previousPeriodBounds(period: PeriodInfo): {
+  start: Date;
+  end: Date;
+} {
+  if (period.mode === "monthly") {
+    const prev = subMonths(period.start, 1);
+    return { start: startOfMonth(prev), end: endOfMonth(prev) };
+  }
+  return {
+    start: subMonths(period.start, period.monthCount),
+    end: endOfMonth(subMonths(period.start, 1)),
+  };
+}
+
+function periodTitle(period: PeriodInfo): string {
+  if (period.mode === "monthly") {
+    return format(period.start, "MMMM 'de' yyyy", { locale: ptBR });
+  }
+  return period.mode === "6m" ? "Últimos 6 meses" : "Últimos 12 meses";
+}
+
+function periodSubtitle(period: PeriodInfo): string {
+  if (period.mode === "monthly") return "";
+  return `${format(period.start, "MMM/yy", { locale: ptBR })} → ${format(
+    period.end,
+    "MMM/yy",
+    { locale: ptBR },
+  )}`;
 }
 
 // Resolve a meta semanal vigente em um determinado momento.
@@ -199,6 +267,9 @@ export function ReportsPage() {
 
   const today = useMemo(() => new Date(), []);
   const queryMonth = searchParams.get("ym");
+  const queryRange = searchParams.get("range");
+  const rangeMode: RangeMode =
+    queryRange === "6m" || queryRange === "12m" ? queryRange : "monthly";
   const selectedMonth = useMemo(() => {
     if (queryMonth) {
       const parsed = parseMonthKey(queryMonth);
@@ -213,6 +284,19 @@ export function ReportsPage() {
     else next.set("ym", formatMonthKey(date));
     setSearchParams(next, { replace: true });
   }
+
+  function setRangeMode(mode: RangeMode) {
+    const next = new URLSearchParams(searchParams);
+    if (mode === "monthly") next.delete("range");
+    else next.set("range", mode);
+    setSearchParams(next, { replace: true });
+  }
+
+  const period = useMemo(
+    () => buildPeriod(rangeMode, selectedMonth, today),
+    [rangeMode, selectedMonth, today],
+  );
+  const prevBounds = useMemo(() => previousPeriodBounds(period), [period]);
 
   const availableMonths = useMemo(() => {
     const set = new Set<string>();
@@ -233,36 +317,67 @@ export function ReportsPage() {
   const targetDays = goals.data?.targetDays ?? [];
   const current = useMemo(
     () =>
-      computeMetrics(workouts.data ?? [], selectedMonth, targetDays, today),
-    [workouts.data, selectedMonth, targetDays, today],
+      computeMetrics(
+        workouts.data ?? [],
+        period.start,
+        period.end,
+        targetDays,
+        today,
+      ),
+    [workouts.data, period, targetDays, today],
   );
   const previous = useMemo(
     () =>
       computeMetrics(
         workouts.data ?? [],
-        subMonths(selectedMonth, 1),
+        prevBounds.start,
+        prevBounds.end,
         targetDays,
         today,
       ),
-    [workouts.data, selectedMonth, targetDays, today],
+    [workouts.data, prevBounds, targetDays, today],
   );
 
-  const isFutureMonth = selectedMonth > today;
+  const isFutureMonth = rangeMode === "monthly" && selectedMonth > today;
+
+  const subtitle = periodSubtitle(period);
+  const noDataInPeriod =
+    current.totalWorkouts === 0 &&
+    (weights.data ?? []).every((w) => {
+      const d = new Date(w.recordedAt);
+      return d < period.start || d > period.end;
+    });
 
   return (
     <div className="space-y-8">
       <PageHeader
         eyebrow="Relatórios"
-        title={format(selectedMonth, "MMMM 'de' yyyy", { locale: ptBR })}
-        description="Resumo do mês com comparativos, distribuição por categoria, heatmap e evolução de peso."
+        title={periodTitle(period)}
+        description={
+          subtitle ||
+          "Resumo do mês com comparativos, distribuição por categoria, heatmap e evolução de peso."
+        }
         action={
-          <MonthPicker
-            selected={selectedMonth}
-            available={availableMonths}
-            onChange={setMonth}
-          />
+          rangeMode === "monthly" ? (
+            <MonthPicker
+              selected={selectedMonth}
+              available={availableMonths}
+              onChange={setMonth}
+            />
+          ) : null
         }
       />
+
+      <Tabs
+        value={rangeMode}
+        onValueChange={(v) => setRangeMode(v as RangeMode)}
+      >
+        <TabsList>
+          <TabsTrigger value="monthly">Mensal</TabsTrigger>
+          <TabsTrigger value="6m">Últimos 6 meses</TabsTrigger>
+          <TabsTrigger value="12m">Últimos 12 meses</TabsTrigger>
+        </TabsList>
+      </Tabs>
 
       {isLoading ? (
         <ReportSkeleton />
@@ -272,46 +387,70 @@ export function ReportsPage() {
           title="Mês ainda não chegou"
           description="Volte ao mês atual ou escolha um mês passado pra ver o relatório."
         />
-      ) : current.totalWorkouts === 0 &&
-        (weights.data ?? []).every(
-          (w) => !isSameMonth(new Date(w.recordedAt), selectedMonth),
-        ) ? (
+      ) : noDataInPeriod ? (
         <EmptyState
           icon={Dumbbell}
-          title="Sem registros nesse mês"
-          description="Não há treinos nem peso registrado nesse mês. Que tal escolher outro?"
+          title="Sem registros nesse período"
+          description="Não há treinos nem peso registrado. Tente outro mês ou um intervalo maior."
         />
       ) : (
         <>
+          {rangeMode !== "monthly" && (
+            <TrendsSection
+              allWorkouts={workouts.data ?? []}
+              weights={weights.data ?? []}
+              goalHistory={goalHistory.data ?? []}
+              today={today}
+              selectedMonth={selectedMonth}
+              currentGoalValue={goals.data?.weeklyWorkoutGoal ?? 0}
+              monthCount={period.monthCount}
+            />
+          )}
+
           <SummarySection current={current} previous={previous} />
           <CategorySection current={current} />
-          <HeatmapSection
-            month={selectedMonth}
-            allWorkouts={workouts.data ?? []}
-            goalForWeek={(weekEnd) =>
-              resolveGoalForWeek(
-                (goalHistory.data ?? []).slice().sort(
-                  (a, b) =>
-                    new Date(a.effectiveFrom).getTime() -
-                    new Date(b.effectiveFrom).getTime(),
-                ),
-                weekEnd,
-                today,
-                goals.data?.weeklyWorkoutGoal ?? 0,
-              )
-            }
-            targetDays={targetDays}
-          />
+
+          {rangeMode === "monthly" && (
+            <HeatmapSection
+              month={selectedMonth}
+              allWorkouts={workouts.data ?? []}
+              goalForWeek={(weekEnd) =>
+                resolveGoalForWeek(
+                  (goalHistory.data ?? []).slice().sort(
+                    (a, b) =>
+                      new Date(a.effectiveFrom).getTime() -
+                      new Date(b.effectiveFrom).getTime(),
+                  ),
+                  weekEnd,
+                  today,
+                  goals.data?.weeklyWorkoutGoal ?? 0,
+                )
+              }
+              targetDays={targetDays}
+            />
+          )}
+
           <WeightSection
-            month={selectedMonth}
+            start={period.start}
+            end={period.end}
             entries={weights.data ?? []}
           />
           <TopAndPRsSection
             allWorkouts={workouts.data ?? []}
-            month={selectedMonth}
-            workoutsInMonth={current.workouts}
+            start={period.start}
+            end={period.end}
+            workoutsInPeriod={current.workouts}
           />
-          <MonthlyExercisesSection workoutsInMonth={current.workouts} />
+
+          {rangeMode === "monthly" ? (
+            <MonthlyExercisesSection workoutsInPeriod={current.workouts} />
+          ) : (
+            <ExerciseTrendsSection
+              allWorkouts={workouts.data ?? []}
+              today={today}
+              monthCount={period.monthCount}
+            />
+          )}
         </>
       )}
     </div>
@@ -391,8 +530,8 @@ function MonthPicker({ selected, available, onChange }: MonthPickerProps) {
 }
 
 interface SummarySectionProps {
-  current: MonthMetrics;
-  previous: MonthMetrics;
+  current: PeriodMetrics;
+  previous: PeriodMetrics;
 }
 
 function SummarySection({ current, previous }: SummarySectionProps) {
@@ -546,7 +685,7 @@ function SummaryCard({
 }
 
 interface CategorySectionProps {
-  current: MonthMetrics;
+  current: PeriodMetrics;
 }
 
 function CategorySection({ current }: CategorySectionProps) {
@@ -846,30 +985,34 @@ function WeekSummary({
 }
 
 interface WeightSectionProps {
-  month: Date;
+  start: Date;
+  end: Date;
   entries: import("@/lib/types").WeightEntry[];
 }
 
-function WeightSection({ month, entries }: WeightSectionProps) {
-  const inMonth = useMemo(
+function WeightSection({ start, end, entries }: WeightSectionProps) {
+  const inPeriod = useMemo(
     () =>
       entries
-        .filter((e) => isSameMonth(new Date(e.recordedAt), month))
+        .filter((e) => {
+          const d = new Date(e.recordedAt);
+          return d >= start && d <= end;
+        })
         .sort(
           (a, b) =>
             new Date(a.recordedAt).getTime() -
             new Date(b.recordedAt).getTime(),
         ),
-    [entries, month],
+    [entries, start, end],
   );
 
-  const data = inMonth.map((e) => ({
+  const data = inPeriod.map((e) => ({
     dateLabel: format(new Date(e.recordedAt), "dd/MM", { locale: ptBR }),
     weight: e.weight,
   }));
 
-  const first = inMonth[0];
-  const last = inMonth[inMonth.length - 1];
+  const first = inPeriod[0];
+  const last = inPeriod[inPeriod.length - 1];
   const delta =
     first && last ? Math.round((last.weight - first.weight) * 10) / 10 : null;
 
@@ -880,7 +1023,9 @@ function WeightSection({ month, entries }: WeightSectionProps) {
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
             Peso corporal
           </p>
-          <h2 className="font-display text-lg font-semibold">Evolução no mês</h2>
+          <h2 className="font-display text-lg font-semibold">
+            Evolução no período
+          </h2>
         </div>
         {delta !== null && (
           <span
@@ -894,19 +1039,19 @@ function WeightSection({ month, entries }: WeightSectionProps) {
             )}
           >
             {delta > 0 ? "+" : ""}
-            {delta.toFixed(1)} kg no mês
+            {delta.toFixed(1)} kg no período
           </span>
         )}
       </header>
-      {inMonth.length === 0 ? (
+      {inPeriod.length === 0 ? (
         <EmptyState
           icon={Scale}
-          title="Sem registros de peso nesse mês"
+          title="Sem registros de peso no período"
           description="Registre seu peso na home pra ver a evolução aqui."
         />
-      ) : inMonth.length === 1 ? (
+      ) : inPeriod.length === 1 ? (
         <div className="rounded-lg border border-border bg-background/40 p-4 text-sm text-muted-foreground">
-          Apenas um registro no mês:{" "}
+          Apenas um registro no período:{" "}
           <span className="font-mono text-foreground">
             {first!.weight.toFixed(1)} kg
           </span>{" "}
@@ -972,8 +1117,9 @@ function WeightSection({ month, entries }: WeightSectionProps) {
 
 interface TopAndPRsSectionProps {
   allWorkouts: Workout[];
-  workoutsInMonth: Workout[];
-  month: Date;
+  workoutsInPeriod: Workout[];
+  start: Date;
+  end: Date;
 }
 
 interface TopExercise {
@@ -983,7 +1129,7 @@ interface TopExercise {
   topWeight: number;
 }
 
-interface MonthPR {
+interface PeriodPR {
   exerciseId: string;
   name: string;
   weight: number;
@@ -993,12 +1139,13 @@ interface MonthPR {
 
 function TopAndPRsSection({
   allWorkouts,
-  workoutsInMonth,
-  month,
+  workoutsInPeriod,
+  start,
+  end,
 }: TopAndPRsSectionProps) {
   const top = useMemo<TopExercise[]>(() => {
     const map = new Map<string, TopExercise>();
-    for (const w of workoutsInMonth) {
+    for (const w of workoutsInPeriod) {
       for (const we of w.exercises) {
         const cur = map.get(we.exerciseId);
         const top = we.sets.reduce(
@@ -1026,17 +1173,14 @@ function TopAndPRsSection({
           a.name.localeCompare(b.name),
       )
       .slice(0, 5);
-  }, [workoutsInMonth]);
+  }, [workoutsInPeriod]);
 
-  const prs = useMemo<MonthPR[]>(() => {
-    const monthEnd = endOfMonth(month);
-    const monthStart = startOfMonth(month);
-
-    // Para cada exercício, encontre o melhor peso *antes* do mês.
+  const prs = useMemo<PeriodPR[]>(() => {
+    // Para cada exercício, encontre o melhor peso *antes* do início do período.
     const bestBefore = new Map<string, number>();
     for (const w of allWorkouts) {
       const wDate = new Date(w.date);
-      if (wDate >= monthStart) continue;
+      if (wDate >= start) continue;
       for (const we of w.exercises) {
         const top = we.sets.reduce(
           (best, s) => (s.weight > best ? s.weight : best),
@@ -1047,14 +1191,14 @@ function TopAndPRsSection({
       }
     }
 
-    // No mês, encontre o melhor peso por exercício e marque PRs (acima do bestBefore).
-    const monthBest = new Map<
+    // No período, encontre o melhor peso por exercício e marque PRs (acima do bestBefore).
+    const periodBest = new Map<
       string,
       { name: string; weight: number; reps: number; date: string }
     >();
     for (const w of allWorkouts) {
       const wDate = new Date(w.date);
-      if (wDate < monthStart || wDate > monthEnd) continue;
+      if (wDate < start || wDate > end) continue;
       for (const we of w.exercises) {
         const topSet = we.sets.reduce(
           (best, s) =>
@@ -1065,13 +1209,13 @@ function TopAndPRsSection({
           { weight: 0, reps: 0 },
         );
         if (topSet.weight <= 0) continue;
-        const cur = monthBest.get(we.exerciseId);
+        const cur = periodBest.get(we.exerciseId);
         if (
           !cur ||
           topSet.weight > cur.weight ||
           (topSet.weight === cur.weight && topSet.reps > cur.reps)
         ) {
-          monthBest.set(we.exerciseId, {
+          periodBest.set(we.exerciseId, {
             name: we.exercise.name,
             weight: topSet.weight,
             reps: topSet.reps,
@@ -1081,15 +1225,15 @@ function TopAndPRsSection({
       }
     }
 
-    const results: MonthPR[] = [];
-    for (const [exerciseId, data] of monthBest) {
+    const results: PeriodPR[] = [];
+    for (const [exerciseId, data] of periodBest) {
       const before = bestBefore.get(exerciseId) ?? 0;
       if (data.weight > before) {
         results.push({ exerciseId, ...data });
       }
     }
     return results.sort((a, b) => b.weight - a.weight);
-  }, [allWorkouts, month]);
+  }, [allWorkouts, start, end]);
 
   return (
     <section className="grid gap-4 lg:grid-cols-2">
@@ -1105,7 +1249,7 @@ function TopAndPRsSection({
         {top.length === 0 ? (
           <EmptyState
             icon={Dumbbell}
-            title="Sem exercícios no mês"
+            title="Sem exercícios no período"
             description="Quando você registrar treinos, os mais frequentes aparecem aqui."
           />
         ) : (
@@ -1143,7 +1287,7 @@ function TopAndPRsSection({
               Recordes
             </p>
             <h2 className="font-display text-lg font-semibold">
-              PRs do mês
+              PRs no período
             </h2>
           </div>
           <span className="font-mono text-xs text-muted-foreground">
@@ -1201,14 +1345,14 @@ interface ExerciseSeries {
 }
 
 function MonthlyExercisesSection({
-  workoutsInMonth,
+  workoutsInPeriod,
 }: {
-  workoutsInMonth: Workout[];
+  workoutsInPeriod: Workout[];
 }) {
   const series = useMemo<ExerciseSeries[]>(() => {
     const map = new Map<string, ExerciseSeries>();
 
-    const sortedByDate = [...workoutsInMonth].sort(
+    const sortedByDate = [...workoutsInPeriod].sort(
       (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
     );
 
@@ -1278,7 +1422,7 @@ function MonthlyExercisesSection({
         b.topWeight - a.topWeight ||
         a.name.localeCompare(b.name),
     );
-  }, [workoutsInMonth]);
+  }, [workoutsInPeriod]);
 
   if (series.length === 0) return null;
 
@@ -1333,7 +1477,7 @@ function ExerciseMiniChart({ series }: { series: ExerciseSeries }) {
         </div>
       </div>
 
-      <div className="mt-3 h-20 w-full">
+      <div className="mt-3 h-24 w-full md:h-28">
         {single ? (
           <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border text-[11px] text-muted-foreground">
             só 1 sessão no mês
@@ -1403,3 +1547,558 @@ function ExerciseMiniChart({ series }: { series: ExerciseSeries }) {
     </div>
   );
 }
+
+interface MonthTrendPoint {
+  monthKey: string;
+  monthLabel: string;
+  totalWorkouts: number;
+  adherencePercent: number | null;
+  endWeight: number | null;
+}
+
+interface TrendsSectionProps {
+  allWorkouts: Workout[];
+  weights: import("@/lib/types").WeightEntry[];
+  goalHistory: WeeklyGoalEntry[];
+  today: Date;
+  selectedMonth: Date;
+  currentGoalValue: number;
+  monthCount: number;
+}
+
+function TrendsSection({
+  allWorkouts,
+  weights,
+  goalHistory,
+  today,
+  selectedMonth,
+  currentGoalValue,
+  monthCount,
+}: TrendsSectionProps) {
+  const sortedHistory = useMemo(
+    () =>
+      [...goalHistory].sort(
+        (a, b) =>
+          new Date(a.effectiveFrom).getTime() -
+          new Date(b.effectiveFrom).getTime(),
+      ),
+    [goalHistory],
+  );
+
+  const data = useMemo<MonthTrendPoint[]>(() => {
+    const months = Array.from({ length: monthCount }, (_, i) =>
+      subMonths(startOfMonth(today), monthCount - 1 - i),
+    );
+
+    return months.map((month) => {
+      const start = startOfMonth(month);
+      const end = endOfMonth(month);
+
+      const workoutsInMonth = allWorkouts.filter((w) => {
+        const d = new Date(w.date);
+        return d >= start && d <= end;
+      });
+
+      // Aderência: semanas que pertencem ao mês (regra da quinta) e bateram a meta vigente
+      const offset = getDay(start);
+      const firstSunday = addDays(start, -offset);
+      const endWeekday = getDay(end);
+      const lastSaturday = addDays(end, 6 - endWeekday);
+
+      let weeksOfMonth = 0;
+      let weeksMet = 0;
+
+      for (
+        let cursor = firstSunday;
+        cursor <= lastSaturday;
+        cursor = addDays(cursor, 7)
+      ) {
+        const weekStart = cursor;
+        const weekEnd = addDays(weekStart, 6);
+        const thursday = addDays(weekStart, 4);
+        if (!isSameMonth(thursday, month)) continue;
+
+        weeksOfMonth += 1;
+
+        const weekCount = allWorkouts.filter((w) => {
+          const d = new Date(w.date);
+          return d >= weekStart && d <= weekEnd;
+        }).length;
+
+        const weekGoal = resolveGoalForWeek(
+          sortedHistory,
+          weekEnd,
+          today,
+          currentGoalValue,
+        );
+        if (weekGoal > 0 && weekCount >= weekGoal) weeksMet += 1;
+      }
+
+      const adherencePercent =
+        weeksOfMonth > 0
+          ? Math.round((weeksMet / weeksOfMonth) * 100)
+          : null;
+
+      const monthWeights = weights
+        .filter((w) => {
+          const d = new Date(w.recordedAt);
+          return d >= start && d <= end;
+        })
+        .sort(
+          (a, b) =>
+            new Date(b.recordedAt).getTime() -
+            new Date(a.recordedAt).getTime(),
+        );
+      const endWeight = monthWeights[0]?.weight ?? null;
+
+      return {
+        monthKey: formatMonthKey(month),
+        monthLabel: format(month, "MMM/yy", { locale: ptBR }),
+        totalWorkouts: workoutsInMonth.length,
+        adherencePercent,
+        endWeight,
+      };
+    });
+  }, [allWorkouts, weights, sortedHistory, today, currentGoalValue, monthCount]);
+
+  const selectedKey = formatMonthKey(selectedMonth);
+  const selectedPoint =
+    data.find((d) => d.monthKey === selectedKey) ?? data[data.length - 1]!;
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5">
+      <header className="mb-4 flex items-baseline justify-between">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Tendências
+          </p>
+          <h2 className="font-display text-lg font-semibold">
+            Últimos {monthCount} meses
+          </h2>
+        </div>
+        <span className="font-mono text-xs text-muted-foreground">
+          {data[0]!.monthLabel} → {data[data.length - 1]!.monthLabel}
+        </span>
+      </header>
+
+      <div className="grid gap-3 md:grid-cols-3">
+        <TrendCard
+          title="Treinos / mês"
+          highlight={selectedPoint.totalWorkouts.toString()}
+          unit={selectedPoint.totalWorkouts === 1 ? "treino" : "treinos"}
+          data={data}
+          dataKey="totalWorkouts"
+          chart="bar"
+          selectedKey={selectedKey}
+        />
+        <TrendCard
+          title="Semanas na meta"
+          highlight={
+            selectedPoint.adherencePercent === null
+              ? "—"
+              : `${selectedPoint.adherencePercent}`
+          }
+          unit={selectedPoint.adherencePercent === null ? "" : "%"}
+          data={data}
+          dataKey="adherencePercent"
+          chart="line"
+          selectedKey={selectedKey}
+        />
+        <TrendCard
+          title="Peso fim do mês"
+          highlight={
+            selectedPoint.endWeight === null
+              ? "—"
+              : selectedPoint.endWeight.toFixed(1)
+          }
+          unit={selectedPoint.endWeight === null ? "" : "kg"}
+          data={data}
+          dataKey="endWeight"
+          chart="line"
+          selectedKey={selectedKey}
+        />
+      </div>
+    </section>
+  );
+}
+
+interface TrendCardProps {
+  title: string;
+  highlight: string;
+  unit?: string;
+  data: MonthTrendPoint[];
+  dataKey: "totalWorkouts" | "adherencePercent" | "endWeight";
+  chart: "bar" | "line";
+  selectedKey: string;
+}
+
+function TrendCard({
+  title,
+  highlight,
+  unit,
+  data,
+  dataKey,
+  chart,
+  selectedKey,
+}: TrendCardProps) {
+  // Em períodos longos os labels embolam horizontalmente — inclinamos pra
+  // caber todos sem perder nenhum mês.
+  const wide = data.length > 6;
+  const labelAngle = wide ? -35 : 0;
+  const xAxisHeight = wide ? 36 : 20;
+  const allNullOrZero = data.every((d) => {
+    const v = d[dataKey];
+    return v === null || v === 0;
+  });
+
+  return (
+    <div className="rounded-lg border border-border bg-background/40 p-4">
+      <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+        {title}
+      </p>
+      <div className="mt-1 flex items-baseline gap-1.5">
+        <span className="font-display text-2xl font-bold text-primary tracking-tight">
+          {highlight}
+        </span>
+        {unit && (
+          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+            {unit}
+          </span>
+        )}
+      </div>
+      <div
+        className={cn(
+          "mt-3 w-full",
+          wide ? "h-36 md:h-40 lg:h-44" : "h-28 md:h-32 lg:h-36",
+        )}
+      >
+        {allNullOrZero ? (
+          <div className="flex h-full items-center justify-center rounded-md border border-dashed border-border text-[11px] text-muted-foreground">
+            sem dados no período
+          </div>
+        ) : (
+          <ResponsiveContainer width="100%" height="100%">
+            {chart === "bar" ? (
+              <BarChart
+                data={data}
+                margin={{ top: 4, right: 16, bottom: 0, left: 4 }}
+              >
+                <XAxis
+                  dataKey="monthLabel"
+                  stroke="var(--muted-foreground)"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={10}
+                  interval={0}
+                  angle={labelAngle}
+                  textAnchor={wide ? "end" : "middle"}
+                  height={xAxisHeight}
+                  tickMargin={4}
+                />
+                <YAxis hide allowDecimals={false} />
+                <Tooltip
+                  cursor={{ fill: "var(--accent)", opacity: 0.3 }}
+                  contentStyle={{
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 11,
+                    padding: "4px 8px",
+                  }}
+                  labelStyle={{ color: "var(--muted-foreground)", fontSize: 10 }}
+                  formatter={(value) => [`${value}`, title]}
+                />
+                <Bar dataKey={dataKey} radius={[4, 4, 0, 0]} maxBarSize={28}>
+                  {data.map((d) => (
+                    <Cell
+                      key={d.monthKey}
+                      fill="var(--primary)"
+                      fillOpacity={d.monthKey === selectedKey ? 1 : 0.35}
+                    />
+                  ))}
+                </Bar>
+              </BarChart>
+            ) : (
+              <LineChart
+                data={data}
+                margin={{ top: 4, right: 16, bottom: 0, left: 4 }}
+              >
+                <XAxis
+                  dataKey="monthLabel"
+                  stroke="var(--muted-foreground)"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={10}
+                  interval={0}
+                  angle={labelAngle}
+                  textAnchor={wide ? "end" : "middle"}
+                  height={xAxisHeight}
+                  tickMargin={4}
+                />
+                <YAxis hide domain={["auto", "auto"]} />
+                <Tooltip
+                  cursor={{ stroke: "var(--accent)" }}
+                  contentStyle={{
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 11,
+                    padding: "4px 8px",
+                  }}
+                  labelStyle={{ color: "var(--muted-foreground)", fontSize: 10 }}
+                  formatter={(value) => [
+                    value === null ? "—" : `${value}${unit ? ` ${unit}` : ""}`,
+                    title,
+                  ]}
+                />
+                <Line
+                  type="monotone"
+                  dataKey={dataKey}
+                  stroke="var(--primary)"
+                  strokeWidth={2}
+                  connectNulls
+                  dot={(dotProps) => {
+                    const { cx, cy, payload, index } = dotProps as {
+                      cx: number;
+                      cy: number;
+                      payload: MonthTrendPoint;
+                      index: number;
+                    };
+                    if (
+                      cx === undefined ||
+                      cy === undefined ||
+                      payload[dataKey] === null
+                    ) {
+                      return <g key={`dot-${index}`} />;
+                    }
+                    const isSelected = payload.monthKey === selectedKey;
+                    return (
+                      <circle
+                        key={`dot-${index}`}
+                        cx={cx}
+                        cy={cy}
+                        r={isSelected ? 4.5 : 3}
+                        fill="var(--primary)"
+                        fillOpacity={isSelected ? 1 : 0.5}
+                      />
+                    );
+                  }}
+                  activeDot={{ r: 5 }}
+                />
+              </LineChart>
+            )}
+          </ResponsiveContainer>
+        )}
+      </div>
+    </div>
+  );
+}
+
+interface ExerciseTrendsSectionProps {
+  allWorkouts: Workout[];
+  today: Date;
+  monthCount: number;
+}
+
+interface ExerciseMonthlyPoint {
+  monthKey: string;
+  monthLabel: string;
+  topWeight: number | null;
+}
+
+interface ExerciseTrendSeries {
+  exerciseId: string;
+  name: string;
+  category: string;
+  totalSessions: number;
+  monthsWithData: number;
+  points: ExerciseMonthlyPoint[];
+  delta: number;
+}
+
+function ExerciseTrendsSection({
+  allWorkouts,
+  today,
+  monthCount,
+}: ExerciseTrendsSectionProps) {
+  const series = useMemo<ExerciseTrendSeries[]>(() => {
+    const months = Array.from({ length: monthCount }, (_, i) =>
+      subMonths(startOfMonth(today), monthCount - 1 - i),
+    );
+    const monthKeys = months.map((m) => formatMonthKey(m));
+
+    // monthKey -> exerciseId -> top weight in that month
+    const grid = new Map<string, Map<string, number>>();
+    const exerciseInfo = new Map<
+      string,
+      { name: string; category: string; sessions: number }
+    >();
+
+    for (const w of allWorkouts) {
+      const wDate = new Date(w.date);
+      const monthKey = format(startOfMonth(wDate), MONTH_KEY_FORMAT);
+      if (!monthKeys.includes(monthKey)) continue;
+
+      for (const we of w.exercises) {
+        const topSet = we.sets.reduce(
+          (best, s) => (s.weight > best ? s.weight : best),
+          0,
+        );
+        if (topSet <= 0) continue;
+
+        const info = exerciseInfo.get(we.exerciseId);
+        if (info) {
+          info.sessions += 1;
+        } else {
+          exerciseInfo.set(we.exerciseId, {
+            name: we.exercise.name,
+            category: we.exercise.category,
+            sessions: 1,
+          });
+        }
+
+        let monthMap = grid.get(monthKey);
+        if (!monthMap) {
+          monthMap = new Map();
+          grid.set(monthKey, monthMap);
+        }
+        const cur = monthMap.get(we.exerciseId) ?? 0;
+        if (topSet > cur) monthMap.set(we.exerciseId, topSet);
+      }
+    }
+
+    const result: ExerciseTrendSeries[] = [];
+    for (const [exerciseId, info] of exerciseInfo) {
+      const points: ExerciseMonthlyPoint[] = months.map((m) => {
+        const monthKey = formatMonthKey(m);
+        const monthMap = grid.get(monthKey);
+        return {
+          monthKey,
+          monthLabel: format(m, "MMM/yy", { locale: ptBR }),
+          topWeight: monthMap?.get(exerciseId) ?? null,
+        };
+      });
+      const monthsWithData = points.filter((p) => p.topWeight !== null).length;
+      const filled = points.filter((p) => p.topWeight !== null);
+      const delta =
+        filled.length >= 2
+          ? Math.round(
+              (filled[filled.length - 1]!.topWeight! - filled[0]!.topWeight!) *
+                10,
+            ) / 10
+          : 0;
+
+      result.push({
+        exerciseId,
+        name: info.name,
+        category: info.category,
+        totalSessions: info.sessions,
+        monthsWithData,
+        points,
+        delta,
+      });
+    }
+
+    return result
+      .filter((s) => s.monthsWithData >= 2)
+      .sort(
+        (a, b) =>
+          b.monthsWithData - a.monthsWithData ||
+          b.totalSessions - a.totalSessions ||
+          a.name.localeCompare(b.name),
+      )
+      .slice(0, 6);
+  }, [allWorkouts, today, monthCount]);
+
+  if (series.length === 0) return null;
+
+  return (
+    <section className="rounded-xl border border-border bg-card p-5">
+      <header className="mb-4 flex items-baseline justify-between">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Tendências
+          </p>
+          <h2 className="font-display text-lg font-semibold">
+            Cargas mês a mês
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            Top set por mês dos exercícios mais consistentes no período.
+          </p>
+        </div>
+        <span className="font-mono text-xs text-muted-foreground">
+          {series.length} exercício{series.length === 1 ? "" : "s"}
+        </span>
+      </header>
+
+      <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+        {series.map((s) => (
+          <div
+            key={s.exerciseId}
+            className="rounded-lg border border-border bg-background/40 p-3"
+          >
+            <div className="flex items-start justify-between gap-2">
+              <div className="min-w-0 flex-1">
+                <p className="line-clamp-1 font-medium">{s.name}</p>
+                <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                  {categoryLabel(s.category)} · {s.monthsWithData} mes
+                  {s.monthsWithData === 1 ? "" : "es"}
+                </p>
+              </div>
+              <span
+                className={cn(
+                  "shrink-0 font-mono text-xs",
+                  s.delta > 0 && "text-emerald-700 dark:text-emerald-400",
+                  s.delta < 0 && "text-amber-700 dark:text-amber-400",
+                  s.delta === 0 && "text-muted-foreground",
+                )}
+              >
+                {s.delta > 0 ? "+" : ""}
+                {s.delta} kg
+              </span>
+            </div>
+            <div className="mt-3 h-24 w-full md:h-28">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart
+                  data={s.points}
+                  margin={{ top: 4, right: 4, bottom: 0, left: 0 }}
+                >
+                  <XAxis dataKey="monthLabel" hide />
+                  <YAxis hide domain={["auto", "auto"]} />
+                  <Tooltip
+                    cursor={{ stroke: "var(--accent)" }}
+                    contentStyle={{
+                      background: "var(--card)",
+                      border: "1px solid var(--border)",
+                      borderRadius: 8,
+                      fontSize: 11,
+                      padding: "4px 8px",
+                    }}
+                    labelStyle={{
+                      color: "var(--muted-foreground)",
+                      fontSize: 10,
+                    }}
+                    formatter={(value) => [
+                      value === null ? "—" : `${value} kg`,
+                      "Top set",
+                    ]}
+                  />
+                  <Line
+                    type="monotone"
+                    dataKey="topWeight"
+                    stroke="var(--primary)"
+                    strokeWidth={2}
+                    connectNulls
+                    dot={{ fill: "var(--primary)", r: 2.5 }}
+                    activeDot={{ r: 4 }}
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
