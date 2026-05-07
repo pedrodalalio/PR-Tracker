@@ -97,6 +97,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   useEffect(() => {
+    // Bootstrap da sessão no mount: precisa rodar setState após I/O.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSession();
   }, [loadSession]);
 

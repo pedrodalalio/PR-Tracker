@@ -81,8 +81,12 @@ async function request<T>(
     : await response.text();
 
   if (!response.ok) {
+    const errorField =
+      data && typeof data === "object" && "error" in data
+        ? (data as { error: unknown }).error
+        : null;
     const message =
-      (data && typeof data === "object" && "error" in data && (data as any).error) ||
+      (typeof errorField === "string" && errorField) ||
       response.statusText ||
       "Erro inesperado";
     throw new ApiError(message, response.status, data);

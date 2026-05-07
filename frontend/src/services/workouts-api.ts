@@ -99,7 +99,7 @@ export const workoutsApi = {
           // No cache offline a gente preserva os exercícios atuais — só
           // aplica os campos escalares do patch. O backend vai aplicar a
           // troca completa quando a fila do outbox for liberada.
-          const { exercises: _ignored, ...scalarPatch } = input;
+          const { exercises: _exercises, ...scalarPatch } = input;
           const merged: CachedWorkout = {
             ...cached,
             ...scalarPatch,

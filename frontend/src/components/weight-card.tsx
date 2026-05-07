@@ -1,5 +1,5 @@
 import { History, Scale, TrendingDown, TrendingUp } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -161,18 +161,30 @@ interface WeightDialogProps {
 }
 
 function WeightDialog({ open, onOpenChange, latest }: WeightDialogProps) {
-  const create = useCreateWeight();
-  const [weight, setWeight] = useState("");
-  const [date, setDate] = useState(todayLocalDate());
-  const [notes, setNotes] = useState("");
+  return (
+    <Dialog open={open} onOpenChange={onOpenChange}>
+      {open && (
+        <WeightDialogForm
+          latest={latest}
+          onClose={() => onOpenChange(false)}
+        />
+      )}
+    </Dialog>
+  );
+}
 
-  useEffect(() => {
-    if (open) {
-      setWeight(latest ? latest.weight.toString() : "");
-      setDate(todayLocalDate());
-      setNotes("");
-    }
-  }, [open, latest]);
+interface WeightDialogFormProps {
+  latest?: WeightEntry;
+  onClose: () => void;
+}
+
+function WeightDialogForm({ latest, onClose }: WeightDialogFormProps) {
+  const create = useCreateWeight();
+  const [weight, setWeight] = useState(() =>
+    latest ? latest.weight.toString() : "",
+  );
+  const [date, setDate] = useState(() => todayLocalDate());
+  const [notes, setNotes] = useState("");
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -195,7 +207,7 @@ function WeightDialog({ open, onOpenChange, latest }: WeightDialogProps) {
         notes: notes.trim() || undefined,
       });
       toast.success("Peso registrado");
-      onOpenChange(false);
+      onClose();
     } catch (err) {
       toast.error(
         err instanceof Error ? err.message : "Falha ao registrar peso",
@@ -204,73 +216,71 @@ function WeightDialog({ open, onOpenChange, latest }: WeightDialogProps) {
   }
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {latest ? "Atualizar peso" : "Registrar peso"}
-          </DialogTitle>
-          <DialogDescription>
-            {latest
-              ? `Último: ${latest.weight.toFixed(1)} kg em ${formatRelative(
-                  latest.recordedAt,
-                )}.`
-              : "Vamos começar com seu peso atual."}
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="weight">Peso (kg)</Label>
-            <Input
-              id="weight"
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              min="1"
-              max="500"
-              autoFocus
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              placeholder="78.4"
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="date">Data</Label>
-            <Input
-              id="date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="notes">Observação (opcional)</Label>
-            <Input
-              id="notes"
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              placeholder="Ex.: pós-treino, em jejum"
-              maxLength={120}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => onOpenChange(false)}
-              disabled={create.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? "Salvando..." : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>
+          {latest ? "Atualizar peso" : "Registrar peso"}
+        </DialogTitle>
+        <DialogDescription>
+          {latest
+            ? `Último: ${latest.weight.toFixed(1)} kg em ${formatRelative(
+                latest.recordedAt,
+              )}.`
+            : "Vamos começar com seu peso atual."}
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="weight">Peso (kg)</Label>
+          <Input
+            id="weight"
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            min="1"
+            max="500"
+            autoFocus
+            value={weight}
+            onChange={(e) => setWeight(e.target.value)}
+            placeholder="78.4"
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="date">Data</Label>
+          <Input
+            id="date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="notes">Observação (opcional)</Label>
+          <Input
+            id="notes"
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            placeholder="Ex.: pós-treino, em jejum"
+            maxLength={120}
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            disabled={create.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={create.isPending}>
+            {create.isPending ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   );
 }

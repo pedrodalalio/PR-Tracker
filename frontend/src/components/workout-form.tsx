@@ -130,22 +130,24 @@ export function WorkoutForm({
 
   // Quando o tipo muda, limpa exercícios que não batem com a nova categoria.
   useEffect(() => {
-    if (!exercises.data) return;
+    const exData = exercises.data;
+    if (!exData) return;
+    const target = workoutTypeToCategory(watchedType);
     const current = form.getValues("exercises");
     current.forEach((ex, i) => {
       if (!ex.exerciseId) return;
-      const data = exercises.data!.find((e) => e.id === ex.exerciseId);
-      if (data && data.category !== targetCategory) {
+      const data = exData.find((e) => e.id === ex.exerciseId);
+      if (data && data.category !== target) {
         form.setValue(`exercises.${i}.exerciseId`, "", {
           shouldValidate: false,
         });
       }
     });
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [watchedType, exercises.data]);
+  }, [watchedType, exercises.data, form]);
 
   const availablePerRow = useMemo(() => {
-    if (!exercises.data) return [] as (typeof exercises.data)[];
+    const exData = exercises.data;
+    if (!exData) return [] as (typeof exData)[];
     const otherIds = (idx: number) =>
       new Set(
         (watchedExercises ?? [])
@@ -155,7 +157,7 @@ export function WorkoutForm({
     return (watchedExercises ?? []).map((ex, idx) => {
       const myId = ex.exerciseId;
       const exclude = otherIds(idx);
-      return exercises.data!.filter((e) => {
+      return exData.filter((e) => {
         if (e.id === myId) return true;
         if (e.category !== targetCategory) return false;
         if (exclude.has(e.id)) return false;
@@ -314,11 +316,13 @@ export function WorkoutForm({
                                     : `Nenhum exercício de ${categoryLabel(targetCategory)} disponível`}
                                 </SelectItem>
                               ) : (
-                                availablePerRow[exerciseIndex]!.map((ex) => (
-                                  <SelectItem key={ex.id} value={ex.id}>
-                                    {ex.name}
-                                  </SelectItem>
-                                ))
+                                (availablePerRow[exerciseIndex] ?? []).map(
+                                  (ex) => (
+                                    <SelectItem key={ex.id} value={ex.id}>
+                                      {ex.name}
+                                    </SelectItem>
+                                  ),
+                                )
                               )}
                             </SelectContent>
                           </Select>

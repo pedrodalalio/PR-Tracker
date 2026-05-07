@@ -244,7 +244,7 @@ export function ManageExercisesPage() {
             />
           ) : (
             <ul className="space-y-2">
-              {exercises.data!.map((ex) => (
+              {(exercises.data ?? []).map((ex) => (
                 <li
                   key={ex.id}
                   className="flex items-start gap-3 rounded-xl border border-border bg-card p-4"

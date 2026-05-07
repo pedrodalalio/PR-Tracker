@@ -7,7 +7,7 @@ import {
   Scale,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   CartesianGrid,
   Line,
@@ -348,12 +348,31 @@ function Mini({ label, value, unit, emphasis, tone }: MiniProps) {
 function DeleteButton({ id }: { id: string }) {
   const remove = useDeleteWeight();
   const [confirm, setConfirm] = useState(false);
+  const timeoutRef = useRef<number | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+      }
+    };
+  }, []);
 
   async function onClick() {
     if (!confirm) {
       setConfirm(true);
-      window.setTimeout(() => setConfirm(false), 3000);
+      if (timeoutRef.current !== null) {
+        window.clearTimeout(timeoutRef.current);
+      }
+      timeoutRef.current = window.setTimeout(() => {
+        setConfirm(false);
+        timeoutRef.current = null;
+      }, 3000);
       return;
+    }
+    if (timeoutRef.current !== null) {
+      window.clearTimeout(timeoutRef.current);
+      timeoutRef.current = null;
     }
     try {
       await remove.mutateAsync(id);
@@ -384,22 +403,26 @@ interface EditWeightDialogProps {
 }
 
 function EditWeightDialog({ entry, onClose }: EditWeightDialogProps) {
-  const update = useUpdateWeight();
-  const [weight, setWeight] = useState("");
-  const [date, setDate] = useState("");
-  const [notes, setNotes] = useState("");
+  return (
+    <Dialog open={!!entry} onOpenChange={(open) => !open && onClose()}>
+      {entry && <EditWeightForm entry={entry} onClose={onClose} />}
+    </Dialog>
+  );
+}
 
-  useEffect(() => {
-    if (entry) {
-      setWeight(entry.weight.toString());
-      setDate(toLocalDateInput(entry.recordedAt));
-      setNotes(entry.notes ?? "");
-    }
-  }, [entry]);
+interface EditWeightFormProps {
+  entry: WeightEntry;
+  onClose: () => void;
+}
+
+function EditWeightForm({ entry, onClose }: EditWeightFormProps) {
+  const update = useUpdateWeight();
+  const [weight, setWeight] = useState(() => entry.weight.toString());
+  const [date, setDate] = useState(() => toLocalDateInput(entry.recordedAt));
+  const [notes, setNotes] = useState(() => entry.notes ?? "");
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!entry) return;
 
     const parsed = Number(weight.replace(",", "."));
     if (!Number.isFinite(parsed) || parsed <= 0) {
@@ -430,64 +453,62 @@ function EditWeightDialog({ entry, onClose }: EditWeightDialogProps) {
   }
 
   return (
-    <Dialog open={!!entry} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Editar registro</DialogTitle>
-          <DialogDescription>
-            Ajuste o peso, a data ou a observação deste registro.
-          </DialogDescription>
-        </DialogHeader>
-        <form onSubmit={onSubmit} className="space-y-4">
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-weight">Peso (kg)</Label>
-            <Input
-              id="edit-weight"
-              type="number"
-              inputMode="decimal"
-              step="0.1"
-              min="1"
-              max="500"
-              value={weight}
-              onChange={(e) => setWeight(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-date">Data</Label>
-            <Input
-              id="edit-date"
-              type="date"
-              value={date}
-              onChange={(e) => setDate(e.target.value)}
-              required
-            />
-          </div>
-          <div className="space-y-1.5">
-            <Label htmlFor="edit-notes">Observação</Label>
-            <Input
-              id="edit-notes"
-              type="text"
-              value={notes}
-              onChange={(e) => setNotes(e.target.value)}
-              maxLength={120}
-            />
-          </div>
-          <DialogFooter>
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={onClose}
-              disabled={update.isPending}
-            >
-              Cancelar
-            </Button>
-            <Button type="submit" disabled={update.isPending}>
-              {update.isPending ? "Salvando..." : "Salvar"}
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <DialogContent>
+      <DialogHeader>
+        <DialogTitle>Editar registro</DialogTitle>
+        <DialogDescription>
+          Ajuste o peso, a data ou a observação deste registro.
+        </DialogDescription>
+      </DialogHeader>
+      <form onSubmit={onSubmit} className="space-y-4">
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-weight">Peso (kg)</Label>
+          <Input
+            id="edit-weight"
+            type="number"
+            inputMode="decimal"
+            step="0.1"
+            min="1"
+            max="500"
+            value={weight}
+            onChange={(e) => setWeight(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-date">Data</Label>
+          <Input
+            id="edit-date"
+            type="date"
+            value={date}
+            onChange={(e) => setDate(e.target.value)}
+            required
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label htmlFor="edit-notes">Observação</Label>
+          <Input
+            id="edit-notes"
+            type="text"
+            value={notes}
+            onChange={(e) => setNotes(e.target.value)}
+            maxLength={120}
+          />
+        </div>
+        <DialogFooter>
+          <Button
+            type="button"
+            variant="ghost"
+            onClick={onClose}
+            disabled={update.isPending}
+          >
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={update.isPending}>
+            {update.isPending ? "Salvando..." : "Salvar"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </DialogContent>
   );
 }

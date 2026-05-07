@@ -8,7 +8,7 @@ import {
   Loader2,
   Target,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -63,13 +63,6 @@ export function GoalSettingsPage() {
 
   const [weeklyDraft, setWeeklyDraft] = useState<number | null>(null);
   const [daysDraft, setDaysDraft] = useState<WeekDay[] | null>(null);
-
-  // Sincroniza o draft de dias com os dados do servidor quando carregam.
-  useEffect(() => {
-    if (daysDraft === null && goals.data) {
-      setDaysDraft(goals.data.targetDays);
-    }
-  }, [goals.data, daysDraft]);
 
   const weeklyValue = weeklyDraft ?? goals.data?.weeklyWorkoutGoal ?? 3;
   const daysValue = daysDraft ?? goals.data?.targetDays ?? [];

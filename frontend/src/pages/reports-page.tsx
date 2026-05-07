@@ -314,7 +314,10 @@ export function ReportsPage() {
 
   const isLoading = workouts.isLoading || goals.isLoading;
 
-  const targetDays = goals.data?.targetDays ?? [];
+  const targetDays = useMemo(
+    () => goals.data?.targetDays ?? [],
+    [goals.data?.targetDays],
+  );
   const current = useMemo(
     () =>
       computeMetrics(
@@ -776,8 +779,10 @@ function HeatmapSection({
   goalForWeek,
   targetDays,
 }: HeatmapSectionProps) {
-  const start = startOfMonth(month);
-  const end = endOfMonth(month);
+  const { start, end } = useMemo(
+    () => ({ start: startOfMonth(month), end: endOfMonth(month) }),
+    [month],
+  );
   const weekdayLabels = ["Dom", "Seg", "Ter", "Qua", "Qui", "Sex", "Sáb"];
 
   const trainedDays = useMemo(() => {
@@ -832,7 +837,7 @@ function HeatmapSection({
       });
     }
     return result;
-  }, [start, end, trainedDays, targetDays, goalForWeek]);
+  }, [start, end, month, trainedDays, targetDays, goalForWeek]);
 
   const totalDaysTrained = rows.reduce(
     (acc, row) => acc + row.cells.filter((c) => c.inMonth && c.trained).length,

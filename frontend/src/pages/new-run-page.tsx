@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { PageHeader } from "@/components/page-header";
@@ -206,10 +206,6 @@ function ImportForm() {
   const [name, setName] = useState("");
   const [parsing, setParsing] = useState(false);
 
-  useEffect(() => {
-    if (parsed?.name) setName(parsed.name);
-  }, [parsed?.name]);
-
   async function onFileChange(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -219,6 +215,7 @@ function ImportForm() {
       const text = await file.text();
       const result = parseGpx(text);
       setParsed(result);
+      if (result.name) setName(result.name);
       toast.success("GPX carregado — confira os dados antes de salvar");
     } catch (err) {
       const message =

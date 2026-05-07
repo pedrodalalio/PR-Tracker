@@ -14,7 +14,7 @@ import {
   TrendingDown,
   TrendingUp,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
   CartesianGrid,
@@ -124,28 +124,28 @@ export function ProgressPage() {
     null,
   );
 
-  // Default: pega o primeiro exercício da lista quando carregar.
-  useEffect(() => {
-    if (selectedExerciseId) return;
-    if (exercisesInWorkouts.length > 0) {
-      setSelectedExerciseId(exercisesInWorkouts[0]!.id);
-    }
-  }, [exercisesInWorkouts, selectedExerciseId]);
+  // Default: o primeiro da lista, mas o usuário pode trocar via Select.
+  const effectiveExerciseId =
+    selectedExerciseId ?? exercisesInWorkouts[0]?.id ?? null;
 
   // Pontos do gráfico — uma entrada por treino, com a melhor série do dia.
   const exerciseProgress = useMemo<ProgressPoint[]>(() => {
-    if (!selectedExerciseId || !workouts.data) return [];
+    if (!effectiveExerciseId || !workouts.data) return [];
     const points = workouts.data
       .map((w) => {
-        const we = w.exercises.find((e) => e.exerciseId === selectedExerciseId);
+        const we = w.exercises.find(
+          (e) => e.exerciseId === effectiveExerciseId,
+        );
         if (!we || we.sets.length === 0) return null;
+        const firstSet = we.sets[0];
+        if (!firstSet) return null;
         const top = we.sets.reduce(
           (best, s) =>
             s.weight > best.weight ||
             (s.weight === best.weight && s.reps > best.reps)
               ? s
               : best,
-          we.sets[0]!,
+          firstSet,
         );
         return {
           date: w.date,
@@ -166,7 +166,7 @@ export function ProgressPage() {
       if (p.weight > runningMax) runningMax = p.weight;
       return { ...p, isPr };
     });
-  }, [workouts.data, selectedExerciseId]);
+  }, [workouts.data, effectiveExerciseId]);
 
   const exerciseSummary = useMemo(() => {
     if (exerciseProgress.length === 0) return null;
@@ -343,7 +343,7 @@ export function ProgressPage() {
             </p>
           </div>
           <Select
-            value={selectedExerciseId ?? ""}
+            value={effectiveExerciseId ?? ""}
             onValueChange={(v) => setSelectedExerciseId(v)}
             disabled={exercisesInWorkouts.length === 0}
           >
