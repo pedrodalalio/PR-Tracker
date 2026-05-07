@@ -1,154 +1,161 @@
 # PR-Tracker
 
-A comprehensive workout and fitness tracking application with a mobile React Native frontend and Node.js backend.
+Aplicativo de acompanhamento de treinos com PWA web (React + Vite), backend Node.js (Fastify + Prisma + PostgreSQL) e versão experimental em React Native.
 
-## 📱 Features
+## Estrutura do projeto
 
-- **Workout Tracking**: Create and log workouts with exercises, sets, reps, and weights
-- **Exercise Management**: Comprehensive exercise database with muscle group categorization
-- **Progress Monitoring**: Visual progress tracking with charts and statistics
-- **Calendar View**: Monthly calendar showing workout history
-- **Workout Types**: Support for Upper body, Legs, and Cardio workouts
-- **Daily Streaks**: Track consecutive workout days
-
-## 🏗️ Architecture
-
-### Backend
-- **Framework**: Fastify with TypeScript
-- **Database**: PostgreSQL with Prisma ORM
-- **API**: RESTful API with CORS support
-- **Port**: 3000
-
-### Mobile App
-- **Framework**: React Native with Expo
-- **Navigation**: React Navigation v6
-- **Charts**: React Native Chart Kit
-- **State**: React hooks with local state management
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- Node.js 18+
-- pnpm (recommended) or npm
-- Expo CLI (for mobile development)
-
-### Backend Setup
-
-1. **Clone and install dependencies:**
-   ```bash
-   cd backend
-   pnpm install
-   ```
-
-2. **Database setup:**
-   ```bash
-   # Copy environment template and configure PostgreSQL connection
-   cp .env.example .env
-   # Update DATABASE_URL in .env with your PostgreSQL connection string
-   ```
-
-3. **Run database migrations:**
-   ```bash
-   pnpm prisma migrate dev
-   ```
-
-4. **Seed the database (optional):**
-   ```bash
-   pnpm prisma db seed
-   ```
-
-5. **Start development server:**
-   ```bash
-   pnpm dev
-   ```
-
-### Mobile Setup
-
-1. **Install dependencies:**
-   ```bash
-   cd mobile
-   pnpm install
-   ```
-
-2. **Start Metro bundler:**
-   ```bash
-   pnpm start
-   ```
-
-3. **Run on device/simulator:**
-   ```bash
-   # iOS (macOS only)
-   pnpm run ios
-
-   # Android
-   pnpm run android
-   ```
-
-## 📚 API Endpoints
-
-### Workouts
-- `GET /api/workouts` - Get all workouts
-- `GET /api/workouts/:id` - Get specific workout
-- `POST /api/workouts` - Create new workout
-- `PUT /api/workouts/:id` - Update workout
-- `DELETE /api/workouts/:id` - Delete workout
-
-### Exercises
-- `GET /api/exercises` - Get all exercises
-- `POST /api/exercises` - Create new exercise
-- `PUT /api/exercises/:id` - Update exercise
-- `DELETE /api/exercises/:id` - Delete exercise
-
-### Goals
-- `GET /api/goals` - Get user goals and progress
-
-## 🛠️ Development
-
-### Available Scripts
-
-**Backend:**
-- `pnpm dev` - Start development server with hot reload
-- `pnpm build` - Build for production
-- `pnpm start` - Start production server
-- `pnpm lint` - Run ESLint
-
-**Mobile:**
-- `pnpm start` - Start Metro bundler
-- `pnpm run android` - Run on Android
-- `pnpm run ios` - Run on iOS
-- `pnpm lint` - Run ESLint
-
-### Database Management
-
-```bash
-# Generate Prisma client
-pnpm prisma generate
-
-# Reset database
-pnpm prisma migrate reset
-
-# View database in browser
-pnpm prisma studio
+```
+PR-Tracker/
+├── frontend/   # PWA web (React 19 + Vite) — aplicação principal
+├── backend/    # API REST (Fastify + Prisma + PostgreSQL)
+└── mobile/     # Versão React Native (Expo) — em pausa
 ```
 
-## 📊 Tech Stack
+## Funcionalidades
 
-**Backend:**
-- Fastify
-- TypeScript
-- Prisma ORM
-- PostgreSQL
-- Helmet (security)
+- Cadastro e login com autenticação JWT (Bearer token)
+- Criação e edição de treinos (Superior, Inferior, Cardio)
+- Banco de exercícios com agrupamento por grupo muscular
+- Progresso com gráficos de evolução de cargas
+- Calendário mensal com histórico de treinos
+- Sequência de dias treinando (streak)
+- Metas configuráveis por usuário
+- Funciona offline (PWA + IndexedDB via Dexie)
+- Instalável no celular como app
 
-**Mobile:**
-- React Native
-- Expo
-- TypeScript
-- React Navigation
-- React Native Chart Kit
-- Expo Vector Icons
+## Stack
 
-## 📄 License
+**Frontend (web):** React 19, Vite, TypeScript, Tailwind 4, shadcn/ui, TanStack Query, react-router, react-hook-form, Zod, Dexie (offline), Recharts, vite-plugin-pwa.
 
-This project is licensed under the MIT License.
+**Backend:** Fastify, TypeScript, Prisma, PostgreSQL, JWT, Helmet, CORS.
+
+**Mobile (legado):** React Native, Expo, React Navigation, React Native Chart Kit.
+
+## Setup local
+
+### Pré-requisitos
+- Node.js 20+
+- pnpm
+- PostgreSQL rodando (local ou Docker)
+
+### Backend
+
+```bash
+cd backend
+pnpm install
+cp .env.example .env   # ajustar DATABASE_URL, JWT_SECRET, COOKIE_SECRET
+pnpm prisma migrate dev
+pnpm prisma db seed    # opcional
+pnpm dev               # http://localhost:3000
+```
+
+Variáveis de ambiente (ver `.env.example` pra detalhes):
+
+| Variável | Obrigatória | Descrição |
+|---|---|---|
+| `DATABASE_URL` | sim | Connection string do Postgres |
+| `JWT_SECRET` | sim | Segredo pra assinar access tokens |
+| `COOKIE_SECRET` | sim | Segredo do `@fastify/cookie` |
+| `NODE_ENV` | em prod | `production` ativa `SameSite=None; Secure` no refresh cookie e CORS estrito |
+| `ALLOWED_ORIGINS` | em prod | Domínios do front, separados por vírgula |
+
+### Frontend (web)
+
+```bash
+cd frontend
+pnpm install
+pnpm dev               # http://localhost:5173
+```
+
+| Variável | Default | Descrição |
+|---|---|---|
+| `VITE_API_URL` | `http://localhost:3000` | URL completa do backend |
+
+### Mobile (Expo)
+
+```bash
+cd mobile
+pnpm install
+pnpm start             # abre Metro
+pnpm ios               # macOS apenas
+pnpm android
+```
+
+## API
+
+Autenticação via header `Authorization: Bearer <token>`. Refresh token em cookie HttpOnly (`pr_refresh_token`).
+
+### Auth
+
+| Método | Path | Auth | Descrição |
+|---|---|---|---|
+| POST | `/auth/register` | público | Cria conta. Retorna `{ user, token }` |
+| POST | `/auth/login` | público | Login. Retorna `{ user, token }` |
+| GET | `/auth/me` | Bearer | Dados do usuário autenticado |
+| POST | `/auth/refresh` | refresh cookie | Rotaciona access token. Retorna `{ user, token }` |
+| POST | `/auth/logout` | — | Revoga refresh token |
+
+### Workouts (Bearer)
+
+| Método | Path | Descrição |
+|---|---|---|
+| GET | `/workouts` | Lista treinos do usuário |
+| GET | `/workouts/:id` | Detalhe de um treino |
+| POST | `/workouts` | Cria treino |
+| PUT | `/workouts/:id` | Edita treino |
+| DELETE | `/workouts/:id` | Remove treino |
+
+### Exercises (Bearer)
+
+| Método | Path | Descrição |
+|---|---|---|
+| GET | `/exercises` | Lista exercícios |
+| POST | `/exercises` | Cria exercício |
+| PUT | `/exercises/:id` | Edita exercício |
+| DELETE | `/exercises/:id` | Remove exercício |
+
+### Goals (Bearer)
+
+| Método | Path | Descrição |
+|---|---|---|
+| GET | `/goals` | Metas e progresso do usuário |
+| POST | `/goals/update-streak` | Atualiza streak após criar treino |
+
+## Deploy
+
+**Frontend — Vercel**
+- Root directory: `frontend/`
+- Build command: padrão (`pnpm build`)
+- Env: `VITE_API_URL=https://seu-backend.onrender.com`
+
+**Backend — Render (Web Service)**
+- Root directory: `backend/`
+- Build: `pnpm install && pnpm prisma generate && pnpm build`
+- Start: `pnpm start`
+- Env vars:
+  - `DATABASE_URL`
+  - `JWT_SECRET`
+  - `COOKIE_SECRET`
+  - `NODE_ENV=production`
+  - `ALLOWED_ORIGINS=https://seu-front.vercel.app`
+
+## Scripts
+
+**Backend**
+- `pnpm dev` — server com hot reload (nodemon + ts-node)
+- `pnpm build` — compila TypeScript pra `dist/`
+- `pnpm start` — server de produção
+- `pnpm test` — vitest
+- `pnpm prisma studio` — UI do banco
+
+**Frontend**
+- `pnpm dev` — Vite dev server
+- `pnpm build` — bundle de produção
+- `pnpm preview` — preview do build
+- `pnpm test` — vitest
+- `pnpm typecheck` — `tsc --noEmit`
+- `pnpm lint` — ESLint
+
+## Licença
+
+ISC.
