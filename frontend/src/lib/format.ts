@@ -52,6 +52,32 @@ export function dayOfWeekLabel(day: string) {
   return map[day] ?? day;
 }
 
+export function formatDistance(meters: number): string {
+  if (meters >= 1000) return `${(meters / 1000).toFixed(2)} km`;
+  return `${Math.round(meters)} m`;
+}
+
+export function formatDuration(seconds: number): string {
+  if (!Number.isFinite(seconds) || seconds < 0) return "—";
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.round(seconds % 60);
+  if (h > 0) {
+    return `${h}h${m.toString().padStart(2, "0")}min`;
+  }
+  if (m > 0) {
+    return `${m}:${s.toString().padStart(2, "0")}`;
+  }
+  return `${s}s`;
+}
+
+export function formatPace(secPerKm: number | null | undefined): string {
+  if (!secPerKm || !Number.isFinite(secPerKm) || secPerKm <= 0) return "—";
+  const m = Math.floor(secPerKm / 60);
+  const s = Math.round(secPerKm % 60);
+  return `${m}:${s.toString().padStart(2, "0")}/km`;
+}
+
 export function greetingFor(date = new Date()) {
   const h = date.getHours();
   if (h < 12) return "Bom dia";

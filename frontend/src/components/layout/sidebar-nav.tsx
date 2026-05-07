@@ -2,6 +2,7 @@ import {
   CalendarDays,
   Dumbbell,
   FileBarChart,
+  Footprints,
   Home,
   LineChart,
   ListChecks,
@@ -20,6 +21,7 @@ const groups = [
     items: [
       { to: "/", label: "Início", icon: Home, end: true },
       { to: "/workouts", label: "Treinos", icon: Dumbbell, end: false },
+      { to: "/runs", label: "Corridas", icon: Footprints, end: false },
       { to: "/calendar", label: "Calendário", icon: CalendarDays, end: false },
       { to: "/progress", label: "Progresso", icon: LineChart, end: false },
       { to: "/reports", label: "Relatórios", icon: FileBarChart, end: false },

@@ -37,9 +37,9 @@ import {
 } from "@/lib/types";
 
 function workoutTypeToCategory(type: WorkoutType): Category {
-  if (type === "upper") return "Upper";
   if (type === "lower") return "Lower";
-  return "Cardio";
+  if (type === "cardio") return "Cardio"; // legado — não criamos novos cardio
+  return "Upper";
 }
 
 const setSchema = z.object({
@@ -219,7 +219,7 @@ export function WorkoutForm({
                     </SelectTrigger>
                   </FormControl>
                   <SelectContent>
-                    {(["upper", "lower", "cardio"] as const).map((t) => (
+                    {(["upper", "lower"] as const).map((t) => (
                       <SelectItem key={t} value={t}>
                         {workoutTypeLabel(t)}
                       </SelectItem>

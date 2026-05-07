@@ -193,7 +193,7 @@ export function ManageExercisesPage() {
                         </SelectTrigger>
                       </FormControl>
                       <SelectContent>
-                        {(["Upper", "Lower", "Cardio"] as Category[]).map(
+                        {(["Upper", "Lower"] as Category[]).map(
                           (c) => (
                             <SelectItem key={c} value={c}>
                               {categoryLabel(c)}
@@ -508,7 +508,7 @@ function EditExerciseDialog({
                       </SelectTrigger>
                     </FormControl>
                     <SelectContent>
-                      {(["Upper", "Lower", "Cardio"] as Category[]).map((c) => (
+                      {(["Upper", "Lower"] as Category[]).map((c) => (
                         <SelectItem key={c} value={c}>
                           {categoryLabel(c)}
                         </SelectItem>

@@ -28,6 +28,7 @@ model User {
   refreshTokens     RefreshToken[]
   weightEntries     WeightEntry[]
   weeklyGoalHistory WeeklyGoalEntry[]
+  runs              Run[]
 
   @@map("users")
 }
@@ -153,6 +154,32 @@ model WeeklyGoalEntry {
 
   @@index([userId, effectiveFrom])
   @@map("weekly_goal_history")
+}
+
+model Run {
+  id            String    @id @default(uuid())
+  userId        String
+  name          String?
+  date          DateTime
+  startTime     DateTime?
+  endTime       DateTime?
+  distance      Float     // metros
+  duration      Int       // segundos
+  pace          Float?    // segundos por km
+  elevationGain Float?    // metros
+  notes         String?
+  source        String    @default("manual") // manual, gpx, strava
+  externalId    String?
+  routePoints   Json?     // [{ lat, lng, ele?, t? }]
+  splits        Json?     // [{ km, duration, pace }]
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, date])
+  @@map("runs")
 }
 
 model WeightEntry {

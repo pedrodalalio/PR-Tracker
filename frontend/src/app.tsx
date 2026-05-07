@@ -21,6 +21,9 @@ import { NotFoundPage } from "@/pages/not-found-page";
 import { ProgressPage } from "@/pages/progress-page";
 import { RegisterPage } from "@/pages/register-page";
 import { ReportsPage } from "@/pages/reports-page";
+import { NewRunPage } from "@/pages/new-run-page";
+import { RunDetailPage } from "@/pages/run-detail-page";
+import { RunsPage } from "@/pages/runs-page";
 import { WorkoutDetailPage } from "@/pages/workout-detail-page";
 import { WorkoutsPage } from "@/pages/workouts-page";
 
@@ -75,6 +78,9 @@ export default function App() {
                 />
                 <Route path="progress" element={<ProgressPage />} />
                 <Route path="reports" element={<ReportsPage />} />
+                <Route path="runs" element={<RunsPage />} />
+                <Route path="runs/new" element={<NewRunPage />} />
+                <Route path="runs/:id" element={<RunDetailPage />} />
                 <Route path="goals" element={<GoalSettingsPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />

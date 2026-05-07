@@ -114,6 +114,41 @@ export const weeklyGoalEntrySchema = z.object({
 });
 export type WeeklyGoalEntry = z.infer<typeof weeklyGoalEntrySchema>;
 
+export const routePointSchema = z.object({
+  lat: z.number(),
+  lng: z.number(),
+  ele: z.number().optional(),
+  t: z.number().optional(),
+});
+export type RoutePoint = z.infer<typeof routePointSchema>;
+
+export const splitSchema = z.object({
+  km: z.number(),
+  duration: z.number(),
+  pace: z.number(),
+});
+export type Split = z.infer<typeof splitSchema>;
+
+export const runSchema = z.object({
+  id: z.string(),
+  name: z.string().nullable().optional(),
+  date: z.string(),
+  startTime: z.string().nullable().optional(),
+  endTime: z.string().nullable().optional(),
+  distance: z.number().positive(), // metros
+  duration: z.number().int().positive(), // segundos
+  pace: z.number().nullable().optional(), // seg/km
+  elevationGain: z.number().nullable().optional(), // metros
+  notes: z.string().nullable().optional(),
+  source: z.string(),
+  externalId: z.string().nullable().optional(),
+  routePoints: z.array(routePointSchema).nullable().optional(),
+  splits: z.array(splitSchema).nullable().optional(),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+export type Run = z.infer<typeof runSchema>;
+
 export const weightEntrySchema = z.object({
   id: z.string(),
   weight: z.number().positive(),
