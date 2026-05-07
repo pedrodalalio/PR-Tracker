@@ -77,10 +77,10 @@ export function ProgressPage() {
     const today = new Date();
     return Array.from({ length: 12 }).map((_, i) => {
       const ref = subWeeks(today, 11 - i);
-      const start = startOfWeek(ref, { weekStartsOn: 1 });
-      const end = endOfWeek(ref, { weekStartsOn: 1 });
+      const start = startOfWeek(ref, { weekStartsOn: 0 });
+      const end = endOfWeek(ref, { weekStartsOn: 0 });
       const items = (workouts.data ?? []).filter((w) =>
-        isSameWeek(new Date(w.date), ref, { weekStartsOn: 1 }),
+        isSameWeek(new Date(w.date), ref, { weekStartsOn: 0 }),
       );
       return {
         week: format(start, "dd/MM", { locale: ptBR }),

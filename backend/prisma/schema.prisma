@@ -23,10 +23,11 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  workouts      Workout[]
-  userGoals     UserGoals?
-  refreshTokens RefreshToken[]
-  weightEntries WeightEntry[]
+  workouts          Workout[]
+  userGoals         UserGoals?
+  refreshTokens     RefreshToken[]
+  weightEntries     WeightEntry[]
+  weeklyGoalHistory WeeklyGoalEntry[]
 
   @@map("users")
 }
@@ -138,6 +139,20 @@ model UserGoals {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_goals")
+}
+
+model WeeklyGoalEntry {
+  id                String   @id @default(uuid())
+  userId            String
+  weeklyWorkoutGoal Int
+  effectiveFrom     DateTime
+  createdAt         DateTime @default(now())
+
+  // Relations
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, effectiveFrom])
+  @@map("weekly_goal_history")
 }
 
 model WeightEntry {

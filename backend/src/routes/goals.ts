@@ -33,6 +33,31 @@ function sanitizeTargetDays(input: unknown): WeekDay[] | null {
 
 const prisma = new PrismaClient();
 
+function startOfDayUTC(date: Date): Date {
+  const d = new Date(date);
+  d.setUTCHours(0, 0, 0, 0);
+  return d;
+}
+
+async function ensureGoalHistory(
+  userId: string,
+  weeklyWorkoutGoal: number,
+  fallbackEffectiveFrom: Date,
+) {
+  const existing = await prisma.weeklyGoalEntry.findFirst({
+    where: { userId },
+  });
+  if (!existing) {
+    await prisma.weeklyGoalEntry.create({
+      data: {
+        userId,
+        weeklyWorkoutGoal,
+        effectiveFrom: fallbackEffectiveFrom,
+      },
+    });
+  }
+}
+
 function toUserGoalsResponse(goals: {
   id: string;
   weeklyWorkoutGoal: number;
@@ -83,6 +108,12 @@ export async function goalsRoutes(fastify: FastifyInstance) {
           });
         }
 
+        await ensureGoalHistory(
+          request.user!.userId,
+          goals.weeklyWorkoutGoal,
+          goals.createdAt,
+        );
+
         reply.send(toUserGoalsResponse(goals));
       } catch (error) {
         reply.status(500).send({ error: "Failed to fetch goals" });
@@ -108,6 +139,8 @@ export async function goalsRoutes(fastify: FastifyInstance) {
           where: { userId: request.user!.userId },
         });
 
+        const previousGoal = goals?.weeklyWorkoutGoal;
+
         if (!goals) {
           goals = await prisma.userGoals.create({
             data: {
@@ -131,9 +164,70 @@ export async function goalsRoutes(fastify: FastifyInstance) {
           });
         }
 
+        await ensureGoalHistory(
+          request.user!.userId,
+          goals.weeklyWorkoutGoal,
+          goals.createdAt,
+        );
+
+        // Se o weeklyWorkoutGoal mudou, registra a nova entrada no histórico
+        // com effectiveFrom = hoje (00:00 UTC).
+        if (
+          previousGoal !== undefined &&
+          previousGoal !== goals.weeklyWorkoutGoal
+        ) {
+          await prisma.weeklyGoalEntry.create({
+            data: {
+              userId: request.user!.userId,
+              weeklyWorkoutGoal: goals.weeklyWorkoutGoal,
+              effectiveFrom: startOfDayUTC(new Date()),
+            },
+          });
+        }
+
         reply.send(toUserGoalsResponse(goals));
       } catch (error) {
         reply.status(500).send({ error: "Failed to update goals" });
+      }
+    },
+  );
+
+  // Histórico de mudanças do weeklyWorkoutGoal
+  fastify.get<{}>(
+    "/goals/weekly-history",
+    {
+      preHandler: authenticateToken,
+    },
+    async (request: FastifyRequest, reply: FastifyReply) => {
+      try {
+        // Garante bootstrap caso o usuário ainda não tenha histórico
+        const goals = await prisma.userGoals.findFirst({
+          where: { userId: request.user!.userId },
+        });
+        if (goals) {
+          await ensureGoalHistory(
+            request.user!.userId,
+            goals.weeklyWorkoutGoal,
+            goals.createdAt,
+          );
+        }
+
+        const history = await prisma.weeklyGoalEntry.findMany({
+          where: { userId: request.user!.userId },
+          orderBy: { effectiveFrom: "asc" },
+        });
+
+        reply.send(
+          history.map((entry) => ({
+            id: entry.id,
+            weeklyWorkoutGoal: entry.weeklyWorkoutGoal,
+            effectiveFrom: entry.effectiveFrom.toISOString(),
+            createdAt: entry.createdAt.toISOString(),
+          })),
+        );
+      } catch (error) {
+        request.log.error(error);
+        reply.status(500).send({ error: "Failed to fetch goal history" });
       }
     },
   );
@@ -155,10 +249,10 @@ export async function goalsRoutes(fastify: FastifyInstance) {
 
         const now = new Date();
         const dayOfWeek = now.getDay();
-        const mondayOffset = dayOfWeek === 0 ? -6 : 1 - dayOfWeek; // Handle Sunday as 0
+        const sundayOffset = -dayOfWeek; // semana começa no domingo
 
         const weekStart = new Date(now);
-        weekStart.setUTCDate(weekStart.getUTCDate() + mondayOffset);
+        weekStart.setUTCDate(weekStart.getUTCDate() + sundayOffset);
         weekStart.setUTCHours(0, 0, 0, 0);
 
         const weekEnd = new Date(weekStart);
@@ -253,11 +347,10 @@ export async function goalsRoutes(fastify: FastifyInstance) {
         // Get current week progress
         const now = new Date();
         const currentDayOfWeek = now.getDay();
-        const currentMondayOffset =
-          currentDayOfWeek === 0 ? -6 : 1 - currentDayOfWeek;
+        const currentSundayOffset = -currentDayOfWeek;
 
         const weekStart = new Date(now);
-        weekStart.setUTCDate(weekStart.getUTCDate() + currentMondayOffset);
+        weekStart.setUTCDate(weekStart.getUTCDate() + currentSundayOffset);
         weekStart.setUTCHours(0, 0, 0, 0);
 
         const weekEnd = new Date(weekStart);
@@ -304,10 +397,9 @@ export async function goalsRoutes(fastify: FastifyInstance) {
         // Calculate consecutive weeks with goal met, starting from current week backwards
         const currentWeekStart = new Date(now);
         const streakDayOfWeek = currentWeekStart.getDay();
-        const streakMondayOffset =
-          streakDayOfWeek === 0 ? -6 : 1 - streakDayOfWeek;
+        const streakSundayOffset = -streakDayOfWeek;
         currentWeekStart.setUTCDate(
-          currentWeekStart.getUTCDate() + streakMondayOffset,
+          currentWeekStart.getUTCDate() + streakSundayOffset,
         );
         currentWeekStart.setUTCHours(0, 0, 0, 0);
 
@@ -439,10 +531,9 @@ export async function goalsRoutes(fastify: FastifyInstance) {
         // Calculate consecutive weeks with goal met, starting from current week backwards
         const currentWeekStart = new Date(now);
         const streakDayOfWeek = currentWeekStart.getDay();
-        const streakMondayOffset =
-          streakDayOfWeek === 0 ? -6 : 1 - streakDayOfWeek;
+        const streakSundayOffset = -streakDayOfWeek;
         currentWeekStart.setUTCDate(
-          currentWeekStart.getUTCDate() + streakMondayOffset,
+          currentWeekStart.getUTCDate() + streakSundayOffset,
         );
         currentWeekStart.setUTCHours(0, 0, 0, 0);
 

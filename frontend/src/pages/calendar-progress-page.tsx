@@ -28,10 +28,10 @@ export function CalendarProgressPage() {
     const today = new Date();
     return Array.from({ length: WEEKS_TO_SHOW }).map((_, i) => {
       const ref = subWeeks(today, i);
-      const start = startOfWeek(ref, { weekStartsOn: 1 });
-      const end = endOfWeek(ref, { weekStartsOn: 1 });
+      const start = startOfWeek(ref, { weekStartsOn: 0 });
+      const end = endOfWeek(ref, { weekStartsOn: 0 });
       const count = (workouts.data ?? []).filter((w) =>
-        isSameWeek(new Date(w.date), ref, { weekStartsOn: 1 }),
+        isSameWeek(new Date(w.date), ref, { weekStartsOn: 0 }),
       ).length;
       return { start, end, count, isCurrent: i === 0 };
     });

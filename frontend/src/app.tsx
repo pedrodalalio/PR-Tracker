@@ -20,6 +20,7 @@ import { NewWorkoutPage } from "@/pages/new-workout-page";
 import { NotFoundPage } from "@/pages/not-found-page";
 import { ProgressPage } from "@/pages/progress-page";
 import { RegisterPage } from "@/pages/register-page";
+import { ReportsPage } from "@/pages/reports-page";
 import { WorkoutDetailPage } from "@/pages/workout-detail-page";
 import { WorkoutsPage } from "@/pages/workouts-page";
 
@@ -73,6 +74,7 @@ export default function App() {
                   element={<CalendarProgressPage />}
                 />
                 <Route path="progress" element={<ProgressPage />} />
+                <Route path="reports" element={<ReportsPage />} />
                 <Route path="goals" element={<GoalSettingsPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />

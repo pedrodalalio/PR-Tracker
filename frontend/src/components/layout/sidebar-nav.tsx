@@ -1,6 +1,7 @@
 import {
   CalendarDays,
   Dumbbell,
+  FileBarChart,
   Home,
   LineChart,
   ListChecks,
@@ -21,6 +22,7 @@ const groups = [
       { to: "/workouts", label: "Treinos", icon: Dumbbell, end: false },
       { to: "/calendar", label: "Calendário", icon: CalendarDays, end: false },
       { to: "/progress", label: "Progresso", icon: LineChart, end: false },
+      { to: "/reports", label: "Relatórios", icon: FileBarChart, end: false },
     ],
   },
   {

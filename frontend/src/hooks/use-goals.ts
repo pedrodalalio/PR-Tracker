@@ -10,6 +10,7 @@ const keys = {
   base: () => [...keys.all, "base"] as const,
   weekProgress: () => [...keys.all, "week-progress"] as const,
   streak: () => [...keys.all, "streak"] as const,
+  weeklyHistory: () => [...keys.all, "weekly-history"] as const,
 };
 
 export function useGoals() {
@@ -27,6 +28,13 @@ export function useStreak() {
   return useQuery({
     queryKey: keys.streak(),
     queryFn: () => goalsApi.streak(),
+  });
+}
+
+export function useWeeklyGoalHistory() {
+  return useQuery({
+    queryKey: keys.weeklyHistory(),
+    queryFn: () => goalsApi.weeklyGoalHistory(),
   });
 }
 

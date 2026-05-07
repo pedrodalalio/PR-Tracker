@@ -1,11 +1,14 @@
+import { z } from "zod";
 import { apiClient } from "@/lib/api-client";
 import {
   streakInfoSchema,
   userGoalsSchema,
+  weeklyGoalEntrySchema,
   weeklyProgressSchema,
   type StreakInfo,
   type UserGoals,
   type WeekDay,
+  type WeeklyGoalEntry,
   type WeeklyProgress,
 } from "@/lib/types";
 
@@ -38,5 +41,12 @@ export const goalsApi = {
   async updateStreak(): Promise<UserGoals> {
     const data = await apiClient.post<UserGoals>("/goals/update-streak");
     return userGoalsSchema.parse(data);
+  },
+
+  async weeklyGoalHistory(): Promise<WeeklyGoalEntry[]> {
+    const data = await apiClient.get<WeeklyGoalEntry[]>(
+      "/goals/weekly-history",
+    );
+    return z.array(weeklyGoalEntrySchema).parse(data);
   },
 };
