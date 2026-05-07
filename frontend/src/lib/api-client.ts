@@ -1,4 +1,5 @@
 import { env } from "@/lib/env";
+import { getAccessToken } from "@/lib/auth-storage";
 
 export class ApiError extends Error {
   status: number;
@@ -22,11 +23,12 @@ export class NetworkError extends Error {
 interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   searchParams?: Record<string, string | number | undefined>;
+  skipAuth?: boolean;
 }
 
 async function request<T>(
   path: string,
-  { body, searchParams, headers, ...init }: RequestOptions = {},
+  { body, searchParams, headers, skipAuth, ...init }: RequestOptions = {},
 ): Promise<T> {
   const url = new URL(
     path.startsWith("http") ? path : `${env.apiUrl}${path}`,
@@ -42,6 +44,12 @@ async function request<T>(
   const finalHeaders = new Headers(headers);
   if (body !== undefined && !(body instanceof FormData)) {
     finalHeaders.set("Content-Type", "application/json");
+  }
+  if (!skipAuth) {
+    const token = getAccessToken();
+    if (token && !finalHeaders.has("Authorization")) {
+      finalHeaders.set("Authorization", `Bearer ${token}`);
+    }
   }
 
   let response: Response;

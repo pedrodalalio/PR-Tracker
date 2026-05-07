@@ -63,7 +63,7 @@ fastify.register(cors, {
   },
   credentials: true,
   methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-  allowedHeaders: ["Content-Type"],
+  allowedHeaders: ["Content-Type", "Authorization"],
 });
 
 // CSRF mitigation: reject mutating requests whose Origin is not allowlisted.

@@ -4,7 +4,7 @@ import { AuthService } from "../lib/auth";
 import { registerSchema, loginSchema } from "../lib/validation";
 import { RegisterRequest, LoginRequest } from "../types/auth";
 import { authenticateToken } from "../lib/middleware";
-import { setAuthCookies, clearAuthCookies, REFRESH_COOKIE } from "../lib/cookies";
+import { setRefreshCookie, clearRefreshCookie, REFRESH_COOKIE } from "../lib/cookies";
 
 const prisma = new PrismaClient();
 
@@ -51,7 +51,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         });
         const refreshToken = await AuthService.createRefreshToken(user.id);
 
-        setAuthCookies(reply, token, refreshToken);
+        setRefreshCookie(reply, refreshToken);
 
         return reply.status(201).send({
           user: {
@@ -59,6 +59,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             username: user.username,
             email: user.email,
           },
+          token,
         });
       } catch (error) {
         fastify.log.error(error);
@@ -106,7 +107,7 @@ export async function authRoutes(fastify: FastifyInstance) {
         });
         const refreshToken = await AuthService.createRefreshToken(user.id);
 
-        setAuthCookies(reply, token, refreshToken);
+        setRefreshCookie(reply, refreshToken);
 
         return reply.send({
           user: {
@@ -114,6 +115,7 @@ export async function authRoutes(fastify: FastifyInstance) {
             username: user.username,
             email: user.email,
           },
+          token,
         });
       } catch (error) {
         fastify.log.error(error);
@@ -154,7 +156,7 @@ export async function authRoutes(fastify: FastifyInstance) {
 
       const tokenValidation = await AuthService.validateRefreshToken(refreshToken);
       if (!tokenValidation) {
-        clearAuthCookies(reply);
+        clearRefreshCookie(reply);
         return reply.status(401).send({ error: "Invalid or expired refresh token" });
       }
 
@@ -164,7 +166,7 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
 
       if (!user) {
-        clearAuthCookies(reply);
+        clearRefreshCookie(reply);
         return reply.status(404).send({ error: "User not found" });
       }
 
@@ -177,9 +179,9 @@ export async function authRoutes(fastify: FastifyInstance) {
       });
       const newRefreshToken = await AuthService.createRefreshToken(user.id);
 
-      setAuthCookies(reply, newAccessToken, newRefreshToken);
+      setRefreshCookie(reply, newRefreshToken);
 
-      return reply.send({ user });
+      return reply.send({ user, token: newAccessToken });
     } catch (error) {
       fastify.log.error(error);
       return reply.status(500).send({ error: "Internal server error" });
@@ -192,11 +194,11 @@ export async function authRoutes(fastify: FastifyInstance) {
       if (refreshToken) {
         await AuthService.revokeRefreshToken(refreshToken);
       }
-      clearAuthCookies(reply);
+      clearRefreshCookie(reply);
       return reply.send({ message: "Logged out successfully" });
     } catch (error) {
       fastify.log.error(error);
-      clearAuthCookies(reply);
+      clearRefreshCookie(reply);
       return reply.send({ message: "Logged out successfully" });
     }
   });

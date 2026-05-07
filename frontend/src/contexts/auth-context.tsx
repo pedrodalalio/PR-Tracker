@@ -7,6 +7,7 @@ import {
   useState,
 } from "react";
 import { ApiError, NetworkError } from "@/lib/api-client";
+import { getAccessToken } from "@/lib/auth-storage";
 import { authApi } from "@/services/auth-api";
 import type { User } from "@/lib/types";
 
@@ -56,7 +57,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [status, setStatus] = useState<Status>("loading");
 
   const loadSession = useCallback(async () => {
+    const tryRefresh = async () => {
+      const refreshed = await authApi.refresh();
+      setUser(refreshed);
+      writeCachedUser(refreshed);
+      setStatus("authenticated");
+    };
+
     try {
+      if (!getAccessToken()) {
+        await tryRefresh();
+        return;
+      }
       const me = await authApi.me();
       setUser(me);
       writeCachedUser(me);
@@ -64,10 +76,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     } catch (err) {
       if (err instanceof ApiError && err.status === 401) {
         try {
-          const refreshed = await authApi.refresh();
-          setUser(refreshed);
-          writeCachedUser(refreshed);
-          setStatus("authenticated");
+          await tryRefresh();
           return;
         } catch {
           // fall through to anonymous
