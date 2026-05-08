@@ -119,7 +119,7 @@ function ManualForm() {
       onSubmit={onSubmit}
       className="space-y-4 rounded-xl border border-border bg-card p-5"
     >
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="name">Nome (opcional)</Label>
           <Input
@@ -142,7 +142,7 @@ function ManualForm() {
         </div>
       </div>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div className="space-y-1.5">
           <Label htmlFor="distance">Distância (km)</Label>
           <Input

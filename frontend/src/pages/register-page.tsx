@@ -76,7 +76,7 @@ export function RegisterPage() {
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <FormField
               control={form.control}
               name="username"

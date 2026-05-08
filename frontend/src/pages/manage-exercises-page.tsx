@@ -154,7 +154,7 @@ export function ManageExercisesPage() {
         description="Adicione, edite ou remova exercícios do seu catálogo pessoal."
       />
 
-      <div className="grid gap-6 md:grid-cols-[1fr_1.2fr]">
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-[1fr_1.2fr]">
         <section className="rounded-xl border border-border bg-card p-5">
           <h2 className="font-display text-lg font-semibold">
             Adicionar exercício

@@ -180,7 +180,7 @@ export function WorkoutForm({
         className="space-y-8 pb-24"
       >
         <section className="rounded-xl border border-border bg-card p-5 space-y-5">
-          <div className="grid gap-5 md:grid-cols-2">
+          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <FormField
               control={form.control}
               name="name"
