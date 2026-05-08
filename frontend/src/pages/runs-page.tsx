@@ -3,9 +3,10 @@ import {
   endOfMonth,
   startOfMonth,
 } from "date-fns";
-import { ArrowUpRight, Footprints, Plus, Timer, Upload } from "lucide-react";
-import { useMemo } from "react";
-import { Link } from "react-router";
+import { ArrowUpRight, Footprints, Plug, Plus, Timer, Upload } from "lucide-react";
+import { useEffect, useMemo } from "react";
+import { Link, useSearchParams } from "react-router";
+import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
@@ -24,6 +25,23 @@ import {
 export function RunsPage() {
   const runs = useRuns();
   const today = useMemo(() => new Date(), []);
+  const [searchParams, setSearchParams] = useSearchParams();
+
+  useEffect(() => {
+    if (searchParams.get("strava_connected") === "1") {
+      toast.success("Strava conectado!");
+      const next = new URLSearchParams(searchParams);
+      next.delete("strava_connected");
+      setSearchParams(next, { replace: true });
+    }
+    const err = searchParams.get("strava_error");
+    if (err) {
+      toast.error(`Falha no Strava: ${err}`);
+      const next = new URLSearchParams(searchParams);
+      next.delete("strava_error");
+      setSearchParams(next, { replace: true });
+    }
+  }, [searchParams, setSearchParams]);
 
   const stats = useMemo(() => {
     const data = runs.data ?? [];
@@ -68,15 +86,21 @@ export function RunsPage() {
         action={
           <div className="flex flex-wrap items-center gap-2">
             <Button asChild variant="outline">
+              <Link to="/runs/strava">
+                <Plug className="size-4" />
+                Strava
+              </Link>
+            </Button>
+            <Button asChild variant="outline">
               <Link to="/runs/new?import=1">
                 <Upload className="size-4" />
-                Importar GPX
+                GPX
               </Link>
             </Button>
             <Button asChild>
               <Link to="/runs/new">
                 <Plus className="size-4" />
-                Nova corrida
+                Nova
               </Link>
             </Button>
           </div>
@@ -196,7 +220,7 @@ export function RunsPage() {
                   </div>
                   <dl className="grid grid-cols-3 gap-3 text-xs">
                     <Stat label="Distância" value={formatDistance(r.distance)} />
-                    <Stat label="Tempo" value={formatDuration(r.duration)} />
+                    <Stat label="Tempo" value={formatDuration(r.movingTime ?? r.duration)} />
                     <Stat label="Pace" value={formatPace(r.pace)} />
                   </dl>
                   <div className="flex items-center justify-end text-xs font-mono text-muted-foreground transition-colors group-hover:text-primary">

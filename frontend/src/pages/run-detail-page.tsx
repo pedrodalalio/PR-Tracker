@@ -120,7 +120,16 @@ export function RunDetailPage() {
 
       <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
         <Stat label="Distância" value={formatDistance(r.distance)} emphasis />
-        <Stat label="Tempo" value={formatDuration(r.duration)} icon={Timer} />
+        <Stat
+          label="Tempo em movimento"
+          value={formatDuration(r.movingTime ?? r.duration)}
+          icon={Timer}
+          hint={
+            r.movingTime && r.movingTime !== r.duration
+              ? `total: ${formatDuration(r.duration)}`
+              : undefined
+          }
+        />
         <Stat label="Pace médio" value={formatPace(r.pace)} />
         <Stat
           label="Ganho de elevação"
@@ -214,9 +223,10 @@ interface StatProps {
   value: string;
   icon?: typeof Timer;
   emphasis?: boolean;
+  hint?: string;
 }
 
-function Stat({ label, value, icon: Icon, emphasis }: StatProps) {
+function Stat({ label, value, icon: Icon, emphasis, hint }: StatProps) {
   return (
     <div
       className={cn(
@@ -247,6 +257,11 @@ function Stat({ label, value, icon: Icon, emphasis }: StatProps) {
       >
         {value}
       </p>
+      {hint && (
+        <p className="mt-1 font-mono text-[10px] text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

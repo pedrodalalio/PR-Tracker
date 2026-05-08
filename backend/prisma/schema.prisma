@@ -29,8 +29,25 @@ model User {
   weightEntries     WeightEntry[]
   weeklyGoalHistory WeeklyGoalEntry[]
   runs              Run[]
+  stravaConnection  StravaConnection?
 
   @@map("users")
+}
+
+model StravaConnection {
+  id           String   @id @default(uuid())
+  userId       String   @unique
+  athleteId    BigInt   // Strava athlete ID (numérico, vem como número grande)
+  accessToken  String
+  refreshToken String
+  expiresAt    DateTime // quando o accessToken vence
+  scope        String   // espaço-separado, ex: "read,activity:read_all"
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("strava_connections")
 }
 
 model RefreshToken {
@@ -164,8 +181,9 @@ model Run {
   startTime     DateTime?
   endTime       DateTime?
   distance      Float     // metros
-  duration      Int       // segundos
-  pace          Float?    // segundos por km
+  duration      Int       // segundos (elapsed: tempo total da sessão)
+  movingTime    Int?      // segundos (excluindo paradas; ~o que o Strava chama de "moving time")
+  pace          Float?    // segundos por km (baseado em movingTime quando disponível)
   elevationGain Float?    // metros
   notes         String?
   source        String    @default("manual") // manual, gpx, strava

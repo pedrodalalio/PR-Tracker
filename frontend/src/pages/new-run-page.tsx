@@ -239,6 +239,7 @@ function ImportForm() {
         endTime: parsed.endTime?.toISOString(),
         distance: parsed.distance,
         duration: parsed.duration,
+        movingTime: parsed.movingTime,
         pace: parsed.pace,
         elevationGain: parsed.elevationGain ?? undefined,
         source: "gpx",
@@ -294,8 +295,24 @@ function ImportForm() {
           </div>
 
           <dl className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            <Preview label="Distância" value={formatDistance(parsed.distance)} />
-            <Preview label="Tempo" value={formatDuration(parsed.duration)} />
+            <Preview
+              label="Distância"
+              value={formatDistance(parsed.distance)}
+              hint={
+                parsed.imputedDistance > 0
+                  ? `inclui ${formatDistance(parsed.imputedDistance)} estimados`
+                  : undefined
+              }
+            />
+            <Preview
+              label="Tempo em movimento"
+              value={formatDuration(parsed.movingTime)}
+              hint={
+                parsed.movingTime !== parsed.duration
+                  ? `total: ${formatDuration(parsed.duration)}`
+                  : undefined
+              }
+            />
             <Preview label="Pace" value={formatPace(parsed.pace)} />
             <Preview
               label="Elevação"
@@ -306,6 +323,15 @@ function ImportForm() {
               }
             />
           </dl>
+
+          {parsed.hasFreezes && (
+            <p className="rounded-md border border-warning/30 bg-warning/10 px-3 py-2 text-xs text-warning-foreground">
+              Detectamos trecho(s) onde o GPS travou. Estimamos {formatDistance(parsed.imputedDistance)}{" "}
+              de distância usando o pace médio do resto da corrida — pode ficar
+              um pouco diferente do que o app que gravou (que usa
+              acelerômetro/cadência junto).
+            </p>
+          )}
 
           <p className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
             {parsed.routePoints.length} pontos · {parsed.splits.length} splits
@@ -336,13 +362,26 @@ function ImportForm() {
   );
 }
 
-function Preview({ label, value }: { label: string; value: string }) {
+function Preview({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+}) {
   return (
     <div className="rounded-lg border border-border bg-background/40 px-3 py-2.5">
       <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
         {label}
       </p>
       <p className="mt-1 font-display text-base font-semibold">{value}</p>
+      {hint && (
+        <p className="mt-0.5 font-mono text-[10px] text-muted-foreground">
+          {hint}
+        </p>
+      )}
     </div>
   );
 }

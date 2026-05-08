@@ -24,6 +24,7 @@ import { ReportsPage } from "@/pages/reports-page";
 import { NewRunPage } from "@/pages/new-run-page";
 import { RunDetailPage } from "@/pages/run-detail-page";
 import { RunsPage } from "@/pages/runs-page";
+import { StravaPage } from "@/pages/strava-page";
 import { WorkoutDetailPage } from "@/pages/workout-detail-page";
 import { WorkoutsPage } from "@/pages/workouts-page";
 
@@ -79,6 +80,7 @@ export default function App() {
                 <Route path="progress" element={<ProgressPage />} />
                 <Route path="reports" element={<ReportsPage />} />
                 <Route path="runs" element={<RunsPage />} />
+                <Route path="runs/strava" element={<StravaPage />} />
                 <Route path="runs/new" element={<NewRunPage />} />
                 <Route path="runs/:id" element={<RunDetailPage />} />
                 <Route path="goals" element={<GoalSettingsPage />} />

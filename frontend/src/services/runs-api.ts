@@ -14,6 +14,7 @@ export interface CreateRunInput {
   endTime?: string;
   distance: number;
   duration: number;
+  movingTime?: number;
   pace?: number;
   elevationGain?: number;
   notes?: string;
@@ -30,6 +31,7 @@ export interface UpdateRunInput {
   endTime?: string | null;
   distance?: number;
   duration?: number;
+  movingTime?: number | null;
   pace?: number;
   elevationGain?: number | null;
   notes?: string | null;

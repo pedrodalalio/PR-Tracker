@@ -136,8 +136,9 @@ export const runSchema = z.object({
   startTime: z.string().nullable().optional(),
   endTime: z.string().nullable().optional(),
   distance: z.number().positive(), // metros
-  duration: z.number().int().positive(), // segundos
-  pace: z.number().nullable().optional(), // seg/km
+  duration: z.number().int().positive(), // segundos (elapsed)
+  movingTime: z.number().int().nullable().optional(), // segundos (excluindo paradas)
+  pace: z.number().nullable().optional(), // seg/km (baseado em movingTime quando disponível)
   elevationGain: z.number().nullable().optional(), // metros
   notes: z.string().nullable().optional(),
   source: z.string(),

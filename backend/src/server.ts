@@ -9,6 +9,7 @@ import { goalsRoutes } from "./routes/goals";
 import { authRoutes } from "./routes/auth";
 import { weightsRoutes } from "./routes/weights";
 import { runsRoutes } from "./routes/runs";
+import { stravaRoutes } from "./routes/strava";
 
 const fastify = Fastify({
   logger: true,
@@ -96,6 +97,7 @@ fastify.register(exerciseRoutes);
 fastify.register(goalsRoutes);
 fastify.register(weightsRoutes);
 fastify.register(runsRoutes);
+fastify.register(stravaRoutes);
 
 const start = async () => {
   try {

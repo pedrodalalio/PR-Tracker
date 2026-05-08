@@ -22,6 +22,7 @@ interface CreateRunBody {
   endTime?: string;
   distance: number;
   duration: number;
+  movingTime?: number;
   pace?: number;
   elevationGain?: number;
   notes?: string;
@@ -38,6 +39,7 @@ interface UpdateRunBody {
   endTime?: string | null;
   distance?: number;
   duration?: number;
+  movingTime?: number | null;
   pace?: number;
   elevationGain?: number | null;
   notes?: string | null;
@@ -53,6 +55,7 @@ interface RunDTO {
   endTime: string | null;
   distance: number;
   duration: number;
+  movingTime: number | null;
   pace: number | null;
   elevationGain: number | null;
   notes: string | null;
@@ -64,7 +67,7 @@ interface RunDTO {
   updatedAt: string;
 }
 
-function toDTO(run: {
+export function toRunDTO(run: {
   id: string;
   name: string | null;
   date: Date;
@@ -72,6 +75,7 @@ function toDTO(run: {
   endTime: Date | null;
   distance: number;
   duration: number;
+  movingTime: number | null;
   pace: number | null;
   elevationGain: number | null;
   notes: string | null;
@@ -90,6 +94,7 @@ function toDTO(run: {
     endTime: run.endTime?.toISOString() ?? null,
     distance: run.distance,
     duration: run.duration,
+    movingTime: run.movingTime,
     pace: run.pace,
     elevationGain: run.elevationGain,
     notes: run.notes,
@@ -124,7 +129,7 @@ export async function runsRoutes(fastify: FastifyInstance) {
           where: { userId: request.user!.userId },
           orderBy: { date: "desc" },
         });
-        reply.send(runs.map(toDTO));
+        reply.send(runs.map(toRunDTO));
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to fetch runs" });
@@ -146,7 +151,7 @@ export async function runsRoutes(fastify: FastifyInstance) {
         if (!run) {
           return reply.status(404).send({ error: "Corrida não encontrada" });
         }
-        reply.send(toDTO(run));
+        reply.send(toRunDTO(run));
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to fetch run" });
@@ -178,10 +183,19 @@ export async function runsRoutes(fastify: FastifyInstance) {
           return reply.status(400).send({ error: "Duração inválida" });
         }
 
+        const movingTimeRaw =
+          body?.movingTime !== undefined ? Number(body.movingTime) : null;
+        const movingTime =
+          movingTimeRaw !== null && Number.isFinite(movingTimeRaw) && movingTimeRaw > 0
+            ? Math.round(movingTimeRaw)
+            : null;
+
+        // pace = preferimos movingTime; cai pra duration (elapsed) se não houver moving.
+        const paceBaseSeconds = movingTime ?? duration;
         const pace =
           body?.pace !== undefined
             ? Number(body.pace)
-            : calculatePaceSecPerKm(distance, duration);
+            : calculatePaceSecPerKm(distance, paceBaseSeconds);
 
         const startTime = body?.startTime ? parseDate(body.startTime) : null;
         const endTime = body?.endTime ? parseDate(body.endTime) : null;
@@ -200,6 +214,7 @@ export async function runsRoutes(fastify: FastifyInstance) {
             endTime,
             distance,
             duration: Math.round(duration),
+            movingTime,
             pace: Number.isFinite(pace) ? pace : null,
             elevationGain:
               elevationGain !== null && Number.isFinite(elevationGain)
@@ -213,7 +228,7 @@ export async function runsRoutes(fastify: FastifyInstance) {
           },
         });
 
-        reply.status(201).send(toDTO(run));
+        reply.status(201).send(toRunDTO(run));
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to create run" });
@@ -270,6 +285,15 @@ export async function runsRoutes(fastify: FastifyInstance) {
           }
           data.duration = Math.round(n);
         }
+        if (body?.movingTime !== undefined) {
+          if (body.movingTime === null) {
+            data.movingTime = null;
+          } else {
+            const n = Number(body.movingTime);
+            data.movingTime =
+              Number.isFinite(n) && n > 0 ? Math.round(n) : null;
+          }
+        }
         if (body?.pace !== undefined) {
           const n = Number(body.pace);
           data.pace = Number.isFinite(n) ? n : null;
@@ -292,16 +316,23 @@ export async function runsRoutes(fastify: FastifyInstance) {
           data.splits = body.splits ?? null;
         }
 
-        // Recalcula pace se distance/duration mudaram e pace não foi enviado
+        // Recalcula pace se distance/duration/movingTime mudaram e pace não foi enviado.
+        // Preferimos movingTime quando disponível.
         if (
-          (data.distance !== undefined || data.duration !== undefined) &&
+          (data.distance !== undefined ||
+            data.duration !== undefined ||
+            data.movingTime !== undefined) &&
           body?.pace === undefined
         ) {
           const dist =
             (data.distance as number | undefined) ?? existing.distance;
+          const moving =
+            data.movingTime !== undefined
+              ? (data.movingTime as number | null)
+              : existing.movingTime;
           const dur =
             (data.duration as number | undefined) ?? existing.duration;
-          data.pace = calculatePaceSecPerKm(dist, dur);
+          data.pace = calculatePaceSecPerKm(dist, moving ?? dur);
         }
 
         const run = await prisma.run.update({
@@ -309,7 +340,7 @@ export async function runsRoutes(fastify: FastifyInstance) {
           data,
         });
 
-        reply.send(toDTO(run));
+        reply.send(toRunDTO(run));
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to update run" });
