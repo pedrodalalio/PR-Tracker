@@ -16,7 +16,7 @@ import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuth } from "@/contexts/auth-context";
-import { useGoals, useStreak, useWeekProgress } from "@/hooks/use-goals";
+import { useGoals, useWeekProgress } from "@/hooks/use-goals";
 import { useWorkouts } from "@/hooks/use-workouts";
 import {
   formatDate,
@@ -24,6 +24,7 @@ import {
   greetingFor,
   workoutTypeLabel,
 } from "@/lib/format";
+import { computeStreaks } from "@/lib/streak";
 import { weeklyProgressPercent, type WeekDay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -45,9 +46,10 @@ export function HomePage() {
   const { user } = useAuth();
   const goals = useGoals();
   const week = useWeekProgress();
-  const streak = useStreak();
   const workouts = useWorkouts();
 
+  const weeklyGoal = goals.data?.weeklyWorkoutGoal ?? 1;
+  const streaks = computeStreaks(workouts.data ?? [], weeklyGoal);
   const recentWorkouts = (workouts.data ?? []).slice(0, 4);
   const targetDays = goals.data?.targetDays ?? [];
   const today = todayDayOfWeek();
@@ -68,21 +70,21 @@ export function HomePage() {
         <StatCard
           label="Sequência"
           value={
-            streak.isLoading ? (
+            workouts.isLoading || goals.isLoading ? (
               <Skeleton className="h-12 w-16" />
             ) : (
-              streak.data?.currentStreak ?? 0
+              streaks.current
             )
           }
           unit="dias"
           icon={Flame}
           emphasis="primary"
           hint={
-            streak.data && (
+            !workouts.isLoading && !goals.isLoading && (
               <span>
                 Melhor:{" "}
                 <span className="font-mono text-foreground">
-                  {streak.data.bestStreak}
+                  {streaks.best}
                 </span>
               </span>
             )

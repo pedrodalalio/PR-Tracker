@@ -17,7 +17,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGoals, useUpdateGoals } from "@/hooks/use-goals";
+import { useWorkouts } from "@/hooks/use-workouts";
 import { ApiError } from "@/lib/api-client";
+import { computeStreaks } from "@/lib/streak";
 import type { WeekDay } from "@/lib/types";
 import { cn } from "@/lib/utils";
 
@@ -59,6 +61,7 @@ function arraysEqual(a: WeekDay[], b: WeekDay[]) {
 
 export function GoalSettingsPage() {
   const goals = useGoals();
+  const workouts = useWorkouts();
   const update = useUpdateGoals();
 
   const [weeklyDraft, setWeeklyDraft] = useState<number | null>(null);
@@ -66,6 +69,14 @@ export function GoalSettingsPage() {
 
   const weeklyValue = weeklyDraft ?? goals.data?.weeklyWorkoutGoal ?? 3;
   const daysValue = daysDraft ?? goals.data?.targetDays ?? [];
+
+  const savedGoal = goals.data?.weeklyWorkoutGoal ?? 1;
+  const streaks = computeStreaks(workouts.data ?? [], savedGoal);
+  const lastWorkoutDate = (workouts.data ?? [])
+    .map((w) => w.date)
+    .sort()
+    .at(-1);
+  const statsLoading = goals.isLoading || workouts.isLoading;
 
   const isWeeklyDirty =
     weeklyDraft !== null && weeklyDraft !== (goals.data?.weeklyWorkoutGoal ?? null);
@@ -123,10 +134,10 @@ export function GoalSettingsPage() {
         <StatCard
           label="Sequência atual"
           value={
-            goals.isLoading ? (
+            statsLoading ? (
               <Skeleton className="h-10 w-12" />
             ) : (
-              goals.data?.currentStreak ?? 0
+              streaks.current
             )
           }
           unit="dias"
@@ -136,11 +147,7 @@ export function GoalSettingsPage() {
         <StatCard
           label="Melhor sequência"
           value={
-            goals.isLoading ? (
-              <Skeleton className="h-10 w-12" />
-            ) : (
-              goals.data?.bestStreak ?? 0
-            )
+            statsLoading ? <Skeleton className="h-10 w-12" /> : streaks.best
           }
           unit="dias"
           icon={Award}
@@ -148,20 +155,20 @@ export function GoalSettingsPage() {
         <StatCard
           label="Semanas concluídas"
           value={
-            goals.isLoading ? (
+            statsLoading ? (
               <Skeleton className="h-10 w-12" />
             ) : (
-              goals.data?.totalWeeksCompleted ?? 0
+              streaks.totalWeeksCompleted
             )
           }
           unit="semanas"
           icon={Calendar}
           hint={
-            goals.data?.lastWorkoutDate && (
+            lastWorkoutDate && (
               <span>
                 Último treino:{" "}
                 <span className="text-foreground">
-                  {format(new Date(goals.data.lastWorkoutDate), "PP", {
+                  {format(new Date(lastWorkoutDate), "PP", {
                     locale: ptBR,
                   })}
                 </span>

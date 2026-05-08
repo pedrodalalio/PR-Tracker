@@ -1,21 +1,12 @@
 import {
-  differenceInCalendarDays,
   endOfWeek,
   format,
   isSameWeek,
-  startOfDay,
   startOfWeek,
   subWeeks,
 } from "date-fns";
 import { ptBR } from "date-fns/locale";
-import {
-  Activity,
-  Award,
-  Dumbbell,
-  Flame,
-  TrendingDown,
-  TrendingUp,
-} from "lucide-react";
+import { Activity, Dumbbell, Flame, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useSearchParams } from "react-router";
 import {
@@ -40,17 +31,10 @@ import {
   TabsList,
   TabsTrigger,
 } from "@/components/ui/tabs";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGoals } from "@/hooks/use-goals";
 import { useWorkouts } from "@/hooks/use-workouts";
-import { categoryLabel } from "@/lib/format";
+import { computeStreaks } from "@/lib/streak";
 import { cn } from "@/lib/utils";
 
 interface ProgressPoint {
@@ -65,9 +49,10 @@ export function ProgressPage() {
   const workouts = useWorkouts();
   const goals = useGoals();
 
-  const dailyStreaks = useMemo(
-    () => computeDailyStreaks(workouts.data ?? []),
-    [workouts.data],
+  const weeklyGoal = goals.data?.weeklyWorkoutGoal ?? 1;
+  const streaks = useMemo(
+    () => computeStreaks(workouts.data ?? [], weeklyGoal),
+    [workouts.data, weeklyGoal],
   );
 
   const weeklyData = useMemo(() => {
@@ -115,69 +100,64 @@ export function ProgressPage() {
     return [...map.values()].sort((a, b) => a.name.localeCompare(b.name));
   }, [workouts.data]);
 
-  const [selectedExerciseId, setSelectedExerciseId] = useState<string | null>(
-    null,
+  const [selectedCategory, setSelectedCategory] = useState<"Upper" | "Lower">(
+    "Upper",
   );
 
-  // Default: o primeiro da lista, mas o usuário pode trocar via Select.
-  const effectiveExerciseId =
-    selectedExerciseId ?? exercisesInWorkouts[0]?.id ?? null;
-
-  // Pontos do gráfico — uma entrada por treino, com a melhor série do dia.
-  const exerciseProgress = useMemo<ProgressPoint[]>(() => {
-    if (!effectiveExerciseId || !workouts.data) return [];
-    const points = workouts.data
-      .map((w) => {
-        const we = w.exercises.find(
-          (e) => e.exerciseId === effectiveExerciseId,
+  // Top-set por treino, agrupado por exercício.
+  const progressByExercise = useMemo(() => {
+    const map = new Map<string, ProgressPoint[]>();
+    if (!workouts.data) return map;
+    for (const ex of exercisesInWorkouts) {
+      const points = workouts.data
+        .map((w) => {
+          const we = w.exercises.find((e) => e.exerciseId === ex.id);
+          if (!we || we.sets.length === 0) return null;
+          const firstSet = we.sets[0];
+          if (!firstSet) return null;
+          const top = we.sets.reduce(
+            (best, s) =>
+              s.weight > best.weight ||
+              (s.weight === best.weight && s.reps > best.reps)
+                ? s
+                : best,
+            firstSet,
+          );
+          return {
+            date: w.date,
+            dateLabel: format(new Date(w.date), "dd/MM", { locale: ptBR }),
+            weight: top.weight,
+            reps: top.reps,
+          };
+        })
+        .filter((p): p is Omit<ProgressPoint, "isPr"> => p !== null)
+        .sort(
+          (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
         );
-        if (!we || we.sets.length === 0) return null;
-        const firstSet = we.sets[0];
-        if (!firstSet) return null;
-        const top = we.sets.reduce(
-          (best, s) =>
-            s.weight > best.weight ||
-            (s.weight === best.weight && s.reps > best.reps)
-              ? s
-              : best,
-          firstSet,
-        );
-        return {
-          date: w.date,
-          dateLabel: format(new Date(w.date), "dd/MM", { locale: ptBR }),
-          weight: top.weight,
-          reps: top.reps,
-        };
-      })
-      .filter((p): p is Omit<ProgressPoint, "isPr"> => p !== null)
-      .sort(
-        (a, b) => new Date(a.date).getTime() - new Date(b.date).getTime(),
-      );
 
-    // Marca PRs (maior carga até a data)
-    let runningMax = -Infinity;
-    return points.map((p) => {
-      const isPr = p.weight > runningMax;
-      if (p.weight > runningMax) runningMax = p.weight;
-      return { ...p, isPr };
-    });
-  }, [workouts.data, effectiveExerciseId]);
+      let runningMax = -Infinity;
+      const withPr: ProgressPoint[] = points.map((p) => {
+        const isPr = p.weight > runningMax;
+        if (p.weight > runningMax) runningMax = p.weight;
+        return { ...p, isPr };
+      });
+      map.set(ex.id, withPr);
+    }
+    return map;
+  }, [workouts.data, exercisesInWorkouts]);
 
-  const exerciseSummary = useMemo(() => {
-    if (exerciseProgress.length === 0) return null;
-    const first = exerciseProgress[0]!;
-    const last = exerciseProgress[exerciseProgress.length - 1]!;
-    const pr = exerciseProgress.reduce((a, b) =>
-      b.weight > a.weight ? b : a,
-    );
-    return {
-      sessions: exerciseProgress.length,
-      first,
-      last,
-      pr,
-      delta: last.weight - first.weight,
-    };
-  }, [exerciseProgress]);
+  // Só lista exercícios com pelo menos 2 pontos (gráfico só faz sentido a partir daí).
+  const exercisesByCategory = useMemo(() => {
+    const upper: typeof exercisesInWorkouts = [];
+    const lower: typeof exercisesInWorkouts = [];
+    for (const ex of exercisesInWorkouts) {
+      const points = progressByExercise.get(ex.id);
+      if (!points || points.length < 2) continue;
+      if (ex.category === "Upper") upper.push(ex);
+      else if (ex.category === "Lower") lower.push(ex);
+    }
+    return { upper, lower };
+  }, [exercisesInWorkouts, progressByExercise]);
 
   const [searchParams, setSearchParams] = useSearchParams();
   const activeTab = searchParams.get("tab") === "peso" ? "peso" : "treinos";
@@ -210,10 +190,10 @@ export function ProgressPage() {
         <StatCard
           label="Sequência"
           value={
-            workouts.isLoading ? (
+            workouts.isLoading || goals.isLoading ? (
               <Skeleton className="h-10 w-12" />
             ) : (
-              dailyStreaks.current
+              streaks.current
             )
           }
           unit="dias"
@@ -223,10 +203,10 @@ export function ProgressPage() {
         <StatCard
           label="Melhor"
           value={
-            workouts.isLoading ? (
+            workouts.isLoading || goals.isLoading ? (
               <Skeleton className="h-10 w-12" />
             ) : (
-              dailyStreaks.best
+              streaks.best
             )
           }
           unit="dias"
@@ -313,39 +293,16 @@ export function ProgressPage() {
       </section>
 
       <section className="rounded-xl border border-border bg-card p-5">
-        <header className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between">
-          <div>
-            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-              Evolução
-            </p>
-            <h2 className="font-display text-lg font-semibold">
-              Maior carga por treino
-            </h2>
-            <p className="mt-1 text-xs text-muted-foreground">
-              A melhor série de cada treino, ao longo do tempo.
-            </p>
-          </div>
-          <Select
-            value={effectiveExerciseId ?? ""}
-            onValueChange={(v) => setSelectedExerciseId(v)}
-            disabled={exercisesInWorkouts.length === 0}
-          >
-            <SelectTrigger className="w-full sm:w-72">
-              <SelectValue placeholder="Escolha um exercício" />
-            </SelectTrigger>
-            <SelectContent>
-              {exercisesInWorkouts.map((ex) => (
-                <SelectItem key={ex.id} value={ex.id}>
-                  <span className="flex items-center gap-2">
-                    <span>{ex.name}</span>
-                    <span className="font-mono text-[10px] text-muted-foreground">
-                      {categoryLabel(ex.category)} · {ex.sessions}x
-                    </span>
-                  </span>
-                </SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
+        <header className="mb-4">
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Evolução
+          </p>
+          <h2 className="font-display text-lg font-semibold">
+            Carga máxima por exercício
+          </h2>
+          <p className="mt-1 text-xs text-muted-foreground">
+            O top set de cada treino ao longo do tempo, separado por categoria.
+          </p>
         </header>
 
         {workouts.isLoading ? (
@@ -356,127 +313,31 @@ export function ProgressPage() {
             title="Nenhum exercício registrado ainda"
             description="Quando você registrar treinos, vai poder ver aqui a evolução de cada exercício."
           />
-        ) : exerciseProgress.length < 2 ? (
-          <EmptyState
-            icon={TrendingUp}
-            title="Precisa de mais dados"
-            description={
-              exerciseProgress.length === 1
-                ? "Você só tem um treino com esse exercício. Registre mais um pra ver a evolução."
-                : "Esse exercício ainda não tem treinos."
-            }
-          />
         ) : (
-          <>
-            {exerciseSummary && (
-              <div className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-4">
-                <Mini
-                  label="Sessões"
-                  value={exerciseSummary.sessions}
-                  unit="treinos"
-                />
-                <Mini
-                  label="PR"
-                  value={`${exerciseSummary.pr.weight}`}
-                  unit={`kg × ${exerciseSummary.pr.reps}`}
-                  emphasis
-                  icon={Award}
-                />
-                <Mini
-                  label="Última"
-                  value={`${exerciseSummary.last.weight}`}
-                  unit={`kg × ${exerciseSummary.last.reps}`}
-                />
-                <Mini
-                  label="Evolução"
-                  value={
-                    exerciseSummary.delta > 0
-                      ? `+${exerciseSummary.delta.toLocaleString("pt-BR")}`
-                      : exerciseSummary.delta.toLocaleString("pt-BR")
-                  }
-                  unit="kg"
-                  icon={
-                    exerciseSummary.delta > 0
-                      ? TrendingUp
-                      : exerciseSummary.delta < 0
-                        ? TrendingDown
-                        : undefined
-                  }
-                  tone={
-                    exerciseSummary.delta > 0
-                      ? "positive"
-                      : exerciseSummary.delta < 0
-                        ? "negative"
-                        : "neutral"
-                  }
-                />
-              </div>
-            )}
-
-            <div className="h-72 w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <LineChart
-                  data={exerciseProgress}
-                  margin={{ top: 12, right: 16, bottom: 0, left: 0 }}
-                >
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--border)"
-                    vertical={false}
-                  />
-                  <XAxis
-                    dataKey="dateLabel"
-                    stroke="var(--muted-foreground)"
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={11}
-                  />
-                  <YAxis
-                    stroke="var(--muted-foreground)"
-                    tickLine={false}
-                    axisLine={false}
-                    fontSize={11}
-                    width={36}
-                    domain={["auto", "auto"]}
-                    unit=" kg"
-                  />
-                  <Tooltip
-                    cursor={{ stroke: "var(--accent)" }}
-                    contentStyle={{
-                      background: "var(--card)",
-                      border: "1px solid var(--border)",
-                      borderRadius: 8,
-                      fontSize: 12,
-                    }}
-                    labelStyle={{ color: "var(--muted-foreground)" }}
-                    formatter={(_value, _name, item) => {
-                      const p = item.payload as ProgressPoint;
-                      return [`${p.weight} kg × ${p.reps}`, "Top set"];
-                    }}
-                  />
-                  <Line
-                    type="monotone"
-                    dataKey="weight"
-                    stroke="var(--primary)"
-                    strokeWidth={2.5}
-                    dot={{ fill: "var(--primary)", r: 3 }}
-                    activeDot={{ r: 5 }}
-                  />
-                  {exerciseSummary && (
-                    <ReferenceDot
-                      x={exerciseSummary.pr.dateLabel}
-                      y={exerciseSummary.pr.weight}
-                      r={6}
-                      fill="var(--primary)"
-                      stroke="var(--background)"
-                      strokeWidth={2}
-                      ifOverflow="extendDomain"
-                    />
-                  )}
-                </LineChart>
-              </ResponsiveContainer>
-            </div>
-          </>
+          <Tabs
+            value={selectedCategory}
+            onValueChange={(v) =>
+              setSelectedCategory(v as "Upper" | "Lower")
+            }
+            className="space-y-4"
+          >
+            <TabsList>
+              <TabsTrigger value="Upper">Superiores</TabsTrigger>
+              <TabsTrigger value="Lower">Inferiores</TabsTrigger>
+            </TabsList>
+            <TabsContent value="Upper">
+              <ExerciseProgressList
+                exercises={exercisesByCategory.upper}
+                progressByExercise={progressByExercise}
+              />
+            </TabsContent>
+            <TabsContent value="Lower">
+              <ExerciseProgressList
+                exercises={exercisesByCategory.lower}
+                progressByExercise={progressByExercise}
+              />
+            </TabsContent>
+          </Tabs>
         )}
       </section>
 
@@ -503,95 +364,173 @@ export function ProgressPage() {
   );
 }
 
-interface MiniProps {
-  label: string;
-  value: React.ReactNode;
-  unit?: string;
-  icon?: typeof TrendingUp;
-  emphasis?: boolean;
-  tone?: "positive" | "negative" | "neutral";
+interface ExerciseRow {
+  id: string;
+  name: string;
+  category: string;
+  sessions: number;
 }
 
-function Mini({ label, value, unit, icon: Icon, emphasis, tone }: MiniProps) {
+function ExerciseProgressList({
+  exercises,
+  progressByExercise,
+}: {
+  exercises: ExerciseRow[];
+  progressByExercise: Map<string, ProgressPoint[]>;
+}) {
+  if (exercises.length === 0) {
+    return (
+      <EmptyState
+        icon={TrendingUp}
+        title="Sem dados suficientes"
+        description="Registre pelo menos dois treinos com exercícios dessa categoria para ver a evolução."
+      />
+    );
+  }
   return (
-    <div
-      className={cn(
-        "rounded-lg border border-border bg-background/40 px-3 py-2.5",
-        emphasis && "border-primary/30 bg-primary/5",
-      )}
-    >
-      <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-        {label}
-      </p>
-      <div className="mt-1 flex items-baseline gap-1.5">
-        <span
-          className={cn(
-            "font-display text-xl font-bold tracking-tight",
-            emphasis && "text-primary",
-            tone === "positive" && "text-success",
-            tone === "negative" && "text-destructive",
-          )}
-        >
-          {value}
+    <div className="grid gap-4 lg:grid-cols-2">
+      {exercises.map((ex) => (
+        <ExerciseProgressCard
+          key={ex.id}
+          name={ex.name}
+          points={progressByExercise.get(ex.id) ?? []}
+        />
+      ))}
+    </div>
+  );
+}
+
+function ExerciseProgressCard({
+  name,
+  points,
+}: {
+  name: string;
+  points: ProgressPoint[];
+}) {
+  if (points.length === 0) return null;
+  const first = points[0]!;
+  const last = points[points.length - 1]!;
+  const pr = points.reduce((a, b) => (b.weight > a.weight ? b : a));
+  const delta = last.weight - first.weight;
+
+  return (
+    <div className="rounded-xl border border-border bg-background/30 p-4 space-y-3">
+      <div className="flex items-baseline justify-between gap-2">
+        <h3 className="truncate font-medium">{name}</h3>
+        <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
+          {points.length}× sessões
         </span>
-        {unit && (
-          <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
-            {unit}
-          </span>
-        )}
-        {Icon && (
-          <Icon
-            className={cn(
-              "ml-auto size-3.5 text-muted-foreground",
-              emphasis && "text-primary",
-              tone === "positive" && "text-success",
-              tone === "negative" && "text-destructive",
-            )}
-          />
-        )}
+      </div>
+      <div className="grid grid-cols-3 gap-2 text-xs">
+        <MiniStat label="PR" value={`${pr.weight} kg`} sub={`× ${pr.reps}`} emphasis />
+        <MiniStat
+          label="Última"
+          value={`${last.weight} kg`}
+          sub={`× ${last.reps}`}
+        />
+        <MiniStat
+          label="Δ"
+          value={`${delta > 0 ? "+" : ""}${delta.toLocaleString("pt-BR")} kg`}
+          tone={delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral"}
+        />
+      </div>
+      <div className="h-44">
+        <ResponsiveContainer width="100%" height="100%">
+          <LineChart
+            data={points}
+            margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
+          >
+            <CartesianGrid
+              strokeDasharray="3 3"
+              stroke="var(--border)"
+              vertical={false}
+            />
+            <XAxis
+              dataKey="dateLabel"
+              stroke="var(--muted-foreground)"
+              tickLine={false}
+              axisLine={false}
+              fontSize={10}
+            />
+            <YAxis
+              stroke="var(--muted-foreground)"
+              tickLine={false}
+              axisLine={false}
+              fontSize={10}
+              width={32}
+              domain={["auto", "auto"]}
+              unit=" kg"
+            />
+            <Tooltip
+              cursor={{ stroke: "var(--accent)" }}
+              contentStyle={{
+                background: "var(--card)",
+                border: "1px solid var(--border)",
+                borderRadius: 8,
+                fontSize: 12,
+              }}
+              labelStyle={{ color: "var(--muted-foreground)" }}
+              formatter={(_v, _n, item) => {
+                const p = item.payload as ProgressPoint;
+                return [`${p.weight} kg × ${p.reps}`, "Top set"];
+              }}
+            />
+            <Line
+              type="monotone"
+              dataKey="weight"
+              stroke="var(--primary)"
+              strokeWidth={2}
+              dot={{ fill: "var(--primary)", r: 2.5 }}
+              activeDot={{ r: 4 }}
+            />
+            <ReferenceDot
+              x={pr.dateLabel}
+              y={pr.weight}
+              r={5}
+              fill="var(--primary)"
+              stroke="var(--background)"
+              strokeWidth={2}
+              ifOverflow="extendDomain"
+            />
+          </LineChart>
+        </ResponsiveContainer>
       </div>
     </div>
   );
 }
 
-function computeDailyStreaks(
-  workouts: { date: string }[],
-): { current: number; best: number } {
-  if (workouts.length === 0) return { current: 0, best: 0 };
-
-  const seen = new Set<number>();
-  const days: Date[] = [];
-  for (const w of workouts) {
-    const day = startOfDay(new Date(w.date));
-    if (!seen.has(day.getTime())) {
-      seen.add(day.getTime());
-      days.push(day);
-    }
-  }
-  days.sort((a, b) => a.getTime() - b.getTime());
-
-  let best = 1;
-  let run = 1;
-  for (let i = 1; i < days.length; i++) {
-    if (differenceInCalendarDays(days[i]!, days[i - 1]!) === 1) {
-      run += 1;
-      if (run > best) best = run;
-    } else {
-      run = 1;
-    }
-  }
-
-  const today = startOfDay(new Date());
-  const lastDay = days[days.length - 1]!;
-  const gap = differenceInCalendarDays(today, lastDay);
-  let current = 0;
-  if (gap === 0 || gap === 1) {
-    current = 1;
-    for (let i = days.length - 2; i >= 0; i--) {
-      if (differenceInCalendarDays(days[i + 1]!, days[i]!) === 1) current += 1;
-      else break;
-    }
-  }
-
-  return { current, best };
+function MiniStat({
+  label,
+  value,
+  sub,
+  emphasis,
+  tone,
+}: {
+  label: string;
+  value: string;
+  sub?: string;
+  emphasis?: boolean;
+  tone?: "positive" | "negative" | "neutral";
+}) {
+  return (
+    <div>
+      <p className="font-mono text-[9px] uppercase tracking-[0.22em] text-muted-foreground">
+        {label}
+      </p>
+      <p
+        className={cn(
+          "mt-0.5 font-mono text-xs",
+          emphasis && "text-primary",
+          tone === "positive" && "text-success",
+          tone === "negative" && "text-destructive",
+        )}
+      >
+        {value}
+        {sub && (
+          <span className="ml-1 text-muted-foreground">{sub}</span>
+        )}
+      </p>
+    </div>
+  );
 }
+
