@@ -69,7 +69,7 @@ export async function weightsRoutes(fastify: FastifyInstance) {
           orderBy: { recordedAt: "desc" },
           take,
         });
-        reply.send(entries.map(toDTO));
+        reply.send({ weights: entries.map(toDTO) });
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to fetch weight entries" });
@@ -113,7 +113,7 @@ export async function weightsRoutes(fastify: FastifyInstance) {
           },
         });
 
-        reply.status(201).send(toDTO(entry));
+        reply.status(201).send({ weight: toDTO(entry) });
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to create weight entry" });
@@ -174,7 +174,7 @@ export async function weightsRoutes(fastify: FastifyInstance) {
           data,
         });
 
-        reply.send(toDTO(entry));
+        reply.send({ weight: toDTO(entry) });
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to update weight entry" });

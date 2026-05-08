@@ -51,4 +51,23 @@ export const authApi = {
       setAccessToken(null);
     }
   },
+
+  async forgotPassword(email: string): Promise<void> {
+    await apiClient.post<{ message: string }>(
+      "/auth/forgot-password",
+      { email },
+      { skipAuth: true },
+    );
+  },
+
+  async resetPassword(input: {
+    token: string;
+    password: string;
+  }): Promise<void> {
+    await apiClient.post<{ message: string }>(
+      "/auth/reset-password",
+      input,
+      { skipAuth: true },
+    );
+  },
 };

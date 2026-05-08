@@ -9,6 +9,7 @@ import { prisma } from './prisma';
 // auto-renova em 401 via /auth/refresh.
 const JWT_EXPIRES_IN = '1h';
 const REFRESH_TOKEN_EXPIRES_IN_DAYS = 30;
+const PASSWORD_RESET_TOKEN_EXPIRES_IN_MINUTES = 60;
 
 export class AuthService {
   static async hashPassword(password: string): Promise<string> {
@@ -84,6 +85,65 @@ export class AuthService {
       });
     } catch (error) {
       console.error('Error revoking user refresh tokens:', error);
+    }
+  }
+
+  // Gera um token de reset de senha pro usuário. Persiste só o hash; o
+  // plaintext é entregue ao chamador pra ser enviado por e-mail.
+  static async createPasswordResetToken(userId: string): Promise<string> {
+    const plaintext = crypto.randomBytes(32).toString('base64url');
+    const tokenHash = crypto.createHash('sha256').update(plaintext).digest('hex');
+    const expiresAt = new Date(
+      Date.now() + PASSWORD_RESET_TOKEN_EXPIRES_IN_MINUTES * 60 * 1000,
+    );
+
+    await prisma.passwordResetToken.create({
+      data: { userId, tokenHash, expiresAt },
+    });
+
+    return plaintext;
+  }
+
+  // Valida e marca como usado. Retorna userId em caso de sucesso, null caso
+  // contrário (token inválido, expirado, ou já usado).
+  static async consumePasswordResetToken(
+    plaintext: string,
+  ): Promise<{ userId: string } | null> {
+    const tokenHash = crypto.createHash('sha256').update(plaintext).digest('hex');
+    try {
+      const result = await prisma.$transaction(async (tx) => {
+        const record = await tx.passwordResetToken.findUnique({
+          where: { tokenHash },
+        });
+        if (!record) return null;
+        if (record.usedAt) return null;
+        if (record.expiresAt.getTime() <= Date.now()) return null;
+
+        await tx.passwordResetToken.update({
+          where: { id: record.id },
+          data: { usedAt: new Date() },
+        });
+        return { userId: record.userId };
+      });
+      return result;
+    } catch (error) {
+      console.error('Error consuming password reset token:', error);
+      return null;
+    }
+  }
+
+  static async cleanExpiredPasswordResetTokens(): Promise<void> {
+    try {
+      await prisma.passwordResetToken.deleteMany({
+        where: {
+          OR: [
+            { expiresAt: { lt: new Date() } },
+            { usedAt: { not: null } },
+          ],
+        },
+      });
+    } catch (error) {
+      console.error('Error cleaning expired password reset tokens:', error);
     }
   }
 

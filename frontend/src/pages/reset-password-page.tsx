@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useLocation, useNavigate } from "react-router";
+import { Link, useNavigate, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthShell } from "@/components/auth-shell";
@@ -16,17 +16,11 @@ import {
   FormMessage,
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { useAuth } from "@/contexts/auth-context";
 import { ApiError } from "@/lib/api-client";
+import { authApi } from "@/services/auth-api";
 
 const schema = z
   .object({
-    username: z
-      .string()
-      .min(3, "Mínimo de 3 caracteres")
-      .max(30, "Máximo de 30 caracteres")
-      .regex(/^[a-zA-Z0-9]+$/, "Use apenas letras e números"),
-    email: z.string().email("E-mail inválido"),
     password: z.string().min(8, "A senha precisa ter pelo menos 8 caracteres"),
     confirmPassword: z.string(),
   })
@@ -37,94 +31,59 @@ const schema = z
 
 type FormValues = z.infer<typeof schema>;
 
-export function RegisterPage() {
+export function ResetPasswordPage() {
   const navigate = useNavigate();
-  const location = useLocation();
-  const { register } = useAuth();
+  const [params] = useSearchParams();
+  const token = params.get("token") ?? "";
   const [showPassword, setShowPassword] = useState(false);
-
-  const fromState = (location.state as { from?: { pathname?: string } } | null)
-    ?.from;
-  const redirectTo = fromState?.pathname ?? "/";
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: {
-      username: "",
-      email: "",
-      password: "",
-      confirmPassword: "",
-    },
+    defaultValues: { password: "", confirmPassword: "" },
   });
+
+  if (!token) {
+    return (
+      <AuthShell
+        eyebrow="Redefinir senha"
+        title="Link inválido."
+        subtitle="O link que você acessou não tem token. Solicite um novo e-mail de redefinição."
+      >
+        <Button asChild size="lg" className="w-full">
+          <Link to="/forgot-password">Solicitar novo link</Link>
+        </Button>
+      </AuthShell>
+    );
+  }
 
   const onSubmit = async (values: FormValues) => {
     try {
-      await register({
-        username: values.username,
-        email: values.email,
-        password: values.password,
-      });
-      navigate(redirectTo, { replace: true });
+      await authApi.resetPassword({ token, password: values.password });
+      toast.success("Senha redefinida. Faça login com a nova senha.");
+      navigate("/login", { replace: true });
     } catch (err) {
       const message =
         err instanceof ApiError
           ? err.message
-          : "Não conseguimos criar sua conta. Tente novamente.";
+          : "Não conseguimos redefinir sua senha. Tente novamente.";
       toast.error(message);
     }
   };
 
   return (
     <AuthShell
-      eyebrow="Criar conta"
-      title="Comece a registrar seus PRs."
-      subtitle="Em poucos segundos, você acompanha cargas, frequência e evolução."
+      eyebrow="Redefinir senha"
+      title="Crie uma nova senha."
+      subtitle="Escolha uma senha que você não esteja usando em outro lugar."
     >
       <Form {...form}>
         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
-          <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
-            <FormField
-              control={form.control}
-              name="username"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>Usuário</FormLabel>
-                  <FormControl>
-                    <Input
-                      autoComplete="username"
-                      placeholder="seuusuario"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-            <FormField
-              control={form.control}
-              name="email"
-              render={({ field }) => (
-                <FormItem>
-                  <FormLabel>E-mail</FormLabel>
-                  <FormControl>
-                    <Input
-                      type="email"
-                      autoComplete="email"
-                      placeholder="voce@email.com"
-                      {...field}
-                    />
-                  </FormControl>
-                  <FormMessage />
-                </FormItem>
-              )}
-            />
-          </div>
           <FormField
             control={form.control}
             name="password"
             render={({ field }) => (
               <FormItem>
-                <FormLabel>Senha</FormLabel>
+                <FormLabel>Nova senha</FormLabel>
                 <FormControl>
                   <div className="relative">
                     <Input
@@ -181,19 +140,10 @@ export function RegisterPage() {
             {form.formState.isSubmitting && (
               <Loader2 className="size-4 animate-spin" />
             )}
-            Criar conta
+            Redefinir senha
           </Button>
         </form>
       </Form>
-      <p className="mt-6 text-center text-sm text-muted-foreground">
-        Já tem conta?{" "}
-        <Link
-          to="/login"
-          className="font-medium text-primary underline-offset-4 hover:underline"
-        >
-          Entrar
-        </Link>
-      </p>
     </AuthShell>
   );
 }

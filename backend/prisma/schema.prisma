@@ -23,13 +23,14 @@ model User {
   updatedAt DateTime @updatedAt
 
   // Relations
-  workouts          Workout[]
-  userGoals         UserGoals?
-  refreshTokens     RefreshToken[]
-  weightEntries     WeightEntry[]
-  weeklyGoalHistory WeeklyGoalEntry[]
-  runs              Run[]
-  stravaConnection  StravaConnection?
+  workouts            Workout[]
+  userGoals           UserGoals?
+  refreshTokens       RefreshToken[]
+  weightEntries       WeightEntry[]
+  weeklyGoalHistory   WeeklyGoalEntry[]
+  runs                Run[]
+  stravaConnection    StravaConnection?
+  passwordResetTokens PasswordResetToken[]
 
   @@map("users")
 }
@@ -48,6 +49,20 @@ model StravaConnection {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("strava_connections")
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@map("password_reset_tokens")
 }
 
 model RefreshToken {

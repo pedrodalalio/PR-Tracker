@@ -153,13 +153,13 @@ export async function runsRoutes(fastify: FastifyInstance) {
             updatedAt: true,
           },
         });
-        reply.send(
-          runs.map((r) => ({
+        reply.send({
+          runs: runs.map((r) => ({
             ...toRunDTO({ ...r, routePoints: null, splits: null }),
             routePoints: null,
             splits: null,
           })),
-        );
+        });
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to fetch runs" });
@@ -181,7 +181,7 @@ export async function runsRoutes(fastify: FastifyInstance) {
         if (!run) {
           return reply.status(404).send({ error: "Corrida não encontrada" });
         }
-        reply.send(toRunDTO(run));
+        reply.send({ run: toRunDTO(run) });
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to fetch run" });
@@ -258,7 +258,7 @@ export async function runsRoutes(fastify: FastifyInstance) {
           },
         });
 
-        reply.status(201).send(toRunDTO(run));
+        reply.status(201).send({ run: toRunDTO(run) });
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to create run" });
@@ -370,7 +370,7 @@ export async function runsRoutes(fastify: FastifyInstance) {
           data,
         });
 
-        reply.send(toRunDTO(run));
+        reply.send({ run: toRunDTO(run) });
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to update run" });

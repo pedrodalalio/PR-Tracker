@@ -111,7 +111,7 @@ export async function goalsRoutes(fastify: FastifyInstance) {
           goals.createdAt,
         );
 
-        reply.send(toUserGoalsResponse(goals));
+        reply.send({ goals: toUserGoalsResponse(goals) });
       } catch (error) {
         reply.status(500).send({ error: "Failed to fetch goals" });
       }
@@ -182,7 +182,7 @@ export async function goalsRoutes(fastify: FastifyInstance) {
           });
         }
 
-        reply.send(toUserGoalsResponse(goals));
+        reply.send({ goals: toUserGoalsResponse(goals) });
       } catch (error) {
         reply.status(500).send({ error: "Failed to update goals" });
       }
@@ -214,14 +214,14 @@ export async function goalsRoutes(fastify: FastifyInstance) {
           orderBy: { effectiveFrom: "asc" },
         });
 
-        reply.send(
-          history.map((entry) => ({
+        reply.send({
+          history: history.map((entry) => ({
             id: entry.id,
             weeklyWorkoutGoal: entry.weeklyWorkoutGoal,
             effectiveFrom: entry.effectiveFrom.toISOString(),
             createdAt: entry.createdAt.toISOString(),
           })),
-        );
+        });
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to fetch goal history" });
@@ -274,7 +274,7 @@ export async function goalsRoutes(fastify: FastifyInstance) {
           workouts: [],
         };
 
-        reply.send(weeklyProgress);
+        reply.send({ progress: weeklyProgress });
       } catch (error) {
         reply.status(500).send({ error: "Failed to fetch week progress" });
       }

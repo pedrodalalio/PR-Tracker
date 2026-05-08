@@ -12,6 +12,7 @@ import { CalendarPage } from "@/pages/calendar-page";
 import { CalendarProgressPage } from "@/pages/calendar-progress-page";
 import { EditWorkoutPage } from "@/pages/edit-workout-page";
 import { ExercisesPage } from "@/pages/exercises-page";
+import { ForgotPasswordPage } from "@/pages/forgot-password-page";
 import { GoalSettingsPage } from "@/pages/goal-settings-page";
 import { HomePage } from "@/pages/home-page";
 import { LoginPage } from "@/pages/login-page";
@@ -21,6 +22,7 @@ import { NotFoundPage } from "@/pages/not-found-page";
 import { ProgressPage } from "@/pages/progress-page";
 import { RegisterPage } from "@/pages/register-page";
 import { ReportsPage } from "@/pages/reports-page";
+import { ResetPasswordPage } from "@/pages/reset-password-page";
 import { NewRunPage } from "@/pages/new-run-page";
 import { RunDetailPage } from "@/pages/run-detail-page";
 import { RunsPage } from "@/pages/runs-page";
@@ -52,6 +54,22 @@ export default function App() {
                 element={
                   <RequireAnonymous>
                     <RegisterPage />
+                  </RequireAnonymous>
+                }
+              />
+              <Route
+                path="/forgot-password"
+                element={
+                  <RequireAnonymous>
+                    <ForgotPasswordPage />
+                  </RequireAnonymous>
+                }
+              />
+              <Route
+                path="/reset-password"
+                element={
+                  <RequireAnonymous>
+                    <ResetPasswordPage />
                   </RequireAnonymous>
                 }
               />

@@ -1,10 +1,17 @@
 import { FastifyInstance } from "fastify";
 import { AuthService } from "../lib/auth";
 import { prisma } from "../lib/prisma";
-import { registerSchema, loginSchema } from "../lib/validation";
+import {
+  registerSchema,
+  loginSchema,
+  forgotPasswordSchema,
+  resetPasswordSchema,
+} from "../lib/validation";
 import { RegisterRequest, LoginRequest } from "../types/auth";
 import { authenticateToken } from "../lib/middleware";
 import { setRefreshCookie, clearRefreshCookie, REFRESH_COOKIE } from "../lib/cookies";
+import { sendPasswordResetEmail } from "../lib/mail";
+import { getFrontendUrl } from "../lib/strava-client";
 
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: RegisterRequest }>(
@@ -202,6 +209,93 @@ export async function authRoutes(fastify: FastifyInstance) {
       return reply.status(500).send({ error: "Internal server error" });
     }
   });
+
+  // Sempre responde 200 com mensagem genérica, independente do email existir.
+  // Evita enumeration de contas via timing/diff de respostas.
+  fastify.post<{ Body: { email: string } }>(
+    "/auth/forgot-password",
+    {
+      config: {
+        rateLimit: { max: 3, timeWindow: "1 hour" },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const { error, value } = forgotPasswordSchema.validate(request.body);
+        if (error) {
+          return reply.status(400).send({
+            error: "Validation failed",
+            details: error.details.map((d: any) => d.message),
+          });
+        }
+
+        const { email } = value as { email: string };
+        const user = await prisma.user.findUnique({ where: { email } });
+
+        if (user) {
+          const token = await AuthService.createPasswordResetToken(user.id);
+          const resetUrl = `${getFrontendUrl()}/reset-password?token=${encodeURIComponent(
+            token,
+          )}`;
+          await sendPasswordResetEmail(user.email, resetUrl);
+        }
+
+        return reply.send({
+          message:
+            "Se houver uma conta com esse e-mail, enviamos instruções para redefinir a senha.",
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: "Internal server error" });
+      }
+    },
+  );
+
+  fastify.post<{ Body: { token: string; password: string } }>(
+    "/auth/reset-password",
+    {
+      config: {
+        rateLimit: { max: 5, timeWindow: "1 hour" },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const { error, value } = resetPasswordSchema.validate(request.body);
+        if (error) {
+          return reply.status(400).send({
+            error: "Validation failed",
+            details: error.details.map((d: any) => d.message),
+          });
+        }
+
+        const { token, password } = value as { token: string; password: string };
+
+        const consumed = await AuthService.consumePasswordResetToken(token);
+        if (!consumed) {
+          return reply.status(400).send({
+            error: "Token inválido ou expirado",
+          });
+        }
+
+        const hashedPassword = await AuthService.hashPassword(password);
+
+        await prisma.user.update({
+          where: { id: consumed.userId },
+          data: { password: hashedPassword },
+        });
+
+        // Revoga todas as sessões ativas — força re-login com senha nova.
+        await AuthService.revokeAllUserRefreshTokens(consumed.userId);
+
+        return reply.send({
+          message: "Senha redefinida com sucesso. Faça login com a nova senha.",
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: "Internal server error" });
+      }
+    },
+  );
 
   fastify.post("/auth/logout", async (request, reply) => {
     try {
