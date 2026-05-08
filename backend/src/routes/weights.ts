@@ -55,14 +55,19 @@ function parseDate(value: unknown): Date | null {
 }
 
 export async function weightsRoutes(fastify: FastifyInstance) {
-  fastify.get(
+  fastify.get<{ Querystring: { limit?: string } }>(
     "/weights",
     { preHandler: authenticateToken },
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
+        const take = Math.min(
+          5000,
+          Math.max(1, Number(request.query.limit) || 1000),
+        );
         const entries = await prisma.weightEntry.findMany({
           where: { userId: request.user!.userId },
           orderBy: { recordedAt: "desc" },
+          take,
         });
         reply.send(entries.map(toDTO));
       } catch (error) {

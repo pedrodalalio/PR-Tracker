@@ -47,6 +47,10 @@ function workoutTypeToCategory(type: WorkoutType): Category {
 const setSchema = z.object({
   reps: z.number().int().nonnegative("Reps inválidos"),
   weight: z.number().nonnegative("Carga inválida"),
+  // Cardio sets legados — preservados em edits, não editáveis pela UI atual.
+  duration: z.number().int().nullable().optional(),
+  distance: z.number().nullable().optional(),
+  pace: z.number().nullable().optional(),
 });
 
 const exerciseSchema = z.object({

@@ -58,7 +58,9 @@ export function formatDistance(meters: number): string {
 }
 
 export function formatDuration(seconds: number): string {
-  if (!Number.isFinite(seconds) || seconds < 0) return "—";
+  // 0 é tratado como "sem dado": runs com duração nula ou registradas antes
+  // de a feature de duração existir aparecem como "—" em vez de "0s".
+  if (!Number.isFinite(seconds) || seconds <= 0) return "—";
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
   const s = Math.round(seconds % 60);

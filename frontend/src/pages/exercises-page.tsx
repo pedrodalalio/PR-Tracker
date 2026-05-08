@@ -1,4 +1,4 @@
-import { ListChecks, Plus, Search, SlidersHorizontal } from "lucide-react";
+import { AlertCircle, ListChecks, Plus, Search, SlidersHorizontal } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { EmptyState } from "@/components/empty-state";
@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useExercises } from "@/hooks/use-exercises";
+import { ApiError } from "@/lib/api-client";
 import { categoryLabel } from "@/lib/format";
 import type { Category } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -22,7 +23,7 @@ const categoryFilters: Array<{ value: Category | "all"; label: string }> = [
 export function ExercisesPage() {
   const [filter, setFilter] = useState<Category | "all">("all");
   const [query, setQuery] = useState("");
-  const { data, isLoading } = useExercises();
+  const { data, isLoading, isError, error, refetch } = useExercises();
 
   const filtered = useMemo(() => {
     const list = data ?? [];
@@ -87,7 +88,22 @@ export function ExercisesPage() {
       </div>
 
       <div className="mt-6">
-        {isLoading ? (
+        {isError ? (
+          <EmptyState
+            icon={AlertCircle}
+            title="Erro ao carregar catálogo"
+            description={
+              error instanceof ApiError
+                ? error.message
+                : "Não foi possível buscar a lista. Verifique sua conexão."
+            }
+            action={
+              <Button variant="outline" onClick={() => refetch()}>
+                Tentar de novo
+              </Button>
+            }
+          />
+        ) : isLoading ? (
           <div className="grid gap-3 sm:grid-cols-2">
             {Array.from({ length: 6 }).map((_, i) => (
               <Skeleton key={i} className="h-24" />

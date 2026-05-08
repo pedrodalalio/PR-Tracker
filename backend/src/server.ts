@@ -2,7 +2,11 @@ import Fastify from "fastify";
 import cors from "@fastify/cors";
 import helmet from "@fastify/helmet";
 import cookie from "@fastify/cookie";
+import rateLimit from "@fastify/rate-limit";
 import "./types/fastify"; // Import type augmentation
+import { COOKIE_SECRET } from "./lib/env";
+import { AuthService } from "./lib/auth";
+import { REFRESH_COOKIE } from "./lib/cookies";
 import { workoutRoutes } from "./routes/workouts";
 import { exerciseRoutes } from "./routes/exercises";
 import { goalsRoutes } from "./routes/goals";
@@ -13,6 +17,9 @@ import { stravaRoutes } from "./routes/strava";
 
 const fastify = Fastify({
   logger: true,
+  // 10 MB: large enough for GPX imports with thousands of routePoints,
+  // but keeps Fastify's 1 MB default from being abused on other routes.
+  bodyLimit: 10 * 1024 * 1024,
 });
 
 const isProd = process.env.NODE_ENV === "production";
@@ -49,7 +56,13 @@ fastify.register(helmet, {
 });
 
 fastify.register(cookie, {
-  secret: process.env.COOKIE_SECRET ?? "change-this-in-production",
+  secret: COOKIE_SECRET,
+});
+
+// Rate limiting: opt-in per route (global: false). Routes that need throttling
+// declare their own limits via config.rateLimit.
+fastify.register(rateLimit, {
+  global: false,
 });
 
 fastify.register(cors, {
@@ -70,15 +83,24 @@ fastify.register(cors, {
 });
 
 // CSRF mitigation: reject mutating requests whose Origin is not allowlisted.
-// SameSite=Lax cookies block cross-site cookie sends in most modern browsers,
-// but verifying Origin closes residual gaps.
+// Cookie-authenticated routes require a present, allowlisted Origin (no bypass)
+// because the refresh cookie is ambient-authority. Bearer-only requests may omit
+// Origin (CLI/server-to-server) since the bearer token isn't ambient.
 fastify.addHook("preHandler", async (request, reply) => {
   const method = request.method.toUpperCase();
   if (method === "GET" || method === "HEAD" || method === "OPTIONS") return;
 
   const origin = request.headers.origin;
-  if (!origin) return; // non-browser client (curl, server-to-server)
-  if (!isOriginAllowed(origin)) {
+  const hasRefreshCookie = !!request.cookies?.[REFRESH_COOKIE];
+
+  if (hasRefreshCookie) {
+    if (!origin || !isOriginAllowed(origin)) {
+      return reply.status(403).send({ error: "Origin not allowed" });
+    }
+    return;
+  }
+
+  if (origin && !isOriginAllowed(origin)) {
     return reply.status(403).send({ error: "Origin not allowed" });
   }
 });
@@ -99,9 +121,21 @@ fastify.register(weightsRoutes);
 fastify.register(runsRoutes);
 fastify.register(stravaRoutes);
 
+// Limpa refresh tokens expirados/revogados a cada 24h. Roda 1x no boot.
+const TOKEN_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
+function scheduleRefreshTokenCleanup() {
+  void AuthService.cleanExpiredTokens();
+  const timer = setInterval(() => {
+    void AuthService.cleanExpiredTokens();
+  }, TOKEN_CLEANUP_INTERVAL_MS);
+  // Não segura o event loop em shutdown.
+  if (typeof timer.unref === "function") timer.unref();
+}
+
 const start = async () => {
   try {
     await fastify.listen({ port: 3000, host: "0.0.0.0" });
+    scheduleRefreshTokenCleanup();
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

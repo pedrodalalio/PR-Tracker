@@ -61,6 +61,7 @@ model RefreshToken {
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
+  @@index([userId, isRevoked])
   @@map("refresh_tokens")
 }
 
@@ -107,6 +108,7 @@ model Workout {
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   exercises WorkoutExercise[]
 
+  @@index([userId, date])
   @@map("workouts")
 }
 
@@ -197,6 +199,10 @@ model Run {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, date])
+  // Evita duplicar atividade do Strava (mesma pessoa importando 2x).
+  // NULLs são permitidos múltiplas vezes em UNIQUE no Postgres, então
+  // runs manuais/GPX sem externalId não são afetados.
+  @@unique([userId, source, externalId])
   @@map("runs")
 }
 

@@ -1,16 +1,19 @@
 import { FastifyInstance } from "fastify";
-import { PrismaClient } from "../generated/prisma";
 import { AuthService } from "../lib/auth";
+import { prisma } from "../lib/prisma";
 import { registerSchema, loginSchema } from "../lib/validation";
 import { RegisterRequest, LoginRequest } from "../types/auth";
 import { authenticateToken } from "../lib/middleware";
 import { setRefreshCookie, clearRefreshCookie, REFRESH_COOKIE } from "../lib/cookies";
 
-const prisma = new PrismaClient();
-
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: RegisterRequest }>(
     "/auth/register",
+    {
+      config: {
+        rateLimit: { max: 5, timeWindow: "1 hour" },
+      },
+    },
     async (request, reply) => {
       try {
         const { error, value } = registerSchema.validate(request.body);
@@ -70,6 +73,11 @@ export async function authRoutes(fastify: FastifyInstance) {
 
   fastify.post<{ Body: LoginRequest }>(
     "/auth/login",
+    {
+      config: {
+        rateLimit: { max: 10, timeWindow: "1 minute" },
+      },
+    },
     async (request, reply) => {
       try {
         const { error, value } = loginSchema.validate(request.body);
@@ -146,7 +154,14 @@ export async function authRoutes(fastify: FastifyInstance) {
     },
   );
 
-  fastify.post("/auth/refresh", async (request, reply) => {
+  fastify.post(
+    "/auth/refresh",
+    {
+      config: {
+        rateLimit: { max: 30, timeWindow: "1 minute" },
+      },
+    },
+    async (request, reply) => {
     try {
       const refreshToken = request.cookies?.[REFRESH_COOKIE];
 

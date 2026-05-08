@@ -68,7 +68,7 @@ export const workoutsApi = {
           exercises: [],
           startTime: new Date().toISOString(),
         };
-        await db.workouts.put({ ...optimistic, pending: true });
+        await db.workouts.put(optimistic);
         await enqueueOutbox({
           resource: "workout",
           operation: "create",
@@ -103,7 +103,6 @@ export const workoutsApi = {
           const merged: CachedWorkout = {
             ...cached,
             ...scalarPatch,
-            pending: true,
           };
           await db.workouts.put(merged);
           await enqueueOutbox({

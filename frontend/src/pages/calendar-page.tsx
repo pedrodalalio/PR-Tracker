@@ -144,10 +144,18 @@ export function CalendarPage() {
                 const isToday = isSameDay(day, new Date());
                 const has = workoutsByDay.has(dayKey(day));
                 const planned = inMonth && isPlannedDay(day);
+                const ariaParts = [
+                  format(day, "PPPP", { locale: ptBR }),
+                  has ? "treino registrado" : null,
+                  planned ? "dia planejado" : null,
+                  isToday ? "hoje" : null,
+                ].filter(Boolean);
                 return (
                   <button
                     key={day.toISOString()}
                     onClick={() => setSelected(day)}
+                    aria-pressed={isSel}
+                    aria-label={ariaParts.join(", ")}
                     className={cn(
                       "relative grid aspect-square place-items-center rounded-md p-1 text-sm transition-colors",
                       !inMonth && "text-muted-foreground/40",

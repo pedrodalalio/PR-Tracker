@@ -1,27 +1,38 @@
 import { FastifyInstance } from "fastify";
 import { CreateExerciseRequest } from "../types/workout";
+import { authenticateToken } from "../lib/middleware";
 import { prisma } from "../lib/prisma";
 
 export async function exerciseRoutes(fastify: FastifyInstance) {
   // Get all exercises
-  fastify.get("/exercises", async (request, reply) => {
-    try {
-      const exercises = await prisma.exercise.findMany({
-        include: {
-          muscleGroups: true,
-        },
-        orderBy: { name: "asc" },
-      });
-      return { exercises };
-    } catch (error) {
-      reply.code(500);
-      return { error: "Failed to fetch exercises" };
-    }
-  });
+  fastify.get<{ Querystring: { limit?: string } }>(
+    "/exercises",
+    { preHandler: authenticateToken },
+    async (request, reply) => {
+      try {
+        const take = Math.min(
+          2000,
+          Math.max(1, Number(request.query.limit) || 1000),
+        );
+        const exercises = await prisma.exercise.findMany({
+          include: {
+            muscleGroups: true,
+          },
+          orderBy: { name: "asc" },
+          take,
+        });
+        return { exercises };
+      } catch (error) {
+        reply.code(500);
+        return { error: "Failed to fetch exercises" };
+      }
+    },
+  );
 
   // Get exercise by ID
   fastify.get<{ Params: { id: string } }>(
     "/exercises/:id",
+    { preHandler: authenticateToken },
     async (request, reply) => {
       try {
         const { id } = request.params;
@@ -48,6 +59,7 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
   // Create new exercise
   fastify.post<{ Body: CreateExerciseRequest }>(
     "/exercises",
+    { preHandler: authenticateToken },
     async (request, reply) => {
       try {
         const { name, category, muscleGroups } = request.body;
@@ -83,6 +95,7 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
   // Update exercise
   fastify.put<{ Params: { id: string }; Body: Partial<CreateExerciseRequest> }>(
     "/exercises/:id",
+    { preHandler: authenticateToken },
     async (request, reply) => {
       try {
         const { id } = request.params;
@@ -125,6 +138,7 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
   // Delete exercise
   fastify.delete<{ Params: { id: string } }>(
     "/exercises/:id",
+    { preHandler: authenticateToken },
     async (request, reply) => {
       try {
         const { id } = request.params;
@@ -148,6 +162,7 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
   // Get exercises by category
   fastify.get<{ Params: { category: string } }>(
     "/exercises/category/:category",
+    { preHandler: authenticateToken },
     async (request, reply) => {
       try {
         const { category } = request.params;
@@ -169,6 +184,7 @@ export async function exerciseRoutes(fastify: FastifyInstance) {
   // Search exercises by muscle group
   fastify.get<{ Querystring: { muscle: string } }>(
     "/exercises/search",
+    { preHandler: authenticateToken },
     async (request, reply) => {
       try {
         const { muscle } = request.query;

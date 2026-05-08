@@ -57,6 +57,8 @@ export function RunMap({ points, className }: RunMapProps) {
   return (
     <div
       ref={ref}
+      role="img"
+      aria-label={`Mapa do percurso da corrida com ${polyline.length} pontos GPS`}
       className={cn(
         "relative h-72 w-full overflow-hidden rounded-xl border border-border md:h-96",
         className,

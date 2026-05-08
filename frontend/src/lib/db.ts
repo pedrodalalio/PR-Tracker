@@ -23,14 +23,8 @@ export interface OutboxEntry {
   createdAt: number;
 }
 
-export interface CachedWorkout extends Workout {
-  /** True while this workout is awaiting server sync. */
-  pending?: boolean;
-}
-
-export interface CachedExercise extends Exercise {
-  pending?: boolean;
-}
+export type CachedWorkout = Workout;
+export type CachedExercise = Exercise;
 
 class PrTrackerDb extends Dexie {
   workouts!: EntityTable<CachedWorkout, "id">;

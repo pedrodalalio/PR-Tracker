@@ -6,6 +6,14 @@ import { EmptyState } from "@/components/empty-state";
 import { PageHeader } from "@/components/page-header";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   useStravaActivities,
@@ -23,6 +31,7 @@ export function StravaPage() {
   const authorize = useStravaAuthorize();
   const disconnect = useStravaDisconnect();
   const [page, setPage] = useState(1);
+  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const activities = useStravaActivities(page, !!status.data?.connected);
 
   async function onConnect() {
@@ -34,11 +43,11 @@ export function StravaPage() {
     }
   }
 
-  async function onDisconnect() {
-    if (!confirm("Desconectar do Strava? Suas corridas já importadas continuam.")) return;
+  async function onConfirmDisconnect() {
     try {
       await disconnect.mutateAsync();
       toast.success("Desconectado do Strava");
+      setConfirmDisconnect(false);
     } catch (err) {
       toast.error(err instanceof ApiError ? err.message : "Falha ao desconectar");
     }
@@ -61,7 +70,7 @@ export function StravaPage() {
           status.data?.connected ? (
             <Button
               variant="outline"
-              onClick={onDisconnect}
+              onClick={() => setConfirmDisconnect(true)}
               disabled={disconnect.isPending}
             >
               {disconnect.isPending ? (
@@ -89,6 +98,40 @@ export function StravaPage() {
           onNext={() => setPage((p) => p + 1)}
         />
       )}
+
+      <Dialog
+        open={confirmDisconnect}
+        onOpenChange={(open) => !open && setConfirmDisconnect(false)}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Desconectar do Strava?</DialogTitle>
+            <DialogDescription>
+              Suas corridas já importadas continuam aqui. Você pode reconectar
+              depois para importar mais.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDisconnect(false)}
+              disabled={disconnect.isPending}
+            >
+              Cancelar
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={onConfirmDisconnect}
+              disabled={disconnect.isPending}
+            >
+              {disconnect.isPending && (
+                <Loader2 className="size-4 animate-spin" />
+              )}
+              Desconectar
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
@@ -168,13 +211,31 @@ function ActivitiesList({
 
   if (activities.length === 0) {
     return (
-      <EmptyState
-        title="Sem corridas no Strava"
-        description="Não achei atividades de corrida nessa página. Tente as próximas."
-      />
+      <div className="space-y-4">
+        <EmptyState
+          title={page === 1 ? "Sem corridas no Strava" : "Sem mais atividades"}
+          description={
+            page === 1
+              ? "Não achei atividades de corrida na sua conta."
+              : "Você chegou ao fim da lista."
+          }
+        />
+        {page > 1 && (
+          <div className="flex justify-center">
+            <Button variant="ghost" onClick={onPrev}>
+              ← Voltar
+            </Button>
+          </div>
+        )}
+      </div>
     );
   }
 
+  // perPage atual no servidor (strava.ts:216 default 30). Heurística do "Próxima":
+  // se a página veio com menos que perPage, certamente é a última. Quando vier
+  // exatamente perPage, deixamos o botão habilitado e a página seguinte mostra
+  // o empty state com "Voltar" — Strava não devolve total count.
+  const PAGE_SIZE = 30;
   return (
     <div className="space-y-3">
       <ul className="space-y-3">
@@ -192,7 +253,7 @@ function ActivitiesList({
         <Button
           variant="ghost"
           onClick={onNext}
-          disabled={activities.length < 30}
+          disabled={activities.length < PAGE_SIZE}
         >
           Próxima →
         </Button>

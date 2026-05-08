@@ -120,16 +120,46 @@ function calculatePaceSecPerKm(distance: number, duration: number): number {
 }
 
 export async function runsRoutes(fastify: FastifyInstance) {
-  fastify.get(
+  fastify.get<{ Querystring: { limit?: string } }>(
     "/runs",
     { preHandler: authenticateToken },
-    async (request: FastifyRequest, reply: FastifyReply) => {
+    async (request, reply) => {
       try {
+        const take = Math.min(
+          1000,
+          Math.max(1, Number(request.query.limit) || 500),
+        );
+        // Slim list: routePoints/splits podem ter milhares de pontos GPS;
+        // o detalhe (`/runs/:id`) é onde a UI precisa deles.
         const runs = await prisma.run.findMany({
           where: { userId: request.user!.userId },
           orderBy: { date: "desc" },
+          take,
+          select: {
+            id: true,
+            name: true,
+            date: true,
+            startTime: true,
+            endTime: true,
+            distance: true,
+            duration: true,
+            movingTime: true,
+            pace: true,
+            elevationGain: true,
+            notes: true,
+            source: true,
+            externalId: true,
+            createdAt: true,
+            updatedAt: true,
+          },
         });
-        reply.send(runs.map(toRunDTO));
+        reply.send(
+          runs.map((r) => ({
+            ...toRunDTO({ ...r, routePoints: null, splits: null }),
+            routePoints: null,
+            splits: null,
+          })),
+        );
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to fetch runs" });

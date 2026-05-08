@@ -2,7 +2,7 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
 import { useState } from "react";
 import { useForm } from "react-hook-form";
-import { Link, useNavigate } from "react-router";
+import { Link, useLocation, useNavigate } from "react-router";
 import { toast } from "sonner";
 import { z } from "zod";
 import { AuthShell } from "@/components/auth-shell";
@@ -38,8 +38,13 @@ type FormValues = z.infer<typeof schema>;
 
 export function RegisterPage() {
   const navigate = useNavigate();
+  const location = useLocation();
   const { register } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+
+  const fromState = (location.state as { from?: { pathname?: string } } | null)
+    ?.from;
+  const redirectTo = fromState?.pathname ?? "/";
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -58,7 +63,7 @@ export function RegisterPage() {
         email: values.email,
         password: values.password,
       });
-      navigate("/", { replace: true });
+      navigate(redirectTo, { replace: true });
     } catch (err) {
       const message =
         err instanceof ApiError

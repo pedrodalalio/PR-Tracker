@@ -10,10 +10,14 @@ import { authenticateToken } from "../lib/middleware";
 
 export async function workoutRoutes(fastify: FastifyInstance) {
   // Get all workouts
-  fastify.get("/workouts", {
+  fastify.get<{ Querystring: { limit?: string } }>("/workouts", {
     preHandler: authenticateToken,
   }, async (request, reply) => {
     try {
+      const take = Math.min(
+        1000,
+        Math.max(1, Number(request.query.limit) || 500),
+      );
       const workouts = await prisma.workout.findMany({
         where: {
           userId: request.user!.userId,
@@ -27,6 +31,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
           },
         },
         orderBy: { date: "desc" },
+        take,
       });
 
       return { workouts };
@@ -45,7 +50,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       try {
         const { id } = request.params;
-        const workout = await prisma.workout.findUnique({
+        const workout = await prisma.workout.findFirst({
           where: {
             id,
             userId: request.user!.userId,
@@ -125,21 +130,6 @@ export async function workoutRoutes(fastify: FastifyInstance) {
           },
         });
 
-        // Update streak after workout creation
-        try {
-          const authHeader = request.headers.authorization;
-          const goalsResponse = await fetch('http://localhost:3000/goals/update-streak', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-              'Authorization': authHeader || '',
-            },
-          });
-        } catch (streakError) {
-          console.warn('Failed to update streak:', streakError);
-          // Don't fail workout creation if streak update fails
-        }
-
         reply.code(201);
         return { workout };
       } catch (error) {
@@ -204,42 +194,53 @@ export async function workoutRoutes(fastify: FastifyInstance) {
           return { error: "Workout not found" };
         }
 
-        const workout = await prisma.$transaction(async (tx) => {
-          if (Object.keys(updateData).length > 0) {
-            await tx.workout.update({ where: { id }, data: updateData });
-          }
-          await tx.workoutExercise.deleteMany({ where: { workoutId: id } });
-          for (const ex of workoutExercises) {
-            await tx.workoutExercise.create({
-              data: {
-                workoutId: id,
-                exerciseId: ex.exerciseId,
-                notes: ex.notes,
-                sets: {
-                  create: (ex.sets ?? []).map((set) => ({
-                    reps: set.reps || 0,
-                    weight: set.weight || 0,
-                    duration: set.duration,
-                    distance: set.distance,
-                    pace: set.pace,
-                  })),
+        // Serializable: dois PUTs paralelos no mesmo workout falham com 40001
+        // em vez de gerar estado parcial (deleteMany + create entrelaçados).
+        const workout = await prisma.$transaction(
+          async (tx) => {
+            if (Object.keys(updateData).length > 0) {
+              await tx.workout.update({ where: { id }, data: updateData });
+            }
+            await tx.workoutExercise.deleteMany({ where: { workoutId: id } });
+            for (const ex of workoutExercises) {
+              await tx.workoutExercise.create({
+                data: {
+                  workoutId: id,
+                  exerciseId: ex.exerciseId,
+                  notes: ex.notes,
+                  sets: {
+                    create: (ex.sets ?? []).map((set) => ({
+                      reps: set.reps || 0,
+                      weight: set.weight || 0,
+                      duration: set.duration,
+                      distance: set.distance,
+                      pace: set.pace,
+                    })),
+                  },
                 },
+              });
+            }
+            return tx.workout.findUnique({
+              where: { id },
+              include: {
+                exercises: { include: { exercise: true, sets: true } },
               },
             });
-          }
-          return tx.workout.findUnique({
-            where: { id },
-            include: {
-              exercises: { include: { exercise: true, sets: true } },
-            },
-          });
-        });
+          },
+          { isolationLevel: "Serializable" },
+        );
 
         return { workout };
       } catch (error: any) {
         if (error.code === "P2025") {
           reply.code(404);
           return { error: "Workout not found" };
+        }
+        // Postgres serialization_failure: edição concorrente. 409 pra cliente
+        // poder retentar.
+        if (error.code === "P2034" || error.meta?.code === "40001") {
+          reply.code(409);
+          return { error: "Concurrent edit detected, please retry" };
         }
         reply.code(500);
         return { error: "Failed to update workout" };
@@ -288,7 +289,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
       const { exerciseId, sets = [] } = request.body;
 
       // Check if workout exists and belongs to user
-      const workout = await prisma.workout.findUnique({
+      const workout = await prisma.workout.findFirst({
         where: {
           id: workoutId,
           userId: request.user!.userId,

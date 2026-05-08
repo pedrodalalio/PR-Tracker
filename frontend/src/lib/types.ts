@@ -160,13 +160,6 @@ export const weightEntrySchema = z.object({
 });
 export type WeightEntry = z.infer<typeof weightEntrySchema>;
 
-export const streakInfoSchema = z.object({
-  currentStreak: z.number().int().nonnegative(),
-  bestStreak: z.number().int().nonnegative(),
-  lastWorkoutDate: z.string().nullable().optional(),
-});
-export type StreakInfo = z.infer<typeof streakInfoSchema>;
-
 export interface CreateWorkoutInput {
   name: string;
   date: string;

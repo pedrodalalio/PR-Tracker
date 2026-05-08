@@ -1,6 +1,7 @@
 import { FastifyInstance, FastifyReply, FastifyRequest } from "fastify";
 import jwt from "jsonwebtoken";
 import { prisma } from "../lib/prisma";
+import { STRAVA_STATE_SECRET } from "../lib/env";
 import { authenticateToken } from "../lib/middleware";
 import { toRunDTO } from "./runs";
 import {
@@ -15,9 +16,6 @@ import {
   type StravaActivitySummary,
 } from "../lib/strava-client";
 
-const JWT_SECRET =
-  process.env.JWT_SECRET || "your-fallback-secret-change-in-production";
-
 interface OAuthState {
   uid: string;
   nonce: string;
@@ -28,12 +26,12 @@ function signState(userId: string): string {
     uid: userId,
     nonce: Math.random().toString(36).slice(2),
   };
-  return jwt.sign(state, JWT_SECRET, { expiresIn: "10m" });
+  return jwt.sign(state, STRAVA_STATE_SECRET, { expiresIn: "10m" });
 }
 
 function verifyState(token: string): OAuthState | null {
   try {
-    return jwt.verify(token, JWT_SECRET) as OAuthState;
+    return jwt.verify(token, STRAVA_STATE_SECRET) as OAuthState;
   } catch {
     return null;
   }

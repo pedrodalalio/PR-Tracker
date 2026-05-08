@@ -1,4 +1,11 @@
-import { CalendarDays, Dumbbell, Home, LineChart, Plus } from "lucide-react";
+import {
+  CalendarDays,
+  Dumbbell,
+  Footprints,
+  Home,
+  LineChart,
+  Plus,
+} from "lucide-react";
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
 
@@ -6,6 +13,7 @@ const items = [
   { to: "/", label: "Início", icon: Home, end: true },
   { to: "/workouts", label: "Treinos", icon: Dumbbell, end: false },
   { to: "/calendar", label: "Calendário", icon: CalendarDays, end: false },
+  { to: "/runs", label: "Corridas", icon: Footprints, end: false },
   { to: "/progress", label: "Progresso", icon: LineChart, end: false },
 ] as const;
 
@@ -19,9 +27,10 @@ export function BottomNav() {
       className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 safe-bottom"
       aria-label="Navegação principal"
     >
-      <div className="relative mx-auto grid max-w-2xl grid-cols-5 px-2 pb-1 pt-1.5">
+      <div className="relative mx-auto grid max-w-2xl grid-cols-6 px-2 pb-1 pt-1.5">
         <NavItem item={items[0]} />
         <NavItem item={items[1]} />
+        <NavItem item={items[2]} />
         <div className="relative">
           <button
             type="button"
@@ -40,8 +49,8 @@ export function BottomNav() {
             Novo
           </span>
         </div>
-        <NavItem item={items[2]} />
         <NavItem item={items[3]} />
+        <NavItem item={items[4]} />
       </div>
     </nav>
   );

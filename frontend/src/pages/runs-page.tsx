@@ -3,8 +3,18 @@ import {
   endOfMonth,
   startOfMonth,
 } from "date-fns";
-import { ArrowUpRight, Footprints, Plug, Plus, Timer, Upload } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import {
+  AlertCircle,
+  ArrowUpRight,
+  Footprints,
+  Plug,
+  Plus,
+  Search,
+  Timer,
+  Upload,
+  X,
+} from "lucide-react";
+import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
@@ -12,6 +22,7 @@ import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useRuns } from "@/hooks/use-runs";
 import {
@@ -21,11 +32,38 @@ import {
   formatPace,
   formatRelative,
 } from "@/lib/format";
+import { ApiError } from "@/lib/api-client";
 
 export function RunsPage() {
   const runs = useRuns();
   const today = useMemo(() => new Date(), []);
   const [searchParams, setSearchParams] = useSearchParams();
+  const [query, setQuery] = useState("");
+  const [dateFrom, setDateFrom] = useState("");
+  const [dateTo, setDateTo] = useState("");
+
+  const hasFilters = query.trim() !== "" || dateFrom !== "" || dateTo !== "";
+  const clearFilters = () => {
+    setQuery("");
+    setDateFrom("");
+    setDateTo("");
+  };
+
+  const filteredRuns = useMemo(() => {
+    const list = runs.data ?? [];
+    const q = query.trim().toLowerCase();
+    const fromTs = dateFrom ? new Date(`${dateFrom}T00:00:00`).getTime() : null;
+    const toTs = dateTo ? new Date(`${dateTo}T23:59:59`).getTime() : null;
+    return list.filter((r) => {
+      if (q) {
+        const haystack = `${r.name ?? ""} ${r.notes ?? ""}`.toLowerCase();
+        if (!haystack.includes(q)) return false;
+      }
+      if (fromTs !== null && new Date(r.date).getTime() < fromTs) return false;
+      if (toTs !== null && new Date(r.date).getTime() > toTs) return false;
+      return true;
+    });
+  }, [runs.data, query, dateFrom, dateTo]);
 
   useEffect(() => {
     if (searchParams.get("strava_connected") === "1") {
@@ -62,18 +100,19 @@ export function RunsPage() {
       (best, r) => (r.distance > best ? r.distance : best),
       0,
     );
+    const withPace = data.filter((r) => (r.pace ?? 0) > 0);
     const avgPace =
-      data.length === 0
+      withPace.length === 0
         ? null
-        : data.reduce((acc, r) => acc + (r.pace ?? 0), 0) /
-          data.filter((r) => (r.pace ?? 0) > 0).length || null;
+        : withPace.reduce((acc, r) => acc + (r.pace ?? 0), 0) /
+          withPace.length;
 
     return {
       monthCount: runsThisMonth.length,
       distanceMonth,
       distanceTotal,
       longest,
-      avgPace: Number.isFinite(avgPace) && avgPace ? avgPace : null,
+      avgPace,
     };
   }, [runs.data, today]);
 
@@ -170,30 +209,99 @@ export function RunsPage() {
           )}
         </header>
 
-        {runs.isLoading ? (
+        <div className="mb-4 space-y-3">
+          <div className="relative">
+            <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground" />
+            <Input
+              type="search"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Buscar por nome ou notas…"
+              className="pl-9"
+            />
+          </div>
+          <div className="flex flex-wrap items-center gap-2">
+            <Input
+              type="date"
+              value={dateFrom}
+              onChange={(e) => setDateFrom(e.target.value)}
+              aria-label="Data inicial"
+              className="w-auto"
+            />
+            <span className="text-xs text-muted-foreground">até</span>
+            <Input
+              type="date"
+              value={dateTo}
+              onChange={(e) => setDateTo(e.target.value)}
+              aria-label="Data final"
+              className="w-auto"
+            />
+            {hasFilters && (
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={clearFilters}
+                aria-label="Limpar filtros"
+              >
+                <X className="size-4" />
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {runs.isError ? (
+          <EmptyState
+            icon={AlertCircle}
+            title="Erro ao carregar corridas"
+            description={
+              runs.error instanceof ApiError
+                ? runs.error.message
+                : "Não foi possível buscar a lista. Verifique sua conexão."
+            }
+            action={
+              <Button variant="outline" onClick={() => runs.refetch()}>
+                Tentar de novo
+              </Button>
+            }
+          />
+        ) : runs.isLoading ? (
           <div className="grid gap-3 sm:grid-cols-2">
             <Skeleton className="h-28" />
             <Skeleton className="h-28" />
           </div>
-        ) : !runs.data || runs.data.length === 0 ? (
+        ) : filteredRuns.length === 0 ? (
           <EmptyState
             icon={Footprints}
-            title="Nenhuma corrida registrada"
-            description="Comece importando um arquivo GPX do Strava ou registrando manualmente."
+            title={
+              hasFilters
+                ? "Nenhuma corrida com esses filtros"
+                : "Nenhuma corrida registrada"
+            }
+            description={
+              hasFilters
+                ? "Tente ajustar os filtros de data ou termo de busca."
+                : "Comece importando um arquivo GPX do Strava ou registrando manualmente."
+            }
             action={
-              <div className="flex gap-2">
-                <Button asChild variant="outline">
-                  <Link to="/runs/new?import=1">Importar GPX</Link>
+              hasFilters ? (
+                <Button variant="outline" onClick={clearFilters}>
+                  Limpar filtros
                 </Button>
-                <Button asChild>
-                  <Link to="/runs/new">Nova corrida</Link>
-                </Button>
-              </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Button asChild variant="outline">
+                    <Link to="/runs/new?import=1">Importar GPX</Link>
+                  </Button>
+                  <Button asChild>
+                    <Link to="/runs/new">Nova corrida</Link>
+                  </Button>
+                </div>
+              )
             }
           />
         ) : (
           <ul className="grid gap-3 sm:grid-cols-2">
-            {runs.data.map((r) => (
+            {filteredRuns.map((r) => (
               <li key={r.id}>
                 <Link
                   to={`/runs/${r.id}`}

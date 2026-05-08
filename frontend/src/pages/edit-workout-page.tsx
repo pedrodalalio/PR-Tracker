@@ -32,7 +32,13 @@ export function EditWorkoutPage() {
       exercises: w.exercises.map((we) => ({
         exerciseId: we.exerciseId,
         notes: we.notes ?? "",
-        sets: we.sets.map((s) => ({ reps: s.reps, weight: s.weight })),
+        sets: we.sets.map((s) => ({
+          reps: s.reps,
+          weight: s.weight,
+          duration: s.duration ?? null,
+          distance: s.distance ?? null,
+          pace: s.pace ?? null,
+        })),
       })),
     };
   }, [workoutQuery.data]);
@@ -74,7 +80,13 @@ export function EditWorkoutPage() {
         exercises: values.exercises.map((ex) => ({
           exerciseId: ex.exerciseId,
           notes: ex.notes,
-          sets: ex.sets.map((s) => ({ reps: s.reps, weight: s.weight })),
+          sets: ex.sets.map((s) => ({
+            reps: s.reps,
+            weight: s.weight,
+            ...(s.duration != null && { duration: s.duration }),
+            ...(s.distance != null && { distance: s.distance }),
+            ...(s.pace != null && { pace: s.pace }),
+          })),
         })),
       });
       toast.success("Treino atualizado");

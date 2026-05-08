@@ -1,5 +1,5 @@
 import { env } from "@/lib/env";
-import { getAccessToken } from "@/lib/auth-storage";
+import { getAccessToken, setAccessToken } from "@/lib/auth-storage";
 
 export class ApiError extends Error {
   status: number;
@@ -24,11 +24,43 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
   body?: unknown;
   searchParams?: Record<string, string | number | undefined>;
   skipAuth?: boolean;
+  /** Internal: marca uma chamada como já tendo tentado refresh, evita loop. */
+  _retried?: boolean;
+}
+
+// Refresh-on-401: ao receber 401 numa chamada autenticada, tenta /auth/refresh
+// uma vez e re-executa a request original com o novo access token. Múltiplas
+// chamadas paralelas que faltarem 401 simultaneamente compartilham a mesma
+// promise (uma só /auth/refresh roda por vez).
+let refreshInflight: Promise<string | null> | null = null;
+
+async function tryRefreshAccessToken(): Promise<string | null> {
+  if (refreshInflight) return refreshInflight;
+  refreshInflight = (async () => {
+    try {
+      const res = await fetch(`${env.apiUrl}/auth/refresh`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (!res.ok) return null;
+      const data = (await res.json()) as { token?: string };
+      if (data.token) {
+        setAccessToken(data.token);
+        return data.token;
+      }
+      return null;
+    } catch {
+      return null;
+    } finally {
+      refreshInflight = null;
+    }
+  })();
+  return refreshInflight;
 }
 
 async function request<T>(
   path: string,
-  { body, searchParams, headers, skipAuth, ...init }: RequestOptions = {},
+  { body, searchParams, headers, skipAuth, _retried, ...init }: RequestOptions = {},
 ): Promise<T> {
   const url = new URL(
     path.startsWith("http") ? path : `${env.apiUrl}${path}`,
@@ -69,6 +101,30 @@ async function request<T>(
     throw new NetworkError(
       err instanceof Error ? err.message : "Sem conexão com o servidor",
     );
+  }
+
+  // Intercepta 401 em chamadas autenticadas: tenta refresh + retry uma vez.
+  // Pula em chamadas a /auth/* (login, register, refresh) pra evitar loop.
+  const isAuthRoute = path.startsWith("/auth/");
+  if (
+    response.status === 401 &&
+    !skipAuth &&
+    !isAuthRoute &&
+    !_retried
+  ) {
+    const newToken = await tryRefreshAccessToken();
+    if (newToken) {
+      return request<T>(path, {
+        body,
+        searchParams,
+        headers,
+        skipAuth,
+        _retried: true,
+        ...init,
+      });
+    }
+    // Refresh falhou: limpa token local e segue pro fluxo de erro normal.
+    setAccessToken(null);
   }
 
   if (response.status === 204) {

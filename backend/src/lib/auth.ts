@@ -2,12 +2,12 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import { JWTPayload } from '../types/auth';
-import { PrismaClient } from '../generated/prisma';
+import { JWT_SECRET } from './env';
+import { prisma } from './prisma';
 
-const prisma = new PrismaClient();
-
-const JWT_SECRET = process.env.JWT_SECRET || 'your-fallback-secret-change-in-production';
-const JWT_EXPIRES_IN = '7d';
+// Access token curto + refresh token de 30d (cookie httpOnly). Frontend
+// auto-renova em 401 via /auth/refresh.
+const JWT_EXPIRES_IN = '1h';
 const REFRESH_TOKEN_EXPIRES_IN_DAYS = 30;
 
 export class AuthService {
