@@ -1,6 +1,6 @@
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Loader2, Plus, Trash2 } from "lucide-react";
-import { useEffect, useMemo } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Controller,
   useFieldArray,
@@ -10,6 +10,8 @@ import {
 import { useNavigate } from "react-router";
 import { z } from "zod";
 import { EmptyState } from "@/components/empty-state";
+import { ExerciseCombobox } from "@/components/exercise-combobox";
+import { NewExerciseDialog } from "@/components/new-exercise-dialog";
 import { Button } from "@/components/ui/button";
 import {
   Form,
@@ -113,6 +115,10 @@ export function WorkoutForm({
 }: WorkoutFormProps) {
   const navigate = useNavigate();
   const exercises = useExercises();
+  const [creatingFor, setCreatingFor] = useState<{
+    rowIndex: number;
+    defaultName: string;
+  } | null>(null);
 
   const form = useForm<WorkoutFormValues>({
     resolver: zodResolver(workoutFormSchema),
@@ -174,6 +180,7 @@ export function WorkoutForm({
     });
 
   return (
+    <>
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
@@ -291,44 +298,37 @@ export function WorkoutForm({
                     <FormField
                       control={form.control}
                       name={`exercises.${exerciseIndex}.exerciseId`}
-                      render={({ field: f }) => (
-                        <FormItem>
-                          <FormLabel className="sr-only">Exercício</FormLabel>
-                          <Select
-                            value={f.value}
-                            onValueChange={f.onChange}
-                          >
+                      render={({ field: f }) => {
+                        const rowOptions =
+                          availablePerRow[exerciseIndex] ?? [];
+                        const emptyMessage =
+                          (exercises.data ?? []).length === 0
+                            ? "Cadastre um exercício antes"
+                            : `Nenhum exercício de ${categoryLabel(targetCategory)} encontrado`;
+                        return (
+                          <FormItem>
+                            <FormLabel className="sr-only">
+                              Exercício
+                            </FormLabel>
                             <FormControl>
-                              <SelectTrigger>
-                                <SelectValue placeholder="Escolha o exercício" />
-                              </SelectTrigger>
+                              <ExerciseCombobox
+                                value={f.value}
+                                onChange={f.onChange}
+                                options={rowOptions}
+                                loading={exercises.isLoading}
+                                emptyMessage={emptyMessage}
+                                onCreateRequest={(query) =>
+                                  setCreatingFor({
+                                    rowIndex: exerciseIndex,
+                                    defaultName: query,
+                                  })
+                                }
+                              />
                             </FormControl>
-                            <SelectContent>
-                              {exercises.isLoading ? (
-                                <SelectItem value="__loading" disabled>
-                                  Carregando…
-                                </SelectItem>
-                              ) : (availablePerRow[exerciseIndex] ?? [])
-                                  .length === 0 ? (
-                                <SelectItem value="__empty" disabled>
-                                  {(exercises.data ?? []).length === 0
-                                    ? "Cadastre um exercício antes"
-                                    : `Nenhum exercício de ${categoryLabel(targetCategory)} disponível`}
-                                </SelectItem>
-                              ) : (
-                                (availablePerRow[exerciseIndex] ?? []).map(
-                                  (ex) => (
-                                    <SelectItem key={ex.id} value={ex.id}>
-                                      {ex.name}
-                                    </SelectItem>
-                                  ),
-                                )
-                              )}
-                            </SelectContent>
-                          </Select>
-                          <FormMessage />
-                        </FormItem>
-                      )}
+                            <FormMessage />
+                          </FormItem>
+                        );
+                      }}
                     />
                   </div>
                   <Button
@@ -377,6 +377,25 @@ export function WorkoutForm({
         </div>
       </form>
     </Form>
+    <NewExerciseDialog
+      open={creatingFor !== null}
+      onOpenChange={(open) => {
+        if (!open) setCreatingFor(null);
+      }}
+      defaultName={creatingFor?.defaultName ?? ""}
+      lockedCategory={targetCategory}
+      onCreated={(exercise) => {
+        if (creatingFor) {
+          form.setValue(
+            `exercises.${creatingFor.rowIndex}.exerciseId`,
+            exercise.id,
+            { shouldValidate: true },
+          );
+        }
+        setCreatingFor(null);
+      }}
+    />
+    </>
   );
 }
 
@@ -425,19 +444,7 @@ function SetsField({ exerciseIndex }: { exerciseIndex: number }) {
               control={control}
               name={`exercises.${exerciseIndex}.sets.${setIndex}.weight`}
               render={({ field: f }) => (
-                <Input
-                  type="number"
-                  inputMode="decimal"
-                  min={0}
-                  step="0.5"
-                  className="text-center font-mono"
-                  value={Number.isFinite(f.value) ? f.value : ""}
-                  onChange={(e) =>
-                    f.onChange(
-                      e.target.value === "" ? 0 : Number(e.target.value),
-                    )
-                  }
-                />
+                <WeightInput value={f.value} onChange={f.onChange} />
               )}
             />
             <Button
@@ -464,4 +471,51 @@ function SetsField({ exerciseIndex }: { exerciseIndex: number }) {
       </Button>
     </div>
   );
+}
+
+function WeightInput({
+  value,
+  onChange,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+}) {
+  const [text, setText] = useState(() => weightToText(value));
+  const [tracked, setTracked] = useState(value);
+
+  // Resync local text if the form value changes externally (reset, default load).
+  if (value !== tracked) {
+    setTracked(value);
+    if (parseWeight(text) !== value) setText(weightToText(value));
+  }
+
+  return (
+    <Input
+      type="text"
+      inputMode="decimal"
+      autoComplete="off"
+      className="text-center font-mono"
+      value={text}
+      onChange={(e) => {
+        const raw = e.target.value;
+        if (raw !== "" && !/^\d*[.,]?\d*$/.test(raw)) return;
+        setText(raw);
+        const parsed = parseWeight(raw);
+        if (parsed !== value) onChange(parsed);
+      }}
+    />
+  );
+}
+
+function weightToText(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  return String(value).replace(".", ",");
+}
+
+function parseWeight(text: string): number {
+  if (!text) return 0;
+  const normalized = text.replace(",", ".");
+  if (normalized === "." || normalized === "") return 0;
+  const n = Number(normalized);
+  return Number.isFinite(n) && n >= 0 ? n : 0;
 }

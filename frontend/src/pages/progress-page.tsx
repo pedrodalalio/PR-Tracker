@@ -1,7 +1,9 @@
 import {
+  differenceInCalendarDays,
   endOfWeek,
   format,
   isSameWeek,
+  startOfDay,
   startOfWeek,
   subWeeks,
 } from "date-fns";
@@ -46,19 +48,10 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useGoals, useStreak } from "@/hooks/use-goals";
+import { useGoals } from "@/hooks/use-goals";
 import { useWorkouts } from "@/hooks/use-workouts";
 import { categoryLabel } from "@/lib/format";
-import type { Workout } from "@/lib/types";
 import { cn } from "@/lib/utils";
-
-function workoutVolume(w: Workout) {
-  return w.exercises.reduce(
-    (acc, ex) =>
-      acc + ex.sets.reduce((s, set) => s + set.reps * (set.weight || 0), 0),
-    0,
-  );
-}
 
 interface ProgressPoint {
   date: string;
@@ -71,7 +64,11 @@ interface ProgressPoint {
 export function ProgressPage() {
   const workouts = useWorkouts();
   const goals = useGoals();
-  const streak = useStreak();
+
+  const dailyStreaks = useMemo(
+    () => computeDailyStreaks(workouts.data ?? []),
+    [workouts.data],
+  );
 
   const weeklyData = useMemo(() => {
     const today = new Date();
@@ -85,14 +82,12 @@ export function ProgressPage() {
       return {
         week: format(start, "dd/MM", { locale: ptBR }),
         treinos: items.length,
-        volume: items.reduce((acc, w) => acc + workoutVolume(w), 0),
         start,
         end,
       };
     });
   }, [workouts.data]);
 
-  const totalVolume = weeklyData.reduce((acc, w) => acc + w.volume, 0);
   const avgPerWeek =
     weeklyData.reduce((acc, w) => acc + w.treinos, 0) / weeklyData.length;
 
@@ -211,14 +206,14 @@ export function ProgressPage() {
         </TabsList>
 
         <TabsContent value="treinos" className="space-y-8">
-      <section className="grid gap-3 sm:grid-cols-2 lg:grid-cols-4">
+      <section className="grid gap-3 sm:grid-cols-3">
         <StatCard
           label="Sequência"
           value={
-            streak.isLoading ? (
+            workouts.isLoading ? (
               <Skeleton className="h-10 w-12" />
             ) : (
-              streak.data?.currentStreak ?? 0
+              dailyStreaks.current
             )
           }
           unit="dias"
@@ -228,10 +223,10 @@ export function ProgressPage() {
         <StatCard
           label="Melhor"
           value={
-            streak.isLoading ? (
+            workouts.isLoading ? (
               <Skeleton className="h-10 w-12" />
             ) : (
-              streak.data?.bestStreak ?? 0
+              dailyStreaks.best
             )
           }
           unit="dias"
@@ -248,18 +243,6 @@ export function ProgressPage() {
           }
           unit="treinos"
           icon={Activity}
-        />
-        <StatCard
-          label="Volume 12 sem."
-          value={
-            workouts.isLoading ? (
-              <Skeleton className="h-10 w-16" />
-            ) : (
-              Math.round(totalVolume).toLocaleString("pt-BR")
-            )
-          }
-          unit="kg·rep"
-          icon={Dumbbell}
         />
       </section>
 
@@ -569,4 +552,46 @@ function Mini({ label, value, unit, icon: Icon, emphasis, tone }: MiniProps) {
       </div>
     </div>
   );
+}
+
+function computeDailyStreaks(
+  workouts: { date: string }[],
+): { current: number; best: number } {
+  if (workouts.length === 0) return { current: 0, best: 0 };
+
+  const seen = new Set<number>();
+  const days: Date[] = [];
+  for (const w of workouts) {
+    const day = startOfDay(new Date(w.date));
+    if (!seen.has(day.getTime())) {
+      seen.add(day.getTime());
+      days.push(day);
+    }
+  }
+  days.sort((a, b) => a.getTime() - b.getTime());
+
+  let best = 1;
+  let run = 1;
+  for (let i = 1; i < days.length; i++) {
+    if (differenceInCalendarDays(days[i]!, days[i - 1]!) === 1) {
+      run += 1;
+      if (run > best) best = run;
+    } else {
+      run = 1;
+    }
+  }
+
+  const today = startOfDay(new Date());
+  const lastDay = days[days.length - 1]!;
+  const gap = differenceInCalendarDays(today, lastDay);
+  let current = 0;
+  if (gap === 0 || gap === 1) {
+    current = 1;
+    for (let i = days.length - 2; i >= 0; i--) {
+      if (differenceInCalendarDays(days[i + 1]!, days[i]!) === 1) current += 1;
+      else break;
+    }
+  }
+
+  return { current, best };
 }
