@@ -4,6 +4,7 @@ import crypto from 'crypto';
 import { JWTPayload } from '../types/auth';
 import { JWT_SECRET } from './env';
 import { prisma } from './prisma';
+import type { PrismaClient } from '../generated/prisma';
 
 // Access token curto + refresh token de 30d (cookie httpOnly). Frontend
 // auto-renova em 401 via /auth/refresh.
@@ -111,7 +112,7 @@ export class AuthService {
   ): Promise<{ userId: string } | null> {
     const tokenHash = crypto.createHash('sha256').update(plaintext).digest('hex');
     try {
-      const result = await prisma.$transaction(async (tx) => {
+      const result = await prisma.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>) => {
         const record = await tx.passwordResetToken.findUnique({
           where: { tokenHash },
         });
