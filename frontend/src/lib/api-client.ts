@@ -1,6 +1,8 @@
 import { env } from "@/lib/env";
 import { getAccessToken, setAccessToken } from "@/lib/auth-storage";
 
+export const AUTH_CLEARED_EVENT = "pr-tracker:auth-cleared";
+
 export class ApiError extends Error {
   status: number;
   details?: unknown;
@@ -123,8 +125,13 @@ async function request<T>(
         ...init,
       });
     }
-    // Refresh falhou: limpa token local e segue pro fluxo de erro normal.
+    // Refresh falhou no meio da sessão: limpa o token e avisa o AuthContext
+    // pra cair pro fluxo de "anonymous" (redireciona pra /login) ao invés
+    // de ficar firing 401 em loop nas próximas queries.
     setAccessToken(null);
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(new Event(AUTH_CLEARED_EVENT));
+    }
   }
 
   if (response.status === 204) {

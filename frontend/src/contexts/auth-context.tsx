@@ -6,7 +6,7 @@ import {
   useMemo,
   useState,
 } from "react";
-import { ApiError, NetworkError } from "@/lib/api-client";
+import { ApiError, AUTH_CLEARED_EVENT, NetworkError } from "@/lib/api-client";
 import { getAccessToken } from "@/lib/auth-storage";
 import { authApi } from "@/services/auth-api";
 import type { User } from "@/lib/types";
@@ -101,6 +101,18 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void loadSession();
   }, [loadSession]);
+
+  // Quando o api-client falha em renovar o token no meio da sessão,
+  // ele dispara este event. Cai pra anonymous → RequireAuth manda pra /login.
+  useEffect(() => {
+    const handler = () => {
+      writeCachedUser(null);
+      setUser(null);
+      setStatus("anonymous");
+    };
+    window.addEventListener(AUTH_CLEARED_EVENT, handler);
+    return () => window.removeEventListener(AUTH_CLEARED_EVENT, handler);
+  }, []);
 
   const login = useCallback(
     async (input: { usernameOrEmail: string; password: string }) => {

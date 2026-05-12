@@ -54,6 +54,29 @@ export const workoutExerciseSchema = z.object({
 });
 export type WorkoutExercise = z.infer<typeof workoutExerciseSchema>;
 
+export const workoutTemplateExerciseSchema = z.object({
+  id: z.string(),
+  templateId: z.string(),
+  exerciseId: z.string(),
+  position: z.number().int().nonnegative(),
+  notes: z.string().nullable().optional(),
+  exercise: exerciseSchema,
+});
+export type WorkoutTemplateExercise = z.infer<
+  typeof workoutTemplateExerciseSchema
+>;
+
+export const workoutTemplateSchema = z.object({
+  id: z.string(),
+  userId: z.string().optional(),
+  name: z.string(),
+  workoutType: workoutTypeSchema,
+  exercises: z.array(workoutTemplateExerciseSchema).default([]),
+  createdAt: z.string().optional(),
+  updatedAt: z.string().optional(),
+});
+export type WorkoutTemplate = z.infer<typeof workoutTemplateSchema>;
+
 export const workoutSchema = z.object({
   id: z.string(),
   userId: z.string(),
@@ -64,6 +87,7 @@ export const workoutSchema = z.object({
   startTime: z.string().nullable().optional(),
   endTime: z.string().nullable().optional(),
   notes: z.string().nullable().optional(),
+  templateId: z.string().nullable().optional(),
   exercises: z.array(workoutExerciseSchema).default([]),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
@@ -166,6 +190,7 @@ export interface CreateWorkoutInput {
   workoutType: WorkoutType;
   dayOfWeek: WeekDay;
   notes?: string;
+  templateId?: string | null;
   exercises?: Array<{
     exerciseId: string;
     notes?: string;
@@ -186,6 +211,7 @@ export interface UpdateWorkoutInput {
   dayOfWeek?: WeekDay;
   notes?: string;
   endTime?: string | null;
+  templateId?: string | null;
   exercises?: CreateWorkoutInput["exercises"];
 }
 
@@ -193,4 +219,19 @@ export interface CreateExerciseInput {
   name: string;
   category: Category;
   muscleGroups: string[];
+}
+
+export interface CreateWorkoutTemplateInput {
+  name: string;
+  workoutType: "upper" | "lower";
+  exercises: Array<{
+    exerciseId: string;
+    notes?: string;
+  }>;
+}
+
+export interface UpdateWorkoutTemplateInput {
+  name?: string;
+  workoutType?: "upper" | "lower";
+  exercises?: CreateWorkoutTemplateInput["exercises"];
 }

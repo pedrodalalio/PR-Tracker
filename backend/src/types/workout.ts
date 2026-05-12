@@ -44,6 +44,7 @@ export interface CreateWorkoutRequest {
   dayOfWeek: WeekDay;
   exercises?: Omit<WorkoutExercise, 'id'>[];
   notes?: string;
+  templateId?: string | null;
 }
 
 export interface UpdateWorkoutRequest {
@@ -54,6 +55,7 @@ export interface UpdateWorkoutRequest {
   exercises?: Omit<WorkoutExercise, "id">[];
   notes?: string;
   endTime?: string | null;
+  templateId?: string | null;
 }
 
 export interface CreateExerciseRequest {

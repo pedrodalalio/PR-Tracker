@@ -7,7 +7,7 @@ import {
   useForm,
   useFormContext,
 } from "react-hook-form";
-import { useNavigate } from "react-router";
+import { Link, useNavigate } from "react-router";
 import { z } from "zod";
 import { EmptyState } from "@/components/empty-state";
 import { ExerciseCombobox } from "@/components/exercise-combobox";
@@ -30,11 +30,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useExercises } from "@/hooks/use-exercises";
+import { useWorkouts } from "@/hooks/use-workouts";
 import { categoryLabel, workoutTypeLabel } from "@/lib/format";
 import {
   workoutTypeSchema,
   type Category,
   type WeekDay,
+  type WorkoutSet,
+  type WorkoutTemplate,
   type WorkoutType,
 } from "@/lib/types";
 
@@ -64,6 +67,7 @@ export const workoutFormSchema = z.object({
   date: z.string().min(1, "Escolha uma data"),
   workoutType: workoutTypeSchema,
   notes: z.string().optional(),
+  templateId: z.string().nullable().optional(),
   exercises: z
     .array(exerciseSchema)
     .min(1, "Adicione pelo menos um exercício"),
@@ -108,6 +112,8 @@ interface WorkoutFormProps {
   submitLabel: string;
   isSubmitting?: boolean;
   cancelTo: string;
+  availableTemplates?: WorkoutTemplate[];
+  compareWithHistory?: boolean;
 }
 
 export function WorkoutForm({
@@ -116,9 +122,12 @@ export function WorkoutForm({
   submitLabel,
   isSubmitting,
   cancelTo,
+  availableTemplates,
+  compareWithHistory = false,
 }: WorkoutFormProps) {
   const navigate = useNavigate();
   const exercises = useExercises();
+  const workouts = useWorkouts();
   const [creatingFor, setCreatingFor] = useState<{
     rowIndex: number;
     defaultName: string;
@@ -138,7 +147,9 @@ export function WorkoutForm({
   const watchedExercises = form.watch("exercises");
   const targetCategory = workoutTypeToCategory(watchedType);
 
-  // Quando o tipo muda, limpa exercícios que não batem com a nova categoria.
+  // Quando o tipo muda, limpa exercícios que não batem com a nova categoria
+  // (preservando reps/cargas das linhas existentes). Também zera o templateId
+  // se o modelo selecionado for de outro tipo.
   useEffect(() => {
     const exData = exercises.data;
     if (!exData) return;
@@ -153,7 +164,14 @@ export function WorkoutForm({
         });
       }
     });
-  }, [watchedType, exercises.data, form]);
+    const currentTemplateId = form.getValues("templateId");
+    if (currentTemplateId && availableTemplates) {
+      const t = availableTemplates.find((x) => x.id === currentTemplateId);
+      if (t && t.workoutType !== watchedType) {
+        form.setValue("templateId", null, { shouldValidate: false });
+      }
+    }
+  }, [watchedType, exercises.data, form, availableTemplates]);
 
   const availablePerRow = useMemo(() => {
     const exData = exercises.data;
@@ -176,6 +194,73 @@ export function WorkoutForm({
     });
   }, [exercises.data, watchedExercises, targetCategory]);
 
+  // Mapa exerciseId → séries do último treino em que aquele exercício
+  // apareceu. Usado pra mostrar a diferença de carga ("↑ 2,5 kg") na hora
+  // de registrar. A lista vem ordenada por data desc do backend, então o
+  // primeiro hit é o mais recente.
+  const previousSetsByExerciseId = useMemo<Map<
+    string,
+    WorkoutSet[]
+  > | null>(() => {
+    if (!compareWithHistory) return null;
+    if (!workouts.data) return null;
+    const map = new Map<string, WorkoutSet[]>();
+    for (const w of workouts.data) {
+      for (const we of w.exercises) {
+        if (!map.has(we.exerciseId)) map.set(we.exerciseId, we.sets);
+      }
+    }
+    return map;
+  }, [compareWithHistory, workouts.data]);
+
+  // Aplica um modelo: substitui exercícios pela lista (em ordem) do
+  // modelo, copiando séries do histórico:
+  //   1. Último treino com esse templateId que contém aquele exercício
+  //   2. Senão, último treino qualquer que contém aquele exercício
+  //   3. Senão, 1 série de 10×0
+  const applyTemplate = (template: WorkoutTemplate) => {
+    if (template.workoutType === "cardio") return;
+    const workoutList = workouts.data ?? [];
+    const lastOfTemplate = workoutList.find(
+      (w) => w.templateId === template.id,
+    );
+
+    const findSetsForExercise = (
+      exerciseId: string,
+    ): Array<{ reps: number; weight: number }> => {
+      const fromTemplate = lastOfTemplate?.exercises.find(
+        (we) => we.exerciseId === exerciseId,
+      );
+      if (fromTemplate && fromTemplate.sets.length > 0) {
+        return fromTemplate.sets.map((s) => ({
+          reps: s.reps,
+          weight: s.weight,
+        }));
+      }
+      for (const w of workoutList) {
+        const we = w.exercises.find((e) => e.exerciseId === exerciseId);
+        if (we && we.sets.length > 0) {
+          return we.sets.map((s) => ({ reps: s.reps, weight: s.weight }));
+        }
+      }
+      return [{ reps: 10, weight: 0 }];
+    };
+
+    if (!form.getValues("name")) {
+      form.setValue("name", template.name, { shouldValidate: false });
+    }
+    form.setValue("workoutType", template.workoutType, {
+      shouldValidate: false,
+    });
+    form.setValue("templateId", template.id, { shouldValidate: false });
+    const expanded = template.exercises.map((ex) => ({
+      exerciseId: ex.exerciseId,
+      notes: ex.notes ?? "",
+      sets: findSetsForExercise(ex.exerciseId),
+    }));
+    form.setValue("exercises", expanded, { shouldValidate: false });
+  };
+
   const appendExerciseRow = () =>
     exerciseFields.append({
       exerciseId: "",
@@ -190,6 +275,16 @@ export function WorkoutForm({
         onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-8 pb-24"
       >
+        {availableTemplates !== undefined && (
+          <TemplateSelector
+            templates={availableTemplates.filter(
+              (t) => t.workoutType === watchedType,
+            )}
+            selectedId={form.watch("templateId") ?? null}
+            onApply={applyTemplate}
+          />
+        )}
+
         <section className="rounded-xl border border-border bg-card p-5 space-y-5">
           <div className="grid grid-cols-1 gap-5 md:grid-cols-2">
             <FormField
@@ -346,7 +441,10 @@ export function WorkoutForm({
                   </Button>
                 </div>
 
-                <SetsField exerciseIndex={exerciseIndex} />
+                <SetsField
+                  exerciseIndex={exerciseIndex}
+                  previousSetsByExerciseId={previousSetsByExerciseId}
+                />
               </li>
             ))}
           </ul>
@@ -403,12 +501,22 @@ export function WorkoutForm({
   );
 }
 
-function SetsField({ exerciseIndex }: { exerciseIndex: number }) {
-  const { control } = useFormContext<WorkoutFormValues>();
+function SetsField({
+  exerciseIndex,
+  previousSetsByExerciseId,
+}: {
+  exerciseIndex: number;
+  previousSetsByExerciseId: Map<string, WorkoutSet[]> | null;
+}) {
+  const { control, watch } = useFormContext<WorkoutFormValues>();
   const sets = useFieldArray({
     control,
     name: `exercises.${exerciseIndex}.sets`,
   });
+  const currentExerciseId = watch(`exercises.${exerciseIndex}.exerciseId`);
+  const previousSets = currentExerciseId
+    ? (previousSetsByExerciseId?.get(currentExerciseId) ?? null)
+    : null;
   return (
     <div className="space-y-2">
       <div className="grid grid-cols-[2rem_1fr_1fr_2rem] items-center gap-2 px-1 font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
@@ -448,7 +556,13 @@ function SetsField({ exerciseIndex }: { exerciseIndex: number }) {
               control={control}
               name={`exercises.${exerciseIndex}.sets.${setIndex}.weight`}
               render={({ field: f }) => (
-                <WeightInput value={f.value} onChange={f.onChange} />
+                <div className="flex flex-col gap-0.5">
+                  <WeightInput value={f.value} onChange={f.onChange} />
+                  <WeightDeltaLabel
+                    current={f.value}
+                    previous={previousSets?.[setIndex]?.weight}
+                  />
+                </div>
               )}
             />
             <Button
@@ -522,4 +636,113 @@ function parseWeight(text: string): number {
   if (normalized === "." || normalized === "") return 0;
   const n = Number(normalized);
   return Number.isFinite(n) && n >= 0 ? n : 0;
+}
+
+function TemplateSelector({
+  templates,
+  selectedId,
+  onApply,
+}: {
+  templates: WorkoutTemplate[];
+  selectedId: string | null;
+  onApply: (t: WorkoutTemplate) => void;
+}) {
+  if (templates.length === 0) {
+    return (
+      <section className="rounded-xl border border-dashed border-border bg-card/40 p-4">
+        <p className="text-sm text-muted-foreground">
+          Sem modelo cadastrado pra esse tipo.{" "}
+          <Link
+            to="/templates/new"
+            className="font-medium text-foreground underline-offset-4 hover:underline"
+          >
+            Criar um modelo
+          </Link>{" "}
+          deixa o registro mais rápido na próxima vez.
+        </p>
+      </section>
+    );
+  }
+  return (
+    <section className="rounded-xl border border-border bg-card p-4 space-y-2">
+      <div className="flex items-center justify-between gap-3">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Modelo
+          </p>
+          <p className="text-sm text-muted-foreground">
+            Aplique um modelo pra pré-popular nome, ordem e séries.
+          </p>
+        </div>
+        <Link
+          to="/templates"
+          className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+        >
+          Gerenciar
+        </Link>
+      </div>
+      <Select
+        value={
+          selectedId && templates.some((t) => t.id === selectedId)
+            ? selectedId
+            : undefined
+        }
+        onValueChange={(value) => {
+          const t = templates.find((x) => x.id === value);
+          if (t) onApply(t);
+        }}
+      >
+        <SelectTrigger>
+          <SelectValue placeholder="Selecionar modelo…" />
+        </SelectTrigger>
+        <SelectContent>
+          {templates.map((t) => (
+            <SelectItem key={t.id} value={t.id}>
+              {t.name}
+              <span className="ml-2 text-xs text-muted-foreground">
+                ({t.exercises.length} exercício
+                {t.exercises.length === 1 ? "" : "s"})
+              </span>
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
+    </section>
+  );
+}
+
+function WeightDeltaLabel({
+  current,
+  previous,
+}: {
+  current: number;
+  previous: number | undefined;
+}) {
+  if (previous === undefined || !Number.isFinite(previous)) return null;
+  const delta = current - previous;
+  if (Math.abs(delta) < 0.001) return null;
+  const heavier = delta > 0;
+  const text = `${heavier ? "↑" : "↓"} ${formatKgDelta(Math.abs(delta))}`;
+  return (
+    <span
+      className={`px-1 text-center font-mono text-[10px] tabular-nums leading-none ${
+        heavier
+          ? "text-emerald-600 dark:text-emerald-400"
+          : "text-amber-600 dark:text-amber-400"
+      }`}
+      title={`Última vez: ${formatKgValue(previous)} kg`}
+    >
+      {text}
+    </span>
+  );
+}
+
+function formatKgDelta(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return `${String(rounded).replace(".", ",")} kg`;
+}
+
+function formatKgValue(value: number): string {
+  const rounded = Math.round(value * 100) / 100;
+  return String(rounded).replace(".", ",");
 }

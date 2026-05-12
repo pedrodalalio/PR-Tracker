@@ -93,6 +93,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
           dayOfWeek,
           exercises: workoutExercises = [],
           notes,
+          templateId,
         } = request.body;
 
         const workout = await prisma.workout.create({
@@ -104,6 +105,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
             dayOfWeek,
             startTime: new Date(),
             notes,
+            templateId: templateId ?? null,
             exercises: {
               create: workoutExercises.map((ex) => ({
                 exerciseId: ex.exerciseId,
@@ -158,6 +160,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
           workoutType,
           dayOfWeek,
           exercises: workoutExercises,
+          templateId,
         } = request.body;
 
         const updateData: any = {};
@@ -169,6 +172,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
         if (date !== undefined) updateData.date = new Date(date);
         if (workoutType !== undefined) updateData.workoutType = workoutType;
         if (dayOfWeek !== undefined) updateData.dayOfWeek = dayOfWeek;
+        if (templateId !== undefined) updateData.templateId = templateId;
 
         // Simple path: nothing to change in the exercise list. Single update,
         // P2025 catches a non-existent or non-owned workout.

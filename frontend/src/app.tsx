@@ -11,6 +11,7 @@ import { startSyncManager } from "@/lib/sync";
 import { CalendarPage } from "@/pages/calendar-page";
 import { CalendarProgressPage } from "@/pages/calendar-progress-page";
 import { EditWorkoutPage } from "@/pages/edit-workout-page";
+import { EditWorkoutTemplatePage } from "@/pages/edit-workout-template-page";
 import { ExercisesPage } from "@/pages/exercises-page";
 import { ForgotPasswordPage } from "@/pages/forgot-password-page";
 import { GoalSettingsPage } from "@/pages/goal-settings-page";
@@ -18,6 +19,7 @@ import { HomePage } from "@/pages/home-page";
 import { LoginPage } from "@/pages/login-page";
 import { ManageExercisesPage } from "@/pages/manage-exercises-page";
 import { NewWorkoutPage } from "@/pages/new-workout-page";
+import { NewWorkoutTemplatePage } from "@/pages/new-workout-template-page";
 import { NotFoundPage } from "@/pages/not-found-page";
 import { ProgressPage } from "@/pages/progress-page";
 import { RegisterPage } from "@/pages/register-page";
@@ -29,6 +31,7 @@ import { RunsPage } from "@/pages/runs-page";
 import { StravaPage } from "@/pages/strava-page";
 import { WorkoutDetailPage } from "@/pages/workout-detail-page";
 import { WorkoutsPage } from "@/pages/workouts-page";
+import { WorkoutTemplatesPage } from "@/pages/workout-templates-page";
 
 export default function App() {
   useEffect(() => {
@@ -89,6 +92,15 @@ export default function App() {
                 <Route
                   path="exercises/manage"
                   element={<ManageExercisesPage />}
+                />
+                <Route path="templates" element={<WorkoutTemplatesPage />} />
+                <Route
+                  path="templates/new"
+                  element={<NewWorkoutTemplatePage />}
+                />
+                <Route
+                  path="templates/:id/edit"
+                  element={<EditWorkoutTemplatePage />}
                 />
                 <Route path="calendar" element={<CalendarPage />} />
                 <Route

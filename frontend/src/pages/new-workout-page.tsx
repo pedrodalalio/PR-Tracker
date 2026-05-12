@@ -11,11 +11,13 @@ import {
   type WorkoutFormValues,
 } from "@/components/workout-form";
 import { useCreateWorkout } from "@/hooks/use-workouts";
+import { useWorkoutTemplates } from "@/hooks/use-workout-templates";
 import { ApiError } from "@/lib/api-client";
 
 export function NewWorkoutPage() {
   const navigate = useNavigate();
   const create = useCreateWorkout();
+  const templates = useWorkoutTemplates();
 
   const onSubmit = async (values: WorkoutFormValues) => {
     try {
@@ -25,6 +27,7 @@ export function NewWorkoutPage() {
         workoutType: values.workoutType,
         dayOfWeek: dayOfWeekFromDate(values.date),
         notes: values.notes || undefined,
+        templateId: values.templateId ?? null,
         exercises: values.exercises.map((ex) => ({
           exerciseId: ex.exerciseId,
           notes: ex.notes,
@@ -71,6 +74,8 @@ export function NewWorkoutPage() {
         submitLabel="Salvar treino"
         isSubmitting={create.isPending}
         cancelTo="/workouts"
+        availableTemplates={templates.data ?? []}
+        compareWithHistory
       />
     </div>
   );

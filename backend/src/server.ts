@@ -8,6 +8,7 @@ import { COOKIE_SECRET } from "./lib/env";
 import { AuthService } from "./lib/auth";
 import { REFRESH_COOKIE } from "./lib/cookies";
 import { workoutRoutes } from "./routes/workouts";
+import { workoutTemplateRoutes } from "./routes/workout-templates";
 import { exerciseRoutes } from "./routes/exercises";
 import { goalsRoutes } from "./routes/goals";
 import { authRoutes } from "./routes/auth";
@@ -115,6 +116,7 @@ fastify.get("/health", async () => {
 
 fastify.register(authRoutes);
 fastify.register(workoutRoutes);
+fastify.register(workoutTemplateRoutes);
 fastify.register(exerciseRoutes);
 fastify.register(goalsRoutes);
 fastify.register(weightsRoutes);

@@ -1,5 +1,6 @@
 import {
   CalendarDays,
+  ClipboardList,
   Dumbbell,
   FileBarChart,
   Footprints,
@@ -31,6 +32,12 @@ const groups = [
     label: "Catálogo",
     items: [
       { to: "/exercises", label: "Exercícios", icon: ListChecks, end: false },
+      {
+        to: "/templates",
+        label: "Modelos",
+        icon: ClipboardList,
+        end: false,
+      },
       { to: "/goals", label: "Metas", icon: Target, end: false },
     ],
   },

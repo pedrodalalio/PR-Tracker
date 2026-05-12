@@ -31,6 +31,7 @@ model User {
   runs                Run[]
   stravaConnection    StravaConnection?
   passwordResetTokens PasswordResetToken[]
+  workoutTemplates    WorkoutTemplate[]
 
   @@map("users")
 }
@@ -88,8 +89,9 @@ model Exercise {
   updatedAt   DateTime @updatedAt
 
   // Relations
-  workoutExercises WorkoutExercise[]
-  muscleGroups     ExerciseMuscleGroup[]
+  workoutExercises         WorkoutExercise[]
+  muscleGroups             ExerciseMuscleGroup[]
+  workoutTemplateExercises WorkoutTemplateExercise[]
 
   @@map("exercises")
 }
@@ -116,14 +118,17 @@ model Workout {
   startTime   DateTime?
   endTime     DateTime?
   notes       String?
+  templateId  String?
   createdAt   DateTime    @default(now())
   updatedAt   DateTime    @updatedAt
 
   // Relations
   user      User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   exercises WorkoutExercise[]
+  template  WorkoutTemplate?  @relation(fields: [templateId], references: [id], onDelete: SetNull)
 
   @@index([userId, date])
+  @@index([userId, templateId, date])
   @@map("workouts")
 }
 
@@ -154,6 +159,38 @@ model Set {
   workoutExercise WorkoutExercise @relation(fields: [workoutExerciseId], references: [id], onDelete: Cascade)
 
   @@map("sets")
+}
+
+model WorkoutTemplate {
+  id          String      @id @default(uuid())
+  userId      String
+  name        String
+  workoutType WorkoutType
+  createdAt   DateTime    @default(now())
+  updatedAt   DateTime    @updatedAt
+
+  // Relations
+  user      User                      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  exercises WorkoutTemplateExercise[]
+  workouts  Workout[]
+
+  @@index([userId])
+  @@map("workout_templates")
+}
+
+model WorkoutTemplateExercise {
+  id         String  @id @default(uuid())
+  templateId String
+  exerciseId String
+  position   Int
+  notes      String?
+
+  // Relations
+  template WorkoutTemplate @relation(fields: [templateId], references: [id], onDelete: Cascade)
+  exercise Exercise        @relation(fields: [exerciseId], references: [id], onDelete: Cascade)
+
+  @@index([templateId, position])
+  @@map("workout_template_exercises")
 }
 
 model UserGoals {
