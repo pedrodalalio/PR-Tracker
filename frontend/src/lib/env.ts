@@ -4,9 +4,9 @@
 // explicitamente e tem precedência.
 function defaultApiUrl(): string {
   if (typeof window !== "undefined") {
-    return `${window.location.protocol}//${window.location.hostname}:3000/api`;
+    return `${window.location.protocol}//${window.location.hostname}:3000`;
   }
-  return "http://localhost:3000/api";
+  return "http://localhost:3000";
 }
 
 export const env = {
