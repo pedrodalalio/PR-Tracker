@@ -196,4 +196,9 @@
   .safe-top {
     padding-top: env(safe-area-inset-top);
   }
+  /* Altura aproximada da bottom nav mobile (conteúdo + safe-area).
+     Usado pra posicionar barras de ação fixas acima da nav sem sobrepor. */
+  .bottom-above-nav {
+    bottom: calc(env(safe-area-inset-bottom) + 3.75rem);
+  }
 }

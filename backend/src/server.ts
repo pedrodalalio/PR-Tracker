@@ -114,14 +114,14 @@ fastify.get("/health", async () => {
   return { status: "ok", timestamp: new Date().toISOString() };
 });
 
-fastify.register(authRoutes);
-fastify.register(workoutRoutes);
-fastify.register(workoutTemplateRoutes);
-fastify.register(exerciseRoutes);
-fastify.register(goalsRoutes);
-fastify.register(weightsRoutes);
-fastify.register(runsRoutes);
-fastify.register(stravaRoutes);
+fastify.register(authRoutes, { prefix: "/api" });
+fastify.register(workoutRoutes, { prefix: "/api" });
+fastify.register(workoutTemplateRoutes, { prefix: "/api" });
+fastify.register(exerciseRoutes, { prefix: "/api" });
+fastify.register(goalsRoutes, { prefix: "/api" });
+fastify.register(weightsRoutes, { prefix: "/api" });
+fastify.register(runsRoutes, { prefix: "/api" });
+fastify.register(stravaRoutes, { prefix: "/api" });
 
 // Limpa refresh tokens expirados/revogados a cada 24h. Roda 1x no boot.
 const TOKEN_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;

@@ -456,7 +456,7 @@ export function WorkoutForm({
             )}
         </section>
 
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 px-4 py-3 backdrop-blur safe-bottom md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
+        <div className="fixed inset-x-0 bottom-above-nav z-30 border-t border-border bg-background/90 px-4 py-3 backdrop-blur md:static md:bottom-auto md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
           <div className="mx-auto flex max-w-5xl items-center justify-end gap-2 md:px-0">
             <Button
               type="button"
