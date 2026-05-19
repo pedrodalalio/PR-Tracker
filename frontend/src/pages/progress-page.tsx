@@ -304,7 +304,7 @@ export function ProgressPage() {
                     position="right"
                     fontSize={11}
                     fill="var(--muted-foreground)"
-                    formatter={(v: number) => (v > 0 ? v : "")}
+                    formatter={(v) => (typeof v === "number" && v > 0 ? v : "")}
                   />
                 </Bar>
               </BarChart>
@@ -362,7 +362,7 @@ export function ProgressPage() {
                     position="top"
                     fontSize={11}
                     fill="var(--muted-foreground)"
-                    formatter={(v: number) => (v > 0 ? v : "")}
+                    formatter={(v) => (typeof v === "number" && v > 0 ? v : "")}
                   />
                 </Bar>
               </BarChart>
