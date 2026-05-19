@@ -1,5 +1,5 @@
 import { zodResolver } from "@hookform/resolvers/zod";
-import { Loader2, Plus, Trash2 } from "lucide-react";
+import { Check, ChevronsUpDown, Loader2, Plus, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import {
   Controller,
@@ -7,7 +7,7 @@ import {
   useForm,
   useFormContext,
 } from "react-hook-form";
-import { Link, useNavigate } from "react-router";
+import { Link } from "react-router";
 import { z } from "zod";
 import { EmptyState } from "@/components/empty-state";
 import { ExerciseCombobox } from "@/components/exercise-combobox";
@@ -21,7 +21,20 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
+import {
+  Command,
+  CommandEmpty,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command";
+import { DateInput } from "@/components/ui/date-input";
 import { Input } from "@/components/ui/input";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import {
   Select,
   SelectContent,
@@ -32,6 +45,7 @@ import {
 import { useExercises } from "@/hooks/use-exercises";
 import { useWorkouts } from "@/hooks/use-workouts";
 import { categoryLabel, workoutTypeLabel } from "@/lib/format";
+import { cn } from "@/lib/utils";
 import {
   workoutTypeSchema,
   type Category,
@@ -111,7 +125,6 @@ interface WorkoutFormProps {
   onSubmit: (values: WorkoutFormValues) => Promise<void> | void;
   submitLabel: string;
   isSubmitting?: boolean;
-  cancelTo: string;
   availableTemplates?: WorkoutTemplate[];
   compareWithHistory?: boolean;
 }
@@ -121,11 +134,9 @@ export function WorkoutForm({
   onSubmit,
   submitLabel,
   isSubmitting,
-  cancelTo,
   availableTemplates,
   compareWithHistory = false,
 }: WorkoutFormProps) {
-  const navigate = useNavigate();
   const exercises = useExercises();
   const workouts = useWorkouts();
   const [creatingFor, setCreatingFor] = useState<{
@@ -273,12 +284,12 @@ export function WorkoutForm({
     <Form {...form}>
       <form
         onSubmit={form.handleSubmit(onSubmit)}
-        className="space-y-8 pb-24"
+        className="space-y-8"
       >
         {availableTemplates !== undefined && (
           <TemplateSelector
             templates={availableTemplates.filter(
-              (t) => t.workoutType === watchedType,
+              (t) => t.workoutType !== "cardio",
             )}
             selectedId={form.watch("templateId") ?? null}
             onApply={applyTemplate}
@@ -307,7 +318,10 @@ export function WorkoutForm({
                 <FormItem>
                   <FormLabel>Data</FormLabel>
                   <FormControl>
-                    <Input type="date" {...field} />
+                    <DateInput
+                      value={field.value}
+                      onChange={field.onChange}
+                    />
                   </FormControl>
                   <FormMessage />
                 </FormItem>
@@ -387,49 +401,12 @@ export function WorkoutForm({
             {exerciseFields.fields.map((field, exerciseIndex) => (
               <li
                 key={field.id}
-                className="rounded-xl border border-border bg-card p-4 space-y-4"
+                className="rounded-xl border border-border bg-card p-4 space-y-3"
               >
-                <div className="flex items-start gap-3">
-                  <div className="grid size-8 shrink-0 place-items-center rounded-md bg-primary/10 font-mono text-xs font-semibold text-primary">
-                    {exerciseIndex + 1}
-                  </div>
-                  <div className="min-w-0 flex-1 space-y-3">
-                    <FormField
-                      control={form.control}
-                      name={`exercises.${exerciseIndex}.exerciseId`}
-                      render={({ field: f }) => {
-                        const rowOptions =
-                          availablePerRow[exerciseIndex] ?? [];
-                        const emptyMessage =
-                          (exercises.data ?? []).length === 0
-                            ? "Cadastre um exercício antes"
-                            : `Nenhum exercício de ${categoryLabel(targetCategory)} encontrado`;
-                        return (
-                          <FormItem>
-                            <FormLabel className="sr-only">
-                              Exercício
-                            </FormLabel>
-                            <FormControl>
-                              <ExerciseCombobox
-                                value={f.value}
-                                onChange={f.onChange}
-                                options={rowOptions}
-                                loading={exercises.isLoading}
-                                emptyMessage={emptyMessage}
-                                onCreateRequest={(query) =>
-                                  setCreatingFor({
-                                    rowIndex: exerciseIndex,
-                                    defaultName: query,
-                                  })
-                                }
-                              />
-                            </FormControl>
-                            <FormMessage />
-                          </FormItem>
-                        );
-                      }}
-                    />
-                  </div>
+                <div className="flex items-center justify-between gap-2">
+                  <span className="font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
+                    Exercício {exerciseIndex + 1}
+                  </span>
                   <Button
                     type="button"
                     variant="ghost"
@@ -440,6 +417,38 @@ export function WorkoutForm({
                     <Trash2 className="size-4" />
                   </Button>
                 </div>
+                <FormField
+                  control={form.control}
+                  name={`exercises.${exerciseIndex}.exerciseId`}
+                  render={({ field: f }) => {
+                    const rowOptions = availablePerRow[exerciseIndex] ?? [];
+                    const emptyMessage =
+                      (exercises.data ?? []).length === 0
+                        ? "Cadastre um exercício antes"
+                        : `Nenhum exercício de ${categoryLabel(targetCategory)} encontrado`;
+                    return (
+                      <FormItem>
+                        <FormLabel className="sr-only">Exercício</FormLabel>
+                        <FormControl>
+                          <ExerciseCombobox
+                            value={f.value}
+                            onChange={f.onChange}
+                            options={rowOptions}
+                            loading={exercises.isLoading}
+                            emptyMessage={emptyMessage}
+                            onCreateRequest={(query) =>
+                              setCreatingFor({
+                                rowIndex: exerciseIndex,
+                                defaultName: query,
+                              })
+                            }
+                          />
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    );
+                  }}
+                />
 
                 <SetsField
                   exerciseIndex={exerciseIndex}
@@ -456,26 +465,16 @@ export function WorkoutForm({
             )}
         </section>
 
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/90 px-4 py-3 backdrop-blur safe-bottom md:static md:border-0 md:bg-transparent md:p-0 md:backdrop-blur-none">
-          <div className="mx-auto flex max-w-5xl items-center justify-end gap-2 md:px-0">
-            <Button
-              type="button"
-              variant="ghost"
-              onClick={() => navigate(cancelTo)}
-              disabled={isSubmitting}
-            >
-              Cancelar
-            </Button>
-            <Button
-              type="submit"
-              size="lg"
-              disabled={isSubmitting}
-              className="md:min-w-40"
-            >
-              {isSubmitting && <Loader2 className="size-4 animate-spin" />}
-              {submitLabel}
-            </Button>
-          </div>
+        <div className="-mx-4 flex items-center justify-end gap-2 border-t border-border bg-card/30 px-4 py-4 md:mx-0 md:border-0 md:bg-transparent md:px-0 md:pt-2">
+          <Button
+            type="submit"
+            size="lg"
+            disabled={isSubmitting}
+            className="w-full md:w-auto md:min-w-40"
+          >
+            {isSubmitting && <Loader2 className="size-4 animate-spin" />}
+            {submitLabel}
+          </Button>
         </div>
       </form>
     </Form>
@@ -651,7 +650,7 @@ function TemplateSelector({
     return (
       <section className="rounded-xl border border-dashed border-border bg-card/40 p-4">
         <p className="text-sm text-muted-foreground">
-          Sem modelo cadastrado pra esse tipo.{" "}
+          Sem modelo cadastrado.{" "}
           <Link
             to="/templates/new"
             className="font-medium text-foreground underline-offset-4 hover:underline"
@@ -664,50 +663,144 @@ function TemplateSelector({
     );
   }
   return (
-    <section className="rounded-xl border border-border bg-card p-4 space-y-2">
+    <section className="rounded-xl border border-border bg-card p-4 space-y-3">
       <div className="flex items-center justify-between gap-3">
         <div>
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
             Modelo
           </p>
           <p className="text-sm text-muted-foreground">
-            Aplique um modelo pra pré-popular nome, ordem e séries.
+            Selecione um modelo — o tipo do treino é ajustado automaticamente.
           </p>
         </div>
         <Link
           to="/templates"
-          className="text-xs text-muted-foreground underline-offset-4 hover:underline"
+          className="shrink-0 text-xs text-muted-foreground underline-offset-4 hover:underline"
         >
           Gerenciar
         </Link>
       </div>
-      <Select
-        value={
-          selectedId && templates.some((t) => t.id === selectedId)
-            ? selectedId
-            : undefined
-        }
-        onValueChange={(value) => {
-          const t = templates.find((x) => x.id === value);
-          if (t) onApply(t);
-        }}
-      >
-        <SelectTrigger>
-          <SelectValue placeholder="Selecionar modelo…" />
-        </SelectTrigger>
-        <SelectContent>
-          {templates.map((t) => (
-            <SelectItem key={t.id} value={t.id}>
-              {t.name}
-              <span className="ml-2 text-xs text-muted-foreground">
-                ({t.exercises.length} exercício
-                {t.exercises.length === 1 ? "" : "s"})
-              </span>
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
+
+      <div className="md:hidden">
+        <TemplateCombobox
+          templates={templates}
+          selectedId={selectedId}
+          onApply={onApply}
+        />
+      </div>
+
+      <ul className="hidden md:flex md:flex-wrap gap-2">
+        {templates.map((t) => {
+          const isActive = selectedId === t.id;
+          return (
+            <li key={t.id}>
+              <button
+                type="button"
+                onClick={() => onApply(t)}
+                aria-pressed={isActive}
+                className={cn(
+                  "flex w-40 flex-col items-start gap-1 rounded-lg border px-3 py-2.5 text-left transition-all",
+                  isActive
+                    ? "border-primary bg-primary/10 ring-2 ring-primary/30"
+                    : "border-border bg-background hover:border-foreground/30 hover:bg-accent/40",
+                )}
+              >
+                <span
+                  className={cn(
+                    "font-mono text-[9px] uppercase tracking-[0.18em]",
+                    isActive ? "text-primary" : "text-muted-foreground",
+                  )}
+                >
+                  {workoutTypeLabel(t.workoutType)}
+                </span>
+                <span className="line-clamp-1 text-sm font-semibold">
+                  {t.name}
+                </span>
+                <span className="text-[11px] text-muted-foreground">
+                  {t.exercises.length} exercício
+                  {t.exercises.length === 1 ? "" : "s"}
+                </span>
+              </button>
+            </li>
+          );
+        })}
+      </ul>
     </section>
+  );
+}
+
+function TemplateCombobox({
+  templates,
+  selectedId,
+  onApply,
+}: {
+  templates: WorkoutTemplate[];
+  selectedId: string | null;
+  onApply: (t: WorkoutTemplate) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const selected = templates.find((t) => t.id === selectedId);
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          role="combobox"
+          aria-expanded={open}
+          className={cn(
+            "flex h-11 w-full items-center justify-between gap-2 rounded-md border border-input bg-background px-3 py-2 text-base shadow-xs",
+            "focus:outline-hidden focus:ring-2 focus:ring-ring",
+            !selected && "text-muted-foreground",
+          )}
+        >
+          {selected ? (
+            <span className="flex min-w-0 flex-1 items-center gap-2">
+              <span className="truncate text-left text-sm font-medium text-foreground">
+                {selected.name}
+              </span>
+              <span className="shrink-0 text-xs text-muted-foreground">
+                {selected.exercises.length} ex.
+              </span>
+            </span>
+          ) : (
+            <span className="truncate text-left">Selecionar modelo…</span>
+          )}
+          <ChevronsUpDown className="size-4 shrink-0 opacity-60" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        className="w-[var(--radix-popover-trigger-width)] p-0"
+        align="start"
+      >
+        <Command>
+          <CommandInput placeholder="Buscar modelo…" />
+          <CommandList>
+            <CommandEmpty>Nenhum modelo encontrado</CommandEmpty>
+            {templates.map((t) => (
+              <CommandItem
+                key={t.id}
+                value={`${t.name} ${workoutTypeLabel(t.workoutType)}`.toLowerCase()}
+                onSelect={() => {
+                  onApply(t);
+                  setOpen(false);
+                }}
+              >
+                <Check
+                  className={cn(
+                    "size-4",
+                    selectedId === t.id ? "opacity-100" : "opacity-0",
+                  )}
+                />
+                <span className="flex-1 truncate">{t.name}</span>
+                <span className="ml-2 shrink-0 text-xs text-muted-foreground">
+                  {t.exercises.length} ex.
+                </span>
+              </CommandItem>
+            ))}
+          </CommandList>
+        </Command>
+      </PopoverContent>
+    </Popover>
   );
 }
 

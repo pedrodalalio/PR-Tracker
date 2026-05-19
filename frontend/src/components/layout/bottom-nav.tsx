@@ -1,7 +1,6 @@
 import {
   CalendarDays,
   Dumbbell,
-  Footprints,
   Home,
   LineChart,
   Plus,
@@ -9,11 +8,13 @@ import {
 import { NavLink, useLocation, useNavigate } from "react-router";
 import { cn } from "@/lib/utils";
 
-const items = [
+const leftItems = [
   { to: "/", label: "Início", icon: Home, end: true },
   { to: "/workouts", label: "Treinos", icon: Dumbbell, end: false },
+] as const;
+
+const rightItems = [
   { to: "/calendar", label: "Calendário", icon: CalendarDays, end: false },
-  { to: "/runs", label: "Corridas", icon: Footprints, end: false },
   { to: "/progress", label: "Progresso", icon: LineChart, end: false },
 ] as const;
 
@@ -27,36 +28,41 @@ export function BottomNav() {
       className="md:hidden fixed inset-x-0 bottom-0 z-40 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/80 safe-bottom"
       aria-label="Navegação principal"
     >
-      <div className="relative mx-auto grid max-w-2xl grid-cols-6 px-2 pb-1 pt-1.5">
-        <NavItem item={items[0]} />
-        <NavItem item={items[1]} />
-        <NavItem item={items[2]} />
-        <div className="relative">
+      <div className="relative mx-auto flex h-14 max-w-md items-stretch px-2">
+        {leftItems.map((item) => (
+          <NavItem key={item.to} item={item} />
+        ))}
+
+        <div className="relative flex flex-1 items-end justify-center">
           <button
             type="button"
             onClick={() => navigate("/workouts/new")}
-            className={cn(
-              "absolute -top-5 left-1/2 -translate-x-1/2 flex size-14 items-center justify-center rounded-full",
-              "bg-primary text-primary-foreground shadow-lg shadow-primary/25 transition-transform active:scale-95",
-              "ring-4 ring-background",
-              onNew && "ring-primary/40",
-            )}
             aria-label="Novo treino"
+            aria-current={onNew ? "page" : undefined}
+            className={cn(
+              "absolute left-1/2 -translate-x-1/2 -top-6",
+              "flex size-14 items-center justify-center rounded-full",
+              "bg-primary text-primary-foreground",
+              "shadow-lg shadow-primary/30 ring-4 ring-background",
+              "transition-all active:scale-95 hover:shadow-primary/40",
+              onNew && "ring-primary/30 scale-105",
+            )}
           >
-            <Plus className="size-6" strokeWidth={2.5} />
+            <Plus className="size-6" strokeWidth={2.75} />
           </button>
-          <span className="block pt-9 text-center text-[10px] font-medium text-muted-foreground">
-            Novo
-          </span>
         </div>
-        <NavItem item={items[3]} />
-        <NavItem item={items[4]} />
+
+        {rightItems.map((item) => (
+          <NavItem key={item.to} item={item} />
+        ))}
       </div>
     </nav>
   );
 }
 
-function NavItem({ item }: { item: (typeof items)[number] }) {
+type Item = (typeof leftItems)[number] | (typeof rightItems)[number];
+
+function NavItem({ item }: { item: Item }) {
   const Icon = item.icon;
   return (
     <NavLink
@@ -64,13 +70,22 @@ function NavItem({ item }: { item: (typeof items)[number] }) {
       end={item.end}
       className={({ isActive }) =>
         cn(
-          "flex flex-col items-center gap-0.5 rounded-md py-1.5 text-[10px] font-medium transition-colors",
-          isActive ? "text-primary" : "text-muted-foreground",
+          "group relative flex flex-1 flex-col items-center justify-center gap-1 text-[10px] font-medium transition-colors",
+          isActive
+            ? "text-primary"
+            : "text-muted-foreground hover:text-foreground",
         )
       }
     >
       {({ isActive }) => (
         <>
+          <span
+            aria-hidden
+            className={cn(
+              "absolute top-0 h-0.5 w-8 rounded-full transition-opacity",
+              isActive ? "bg-primary opacity-100" : "opacity-0",
+            )}
+          />
           <Icon
             className={cn(
               "size-5 transition-transform",
@@ -78,7 +93,7 @@ function NavItem({ item }: { item: (typeof items)[number] }) {
             )}
             strokeWidth={isActive ? 2.5 : 2}
           />
-          <span>{item.label}</span>
+          <span className="leading-none">{item.label}</span>
         </>
       )}
     </NavLink>

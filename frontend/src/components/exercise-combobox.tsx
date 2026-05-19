@@ -98,6 +98,9 @@ export function ExerciseCombobox({
               const muscles = ex.muscleGroups
                 .map((m) => m.muscleGroup)
                 .join(" ");
+              const musclesLabel = ex.muscleGroups
+                .map((m) => m.muscleGroup)
+                .join(", ");
               return (
                 <CommandItem
                   key={ex.id}
@@ -106,19 +109,24 @@ export function ExerciseCombobox({
                     onChange(ex.id);
                     handleOpenChange(false);
                   }}
+                  className="items-start py-2.5"
                 >
                   <Check
                     className={cn(
-                      "size-4",
+                      "size-4 mt-0.5 shrink-0",
                       value === ex.id ? "opacity-100" : "opacity-0",
                     )}
                   />
-                  <span className="flex-1 truncate">{ex.name}</span>
-                  {ex.muscleGroups.length > 0 && (
-                    <span className="ml-2 truncate text-xs text-muted-foreground">
-                      {ex.muscleGroups.map((m) => m.muscleGroup).join(", ")}
-                    </span>
-                  )}
+                  <div className="min-w-0 flex-1">
+                    <div className="truncate text-sm font-medium">
+                      {ex.name}
+                    </div>
+                    {musclesLabel && (
+                      <div className="truncate text-xs text-muted-foreground">
+                        {musclesLabel}
+                      </div>
+                    )}
+                  </div>
                 </CommandItem>
               );
             })}

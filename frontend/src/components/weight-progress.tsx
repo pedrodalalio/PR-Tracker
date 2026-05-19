@@ -152,7 +152,7 @@ export function WeightProgress() {
         </div>
       )}
 
-      <section className="rounded-xl border border-border bg-card p-5">
+      <section className="overflow-hidden rounded-xl border border-border bg-card p-5">
         <header className="mb-4 flex items-baseline justify-between">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
@@ -172,7 +172,7 @@ export function WeightProgress() {
             description="Registre o peso pelo menos duas vezes pra ver o gráfico de evolução."
           />
         ) : (
-          <div className="h-72 w-full">
+          <div className="h-72 w-full min-w-0">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart
                 data={chartData}
@@ -188,13 +188,15 @@ export function WeightProgress() {
                   stroke="var(--muted-foreground)"
                   tickLine={false}
                   axisLine={false}
-                  fontSize={11}
+                  fontSize={12}
+                  minTickGap={28}
+                  interval="preserveStartEnd"
                 />
                 <YAxis
                   stroke="var(--muted-foreground)"
                   tickLine={false}
                   axisLine={false}
-                  fontSize={11}
+                  fontSize={12}
                   width={40}
                   domain={["auto", "auto"]}
                   unit=" kg"
@@ -205,7 +207,7 @@ export function WeightProgress() {
                     background: "var(--card)",
                     border: "1px solid var(--border)",
                     borderRadius: 8,
-                    fontSize: 12,
+                    fontSize: 13,
                   }}
                   labelStyle={{ color: "var(--muted-foreground)" }}
                   formatter={(_value, _name, item) => {
@@ -218,8 +220,8 @@ export function WeightProgress() {
                   dataKey="weight"
                   stroke="var(--primary)"
                   strokeWidth={2.5}
-                  dot={{ fill: "var(--primary)", r: 3 }}
-                  activeDot={{ r: 5 }}
+                  dot={{ fill: "var(--primary)", r: 3.5 }}
+                  activeDot={{ r: 6 }}
                 />
               </LineChart>
             </ResponsiveContainer>

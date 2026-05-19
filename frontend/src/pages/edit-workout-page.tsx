@@ -122,7 +122,6 @@ export function EditWorkoutPage() {
         onSubmit={onSubmit}
         submitLabel="Salvar alterações"
         isSubmitting={update.isPending}
-        cancelTo={`/workouts/${id}`}
       />
     </div>
   );

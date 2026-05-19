@@ -73,7 +73,6 @@ export function NewWorkoutPage() {
         onSubmit={onSubmit}
         submitLabel="Salvar treino"
         isSubmitting={create.isPending}
-        cancelTo="/workouts"
         availableTemplates={templates.data ?? []}
         compareWithHistory
       />

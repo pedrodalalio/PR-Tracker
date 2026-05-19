@@ -13,6 +13,7 @@ import {
   CartesianGrid,
   Bar,
   BarChart,
+  LabelList,
   Line,
   LineChart,
   ReferenceDot,
@@ -33,6 +34,7 @@ import {
 } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useGoals } from "@/hooks/use-goals";
+import { useMediaQuery } from "@/hooks/use-media-query";
 import { useWorkouts } from "@/hooks/use-workouts";
 import { computeStreaks } from "@/lib/streak";
 import { cn } from "@/lib/utils";
@@ -48,6 +50,7 @@ interface ProgressPoint {
 export function ProgressPage() {
   const workouts = useWorkouts();
   const goals = useGoals();
+  const isMobile = useMediaQuery("(max-width: 767px)");
 
   const weeklyGoal = goals.data?.weeklyWorkoutGoal ?? 1;
   const streaks = useMemo(
@@ -226,7 +229,7 @@ export function ProgressPage() {
         />
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-5">
+      <section className="overflow-hidden rounded-xl border border-border bg-card p-5">
         <header className="mb-4 flex items-baseline justify-between">
           <div>
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
@@ -240,12 +243,78 @@ export function ProgressPage() {
             últimas 12 semanas
           </span>
         </header>
-        <div className="h-64 w-full">
+        <div
+          className="w-full min-w-0"
+          style={{ height: isMobile ? 360 : 288 }}
+        >
           {workouts.isLoading ? (
             <Skeleton className="h-full w-full" />
+          ) : isMobile ? (
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart
+                data={weeklyData}
+                layout="vertical"
+                margin={{ top: 4, right: 28, bottom: 0, left: 0 }}
+              >
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  stroke="var(--border)"
+                  horizontal={false}
+                />
+                <XAxis
+                  type="number"
+                  stroke="var(--muted-foreground)"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  allowDecimals={false}
+                  hide
+                />
+                <YAxis
+                  type="category"
+                  dataKey="week"
+                  stroke="var(--muted-foreground)"
+                  tickLine={false}
+                  axisLine={false}
+                  fontSize={11}
+                  width={48}
+                />
+                <Tooltip
+                  cursor={{ fill: "var(--accent)", opacity: 0.4 }}
+                  contentStyle={{
+                    background: "var(--card)",
+                    border: "1px solid var(--border)",
+                    borderRadius: 8,
+                    fontSize: 13,
+                  }}
+                  labelStyle={{ color: "var(--muted-foreground)" }}
+                  formatter={(value) => {
+                    const v = Number(value);
+                    return [`${v} treino${v === 1 ? "" : "s"}`, ""];
+                  }}
+                />
+                <Bar
+                  dataKey="treinos"
+                  fill="var(--primary)"
+                  radius={[0, 6, 6, 0]}
+                  maxBarSize={18}
+                >
+                  <LabelList
+                    dataKey="treinos"
+                    position="right"
+                    fontSize={11}
+                    fill="var(--muted-foreground)"
+                    formatter={(v: number) => (v > 0 ? v : "")}
+                  />
+                </Bar>
+              </BarChart>
+            </ResponsiveContainer>
           ) : (
             <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={weeklyData}>
+              <BarChart
+                data={weeklyData}
+                margin={{ top: 20, right: 4, bottom: 0, left: 0 }}
+              >
                 <CartesianGrid
                   strokeDasharray="3 3"
                   stroke="var(--border)"
@@ -256,13 +325,15 @@ export function ProgressPage() {
                   stroke="var(--muted-foreground)"
                   tickLine={false}
                   axisLine={false}
-                  fontSize={11}
+                  fontSize={12}
+                  minTickGap={24}
+                  interval="preserveStartEnd"
                 />
                 <YAxis
                   stroke="var(--muted-foreground)"
                   tickLine={false}
                   axisLine={false}
-                  fontSize={11}
+                  fontSize={12}
                   width={28}
                   allowDecimals={false}
                 />
@@ -272,7 +343,7 @@ export function ProgressPage() {
                     background: "var(--card)",
                     border: "1px solid var(--border)",
                     borderRadius: 8,
-                    fontSize: 12,
+                    fontSize: 13,
                   }}
                   labelStyle={{ color: "var(--muted-foreground)" }}
                   formatter={(value) => {
@@ -285,14 +356,22 @@ export function ProgressPage() {
                   fill="var(--primary)"
                   radius={[6, 6, 0, 0]}
                   maxBarSize={32}
-                />
+                >
+                  <LabelList
+                    dataKey="treinos"
+                    position="top"
+                    fontSize={11}
+                    fill="var(--muted-foreground)"
+                    formatter={(v: number) => (v > 0 ? v : "")}
+                  />
+                </Bar>
               </BarChart>
             </ResponsiveContainer>
           )}
         </div>
       </section>
 
-      <section className="rounded-xl border border-border bg-card p-5">
+      <section className="overflow-hidden rounded-xl border border-border bg-card p-5">
         <header className="mb-4">
           <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
             Evolução
@@ -414,7 +493,7 @@ function ExerciseProgressCard({
   const delta = last.weight - first.weight;
 
   return (
-    <div className="rounded-xl border border-border bg-background/30 p-4 space-y-3">
+    <div className="overflow-hidden rounded-xl border border-border bg-background/30 p-4 space-y-3">
       <div className="flex items-baseline justify-between gap-2">
         <h3 className="truncate font-medium">{name}</h3>
         <span className="font-mono text-[10px] uppercase tracking-wider text-muted-foreground">
@@ -434,11 +513,11 @@ function ExerciseProgressCard({
           tone={delta > 0 ? "positive" : delta < 0 ? "negative" : "neutral"}
         />
       </div>
-      <div className="h-44">
+      <div className="h-52 w-full min-w-0 sm:h-44">
         <ResponsiveContainer width="100%" height="100%">
           <LineChart
             data={points}
-            margin={{ top: 4, right: 8, bottom: 0, left: 0 }}
+            margin={{ top: 8, right: 12, bottom: 0, left: 0 }}
           >
             <CartesianGrid
               strokeDasharray="3 3"
@@ -450,14 +529,16 @@ function ExerciseProgressCard({
               stroke="var(--muted-foreground)"
               tickLine={false}
               axisLine={false}
-              fontSize={10}
+              fontSize={11}
+              minTickGap={28}
+              interval="preserveStartEnd"
             />
             <YAxis
               stroke="var(--muted-foreground)"
               tickLine={false}
               axisLine={false}
-              fontSize={10}
-              width={32}
+              fontSize={11}
+              width={36}
               domain={["auto", "auto"]}
               unit=" kg"
             />
@@ -467,7 +548,7 @@ function ExerciseProgressCard({
                 background: "var(--card)",
                 border: "1px solid var(--border)",
                 borderRadius: 8,
-                fontSize: 12,
+                fontSize: 13,
               }}
               labelStyle={{ color: "var(--muted-foreground)" }}
               formatter={(_v, _n, item) => {
@@ -479,14 +560,14 @@ function ExerciseProgressCard({
               type="monotone"
               dataKey="weight"
               stroke="var(--primary)"
-              strokeWidth={2}
-              dot={{ fill: "var(--primary)", r: 2.5 }}
-              activeDot={{ r: 4 }}
+              strokeWidth={2.5}
+              dot={{ fill: "var(--primary)", r: 3 }}
+              activeDot={{ r: 6 }}
             />
             <ReferenceDot
               x={pr.dateLabel}
               y={pr.weight}
-              r={5}
+              r={6}
               fill="var(--primary)"
               stroke="var(--background)"
               strokeWidth={2}
