@@ -20,7 +20,7 @@ interface AppHeaderProps {
 }
 
 const moreItems = [
-  { to: "/runs", label: "Corridas" },
+  { to: "/calendar", label: "Calendário" },
   { to: "/reports", label: "Relatórios" },
   { to: "/exercises", label: "Exercícios" },
   { to: "/exercises/manage", label: "Gerenciar exercícios" },
