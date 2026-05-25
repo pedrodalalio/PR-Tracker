@@ -537,18 +537,24 @@ function SetsField({
               control={control}
               name={`exercises.${exerciseIndex}.sets.${setIndex}.reps`}
               render={({ field: f }) => (
-                <Input
-                  type="number"
-                  inputMode="numeric"
-                  min={0}
-                  className="text-center font-mono"
-                  value={Number.isFinite(f.value) ? f.value : ""}
-                  onChange={(e) =>
-                    f.onChange(
-                      e.target.value === "" ? 0 : Number(e.target.value),
-                    )
-                  }
-                />
+                <div className="flex flex-col gap-0.5">
+                  <Input
+                    type="number"
+                    inputMode="numeric"
+                    min={0}
+                    className="text-center font-mono"
+                    value={Number.isFinite(f.value) ? f.value : ""}
+                    onChange={(e) =>
+                      f.onChange(
+                        e.target.value === "" ? 0 : Number(e.target.value),
+                      )
+                    }
+                  />
+                  <RepsDeltaLabel
+                    current={f.value}
+                    previous={previousSets?.[setIndex]?.reps}
+                  />
+                </div>
               )}
             />
             <Controller
@@ -824,6 +830,33 @@ function WeightDeltaLabel({
           : "text-amber-600 dark:text-amber-400"
       }`}
       title={`Última vez: ${formatKgValue(previous)} kg`}
+    >
+      {text}
+    </span>
+  );
+}
+
+function RepsDeltaLabel({
+  current,
+  previous,
+}: {
+  current: number;
+  previous: number | undefined;
+}) {
+  if (previous === undefined || !Number.isFinite(previous)) return null;
+  if (!Number.isFinite(current)) return null;
+  const delta = current - previous;
+  if (delta === 0) return null;
+  const more = delta > 0;
+  const text = `${more ? "↑" : "↓"} ${Math.abs(delta)} rep${Math.abs(delta) === 1 ? "" : "s"}`;
+  return (
+    <span
+      className={`px-1 text-center font-mono text-[10px] tabular-nums leading-none ${
+        more
+          ? "text-emerald-600 dark:text-emerald-400"
+          : "text-amber-600 dark:text-amber-400"
+      }`}
+      title={`Última vez: ${previous} rep${previous === 1 ? "" : "s"}`}
     >
       {text}
     </span>

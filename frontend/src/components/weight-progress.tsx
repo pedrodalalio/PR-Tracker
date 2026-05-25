@@ -19,6 +19,13 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
+import {
+  BioimpedanceFields,
+  bioFromEntry,
+  emptyBio,
+  parseBio,
+  type BioFormState,
+} from "@/components/weight-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -280,6 +287,7 @@ export function WeightProgress() {
                       {entry.notes}
                     </p>
                   )}
+                  <BioMetricsRow entry={entry} />
                 </div>
                 <div className="flex shrink-0 items-center gap-1">
                   <Button
@@ -422,6 +430,15 @@ function EditWeightForm({ entry, onClose }: EditWeightFormProps) {
   const [weight, setWeight] = useState(() => entry.weight.toString());
   const [date, setDate] = useState(() => toLocalDateInput(entry.recordedAt));
   const [notes, setNotes] = useState(() => entry.notes ?? "");
+  const [bio, setBio] = useState<BioFormState>(() => bioFromEntry(entry));
+
+  const hasBio =
+    entry.bodyFatPct != null ||
+    entry.muscleMassKg != null ||
+    entry.maintenanceKcal != null ||
+    entry.metabolicAge != null ||
+    entry.visceralFat != null ||
+    entry.bmi != null;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -438,6 +455,12 @@ function EditWeightForm({ entry, onClose }: EditWeightFormProps) {
       return;
     }
 
+    const bioParsed = parseBio(bio);
+    if (bioParsed.error) {
+      toast.error(bioParsed.error);
+      return;
+    }
+
     try {
       await update.mutateAsync({
         id: entry.id,
@@ -445,6 +468,7 @@ function EditWeightForm({ entry, onClose }: EditWeightFormProps) {
           weight: parsed,
           recordedAt: recordedAt.toISOString(),
           notes: notes.trim() ? notes.trim() : null,
+          ...bioParsed.values,
         },
       });
       toast.success("Registro atualizado");
@@ -497,6 +521,14 @@ function EditWeightForm({ entry, onClose }: EditWeightFormProps) {
             maxLength={120}
           />
         </div>
+
+        <BioimpedanceFields
+          value={bio}
+          onChange={setBio}
+          idPrefix={`edit-${entry.id}`}
+          defaultOpen={hasBio}
+        />
+
         <DialogFooter>
           <Button
             type="button"
@@ -513,4 +545,44 @@ function EditWeightForm({ entry, onClose }: EditWeightFormProps) {
       </form>
     </DialogContent>
   );
+}
+
+function BioMetricsRow({ entry }: { entry: WeightEntry }) {
+  const items: Array<{ label: string; value: string }> = [];
+  if (entry.bodyFatPct != null) {
+    items.push({ label: "Gordura", value: `${formatNumber(entry.bodyFatPct, 1)}%` });
+  }
+  if (entry.muscleMassKg != null) {
+    items.push({ label: "Músculo", value: `${formatNumber(entry.muscleMassKg, 1)} kg` });
+  }
+  if (entry.bmi != null) {
+    items.push({ label: "IMC", value: formatNumber(entry.bmi, 1) });
+  }
+  if (entry.visceralFat != null) {
+    items.push({ label: "Visceral", value: formatNumber(entry.visceralFat, 1) });
+  }
+  if (entry.maintenanceKcal != null) {
+    items.push({ label: "Manutenção", value: `${entry.maintenanceKcal} kcal` });
+  }
+  if (entry.metabolicAge != null) {
+    items.push({ label: "Idade metab.", value: `${entry.metabolicAge} anos` });
+  }
+  if (items.length === 0) return null;
+  return (
+    <ul className="mt-1.5 flex flex-wrap gap-x-3 gap-y-1">
+      {items.map((it) => (
+        <li
+          key={it.label}
+          className="inline-flex items-baseline gap-1 font-mono text-[11px] tabular-nums text-muted-foreground"
+        >
+          <span className="uppercase tracking-wider text-[9px]">{it.label}</span>
+          <span className="font-semibold text-foreground/80">{it.value}</span>
+        </li>
+      ))}
+    </ul>
+  );
+}
+
+function formatNumber(value: number, decimals: number): string {
+  return value.toFixed(decimals).replace(".", ",");
 }

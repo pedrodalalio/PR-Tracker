@@ -1,4 +1,4 @@
-import { History, Scale, TrendingDown, TrendingUp } from "lucide-react";
+import { ChevronDown, History, Scale, TrendingDown, TrendingUp } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link } from "react-router";
 import { toast } from "sonner";
@@ -91,16 +91,7 @@ export function WeightCard() {
                   kg
                 </span>
                 {delta && (
-                  <span
-                    className={cn(
-                      "inline-flex items-center gap-1 rounded-full border px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em]",
-                      delta.diff > 0
-                        ? "border-amber-500/40 bg-amber-500/10 text-amber-600 dark:text-amber-400"
-                        : delta.diff < 0
-                          ? "border-emerald-500/40 bg-emerald-500/10 text-emerald-600 dark:text-emerald-400"
-                          : "border-border bg-muted text-muted-foreground",
-                    )}
-                  >
+                  <span className="inline-flex items-center gap-1 rounded-full border border-border bg-muted px-2 py-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                     {delta.diff > 0 ? (
                       <TrendingUp className="size-3" />
                     ) : delta.diff < 0 ? (
@@ -185,6 +176,7 @@ function WeightDialogForm({ latest, onClose }: WeightDialogFormProps) {
   );
   const [date, setDate] = useState(() => todayLocalDate());
   const [notes, setNotes] = useState("");
+  const [bio, setBio] = useState<BioFormState>(() => emptyBio());
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -200,11 +192,18 @@ function WeightDialogForm({ latest, onClose }: WeightDialogFormProps) {
       return;
     }
 
+    const bioParsed = parseBio(bio);
+    if (bioParsed.error) {
+      toast.error(bioParsed.error);
+      return;
+    }
+
     try {
       await create.mutateAsync({
         weight: parsed,
         recordedAt: recordedAt.toISOString(),
         notes: notes.trim() || undefined,
+        ...bioParsed.values,
       });
       toast.success("Peso registrado");
       onClose();
@@ -267,6 +266,9 @@ function WeightDialogForm({ latest, onClose }: WeightDialogFormProps) {
             maxLength={120}
           />
         </div>
+
+        <BioimpedanceFields value={bio} onChange={setBio} idPrefix="new" />
+
         <DialogFooter>
           <Button
             type="button"
@@ -282,5 +284,215 @@ function WeightDialogForm({ latest, onClose }: WeightDialogFormProps) {
         </DialogFooter>
       </form>
     </DialogContent>
+  );
+}
+
+export interface BioFormState {
+  bodyFatPct: string;
+  muscleMassKg: string;
+  maintenanceKcal: string;
+  metabolicAge: string;
+  visceralFat: string;
+  bmi: string;
+}
+
+export function emptyBio(): BioFormState {
+  return {
+    bodyFatPct: "",
+    muscleMassKg: "",
+    maintenanceKcal: "",
+    metabolicAge: "",
+    visceralFat: "",
+    bmi: "",
+  };
+}
+
+export function bioFromEntry(entry: WeightEntry): BioFormState {
+  const fmt = (v: number | null | undefined) =>
+    v === null || v === undefined ? "" : String(v).replace(".", ",");
+  return {
+    bodyFatPct: fmt(entry.bodyFatPct),
+    muscleMassKg: fmt(entry.muscleMassKg),
+    maintenanceKcal: fmt(entry.maintenanceKcal),
+    metabolicAge: fmt(entry.metabolicAge),
+    visceralFat: fmt(entry.visceralFat),
+    bmi: fmt(entry.bmi),
+  };
+}
+
+interface ParsedBio {
+  error?: string;
+  values: {
+    bodyFatPct: number | null;
+    muscleMassKg: number | null;
+    maintenanceKcal: number | null;
+    metabolicAge: number | null;
+    visceralFat: number | null;
+    bmi: number | null;
+  };
+}
+
+export function parseBio(state: BioFormState): ParsedBio {
+  const empty = {
+    bodyFatPct: null,
+    muscleMassKg: null,
+    maintenanceKcal: null,
+    metabolicAge: null,
+    visceralFat: null,
+    bmi: null,
+  };
+  const float = (raw: string, label: string, min: number, max: number) => {
+    const t = raw.trim();
+    if (!t) return { ok: true as const, value: null };
+    const n = Number(t.replace(",", "."));
+    if (!Number.isFinite(n) || n < min || n > max) {
+      return { ok: false as const, error: `${label} inválido` };
+    }
+    return { ok: true as const, value: Math.round(n * 10) / 10 };
+  };
+  const int = (raw: string, label: string, min: number, max: number) => {
+    const t = raw.trim();
+    if (!t) return { ok: true as const, value: null };
+    const n = Number(t);
+    if (!Number.isFinite(n)) return { ok: false as const, error: `${label} inválido` };
+    const r = Math.round(n);
+    if (r < min || r > max) return { ok: false as const, error: `${label} inválido` };
+    return { ok: true as const, value: r };
+  };
+
+  const fat = float(state.bodyFatPct, "Gordura corporal", 0, 100);
+  if (!fat.ok) return { error: fat.error, values: empty };
+  const muscle = float(state.muscleMassKg, "Massa muscular", 0, 500);
+  if (!muscle.ok) return { error: muscle.error, values: empty };
+  const visc = float(state.visceralFat, "Gordura visceral", 0, 100);
+  if (!visc.ok) return { error: visc.error, values: empty };
+  const bmi = float(state.bmi, "IMC", 0, 100);
+  if (!bmi.ok) return { error: bmi.error, values: empty };
+  const kcal = int(state.maintenanceKcal, "Calorias", 0, 10000);
+  if (!kcal.ok) return { error: kcal.error, values: empty };
+  const age = int(state.metabolicAge, "Idade metabólica", 0, 150);
+  if (!age.ok) return { error: age.error, values: empty };
+  return {
+    values: {
+      bodyFatPct: fat.value,
+      muscleMassKg: muscle.value,
+      maintenanceKcal: kcal.value,
+      metabolicAge: age.value,
+      visceralFat: visc.value,
+      bmi: bmi.value,
+    },
+  };
+}
+
+interface BioimpedanceFieldsProps {
+  value: BioFormState;
+  onChange: (v: BioFormState) => void;
+  idPrefix: string;
+  defaultOpen?: boolean;
+}
+
+export function BioimpedanceFields({
+  value,
+  onChange,
+  idPrefix,
+  defaultOpen,
+}: BioimpedanceFieldsProps) {
+  const set = <K extends keyof BioFormState>(key: K, v: string) =>
+    onChange({ ...value, [key]: v });
+  return (
+    <details
+      className="group rounded-lg border border-border bg-background/40 [&[open]>summary]:border-b [&[open]>summary]:border-border"
+      open={defaultOpen}
+    >
+      <summary className="flex cursor-pointer items-center justify-between gap-2 px-3 py-2.5 text-sm font-medium text-foreground select-none">
+        <span>Avançado — bioimpedância</span>
+        <ChevronDown className="size-4 text-muted-foreground transition-transform group-open:rotate-180" />
+      </summary>
+      <div className="grid grid-cols-2 gap-3 p-3">
+        <BioField
+          id={`${idPrefix}-bodyFatPct`}
+          label="Gordura (%)"
+          value={value.bodyFatPct}
+          onChange={(v) => set("bodyFatPct", v)}
+          placeholder="22,5"
+          decimal
+        />
+        <BioField
+          id={`${idPrefix}-muscleMassKg`}
+          label="Músculo (kg)"
+          value={value.muscleMassKg}
+          onChange={(v) => set("muscleMassKg", v)}
+          placeholder="32,1"
+          decimal
+        />
+        <BioField
+          id={`${idPrefix}-bmi`}
+          label="IMC"
+          value={value.bmi}
+          onChange={(v) => set("bmi", v)}
+          placeholder="24,5"
+          decimal
+        />
+        <BioField
+          id={`${idPrefix}-visceralFat`}
+          label="Gordura visceral"
+          value={value.visceralFat}
+          onChange={(v) => set("visceralFat", v)}
+          placeholder="8"
+          decimal
+        />
+        <BioField
+          id={`${idPrefix}-maintenanceKcal`}
+          label="Manutenção (kcal)"
+          value={value.maintenanceKcal}
+          onChange={(v) => set("maintenanceKcal", v)}
+          placeholder="2200"
+        />
+        <BioField
+          id={`${idPrefix}-metabolicAge`}
+          label="Idade metabólica"
+          value={value.metabolicAge}
+          onChange={(v) => set("metabolicAge", v)}
+          placeholder="28"
+        />
+      </div>
+    </details>
+  );
+}
+
+function BioField({
+  id,
+  label,
+  value,
+  onChange,
+  placeholder,
+  decimal,
+}: {
+  id: string;
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  placeholder?: string;
+  decimal?: boolean;
+}) {
+  return (
+    <div className="space-y-1.5">
+      <Label htmlFor={id} className="text-xs">
+        {label}
+      </Label>
+      <Input
+        id={id}
+        type="text"
+        inputMode={decimal ? "decimal" : "numeric"}
+        value={value}
+        onChange={(e) => {
+          const raw = e.target.value;
+          const pattern = decimal ? /^\d*[.,]?\d*$/ : /^\d*$/;
+          if (raw === "" || pattern.test(raw)) onChange(raw);
+        }}
+        placeholder={placeholder}
+        className="font-mono"
+      />
+    </div>
   );
 }

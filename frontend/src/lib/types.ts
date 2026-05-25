@@ -179,6 +179,12 @@ export const weightEntrySchema = z.object({
   weight: z.number().positive(),
   recordedAt: z.string(),
   notes: z.string().nullable().optional(),
+  bodyFatPct: z.number().nullable().optional(),
+  muscleMassKg: z.number().nullable().optional(),
+  maintenanceKcal: z.number().nullable().optional(),
+  metabolicAge: z.number().nullable().optional(),
+  visceralFat: z.number().nullable().optional(),
+  bmi: z.number().nullable().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

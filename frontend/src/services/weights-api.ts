@@ -4,13 +4,22 @@ import { db, type CachedWeight } from "@/lib/db";
 import { enqueueOutbox } from "@/lib/sync";
 import { weightEntrySchema, type WeightEntry } from "@/lib/types";
 
-export interface CreateWeightInput {
+export interface BioimpedanceInput {
+  bodyFatPct?: number | null;
+  muscleMassKg?: number | null;
+  maintenanceKcal?: number | null;
+  metabolicAge?: number | null;
+  visceralFat?: number | null;
+  bmi?: number | null;
+}
+
+export interface CreateWeightInput extends BioimpedanceInput {
   weight: number;
   recordedAt?: string;
   notes?: string;
 }
 
-export interface UpdateWeightInput {
+export interface UpdateWeightInput extends BioimpedanceInput {
   weight?: number;
   recordedAt?: string;
   notes?: string | null;
@@ -57,6 +66,12 @@ export const weightsApi = {
           weight: input.weight,
           recordedAt: input.recordedAt ?? new Date().toISOString(),
           notes: input.notes ?? null,
+          bodyFatPct: input.bodyFatPct ?? null,
+          muscleMassKg: input.muscleMassKg ?? null,
+          maintenanceKcal: input.maintenanceKcal ?? null,
+          metabolicAge: input.metabolicAge ?? null,
+          visceralFat: input.visceralFat ?? null,
+          bmi: input.bmi ?? null,
         };
         await db.weights.put(optimistic);
         await enqueueOutbox({

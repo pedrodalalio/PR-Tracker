@@ -259,13 +259,20 @@ model Run {
 }
 
 model WeightEntry {
-  id         String   @id @default(uuid())
-  userId     String
-  weight     Float
-  recordedAt DateTime
-  notes      String?
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
+  id              String   @id @default(uuid())
+  userId          String
+  weight          Float
+  recordedAt      DateTime
+  notes           String?
+  // Métricas opcionais de bioimpedância (ex.: balança Xiaomi/Omron).
+  bodyFatPct      Float?
+  muscleMassKg    Float?
+  maintenanceKcal Int?
+  metabolicAge    Int?
+  visceralFat     Float?
+  bmi             Float?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
 
   // Relations
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
