@@ -17,7 +17,6 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { useCreateWeight, useWeights } from "@/hooks/use-weights";
 import { formatRelative } from "@/lib/format";
 import type { WeightEntry } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
 function todayLocalDate(): string {
   const now = new Date();

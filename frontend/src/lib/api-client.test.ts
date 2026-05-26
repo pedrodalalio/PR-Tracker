@@ -1,15 +1,23 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ApiError, NetworkError, apiClient } from "./api-client";
+import {
+  ApiError,
+  AUTH_CLEARED_EVENT,
+  NetworkError,
+  apiClient,
+} from "./api-client";
+import { setAccessToken } from "./auth-storage";
 
 const fetchMock = vi.fn();
 
 beforeEach(() => {
   fetchMock.mockReset();
   vi.stubGlobal("fetch", fetchMock);
+  setAccessToken(null);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
+  setAccessToken(null);
 });
 
 function jsonResponse(body: unknown, init: ResponseInit = {}) {
@@ -73,6 +81,87 @@ describe("apiClient", () => {
     expect(url.searchParams.get("muscle")).toBe("peito");
     expect(url.searchParams.get("page")).toBe("2");
     expect(url.searchParams.has("empty")).toBe(false);
+  });
+});
+
+describe("apiClient refresh-on-401", () => {
+  it("renova o access token em 401 e re-executa a request original", async () => {
+    setAccessToken("old-token");
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "Token expirado" }, { status: 401 }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ token: "new-token" }))
+      .mockResolvedValueOnce(jsonResponse({ ok: true }));
+
+    const data = await apiClient.get<{ ok: boolean }>("/workouts");
+    expect(data).toEqual({ ok: true });
+    expect(fetchMock.mock.calls).toHaveLength(3);
+    const refreshCall = fetchMock.mock.calls[1]!;
+    expect(String(refreshCall[0])).toContain("/auth/refresh");
+    const retryHeaders = fetchMock.mock.calls[2]![1].headers as Headers;
+    expect(retryHeaders.get("Authorization")).toBe("Bearer new-token");
+  });
+
+  it("derruba a sessão quando o refresh devolve 401 (cookie inválido)", async () => {
+    setAccessToken("old-token");
+    const onCleared = vi.fn();
+    window.addEventListener(AUTH_CLEARED_EVENT, onCleared);
+
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "expired" }, { status: 401 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "Refresh inválido" }, { status: 401 }),
+      );
+
+    await expect(apiClient.get("/workouts")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 401,
+    });
+    expect(onCleared).toHaveBeenCalled();
+    window.removeEventListener(AUTH_CLEARED_EVENT, onCleared);
+  });
+
+  it("preserva a sessão quando o refresh falha por erro transiente", async () => {
+    setAccessToken("old-token");
+    const onCleared = vi.fn();
+    window.addEventListener(AUTH_CLEARED_EVENT, onCleared);
+
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "expired" }, { status: 401 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "Bad gateway" }, { status: 502 }),
+      );
+
+    await expect(apiClient.get("/workouts")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 401,
+    });
+    expect(onCleared).not.toHaveBeenCalled();
+    window.removeEventListener(AUTH_CLEARED_EVENT, onCleared);
+  });
+
+  it("preserva a sessão quando o refresh falha por erro de rede", async () => {
+    setAccessToken("old-token");
+    const onCleared = vi.fn();
+    window.addEventListener(AUTH_CLEARED_EVENT, onCleared);
+
+    fetchMock
+      .mockResolvedValueOnce(
+        jsonResponse({ error: "expired" }, { status: 401 }),
+      )
+      .mockRejectedValueOnce(new TypeError("Failed to fetch"));
+
+    await expect(apiClient.get("/workouts")).rejects.toMatchObject({
+      name: "ApiError",
+      status: 401,
+    });
+    expect(onCleared).not.toHaveBeenCalled();
+    window.removeEventListener(AUTH_CLEARED_EVENT, onCleared);
   });
 });
 

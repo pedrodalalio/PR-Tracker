@@ -8,7 +8,7 @@ import type { PrismaClient } from '../generated/prisma';
 
 // Access token curto + refresh token de 30d (cookie httpOnly). Frontend
 // auto-renova em 401 via /auth/refresh.
-const JWT_EXPIRES_IN = '1h';
+const JWT_EXPIRES_IN = '2h';
 const REFRESH_TOKEN_EXPIRES_IN_DAYS = 30;
 const PASSWORD_RESET_TOKEN_EXPIRES_IN_MINUTES = 60;
 const EMAIL_VERIFICATION_TOKEN_EXPIRES_IN_HOURS = 48;

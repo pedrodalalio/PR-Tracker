@@ -34,9 +34,19 @@ interface RequestOptions extends Omit<RequestInit, "body"> {
 // uma vez e re-executa a request original com o novo access token. Múltiplas
 // chamadas paralelas que faltarem 401 simultaneamente compartilham a mesma
 // promise (uma só /auth/refresh roda por vez).
-let refreshInflight: Promise<string | null> | null = null;
+//
+// IMPORTANTE: a sessão só é encerrada quando o backend devolve uma resposta
+// definitiva (401/403/404) — falhas transientes (rede, 5xx, 429) propagam o
+// 401 original como erro pro caller mas preservam o token/cookie, pra não
+// derrubar o usuário no meio de um treino por causa de um soluço de rede.
+type RefreshResult =
+  | { kind: "ok"; token: string }
+  | { kind: "expired" }
+  | { kind: "transient" };
 
-async function tryRefreshAccessToken(): Promise<string | null> {
+let refreshInflight: Promise<RefreshResult> | null = null;
+
+async function tryRefreshAccessToken(): Promise<RefreshResult> {
   if (refreshInflight) return refreshInflight;
   refreshInflight = (async () => {
     try {
@@ -44,15 +54,20 @@ async function tryRefreshAccessToken(): Promise<string | null> {
         method: "POST",
         credentials: "include",
       });
-      if (!res.ok) return null;
+      if (res.status === 401 || res.status === 403 || res.status === 404) {
+        return { kind: "expired" as const };
+      }
+      if (!res.ok) {
+        return { kind: "transient" as const };
+      }
       const data = (await res.json()) as { token?: string };
       if (data.token) {
         setAccessToken(data.token);
-        return data.token;
+        return { kind: "ok" as const, token: data.token };
       }
-      return null;
+      return { kind: "transient" as const };
     } catch {
-      return null;
+      return { kind: "transient" as const };
     } finally {
       refreshInflight = null;
     }
@@ -114,8 +129,8 @@ async function request<T>(
     !isAuthRoute &&
     !_retried
   ) {
-    const newToken = await tryRefreshAccessToken();
-    if (newToken) {
+    const result = await tryRefreshAccessToken();
+    if (result.kind === "ok") {
       return request<T>(path, {
         body,
         searchParams,
@@ -125,13 +140,16 @@ async function request<T>(
         ...init,
       });
     }
-    // Refresh falhou no meio da sessão: limpa o token e avisa o AuthContext
-    // pra cair pro fluxo de "anonymous" (redireciona pra /login) ao invés
-    // de ficar firing 401 em loop nas próximas queries.
-    setAccessToken(null);
-    if (typeof window !== "undefined") {
-      window.dispatchEvent(new Event(AUTH_CLEARED_EVENT));
+    if (result.kind === "expired") {
+      // Refresh cookie inválido/expirado: limpa o token e avisa o AuthContext
+      // pra cair pro fluxo de "anonymous" (redireciona pra /login).
+      setAccessToken(null);
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(new Event(AUTH_CLEARED_EVENT));
+      }
     }
+    // result.kind === "transient": deixa o 401 cair como ApiError abaixo
+    // sem matar a sessão. O caller mostra o erro e o usuário tenta de novo.
   }
 
   if (response.status === 204) {

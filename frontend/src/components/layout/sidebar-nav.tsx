@@ -45,7 +45,7 @@ const groups = [
 
 export function SidebarNav() {
   return (
-    <aside className="hidden md:flex md:flex-col md:w-64 md:shrink-0 md:border-r md:border-border md:bg-sidebar">
+    <aside className="hidden md:sticky md:top-0 md:h-dvh md:flex md:flex-col md:w-64 md:shrink-0 md:self-start md:border-r md:border-border md:bg-sidebar">
       <div className="flex h-16 items-center px-5">
         <Brand />
       </div>

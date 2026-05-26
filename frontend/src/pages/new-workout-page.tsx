@@ -13,6 +13,9 @@ import {
 import { useCreateWorkout } from "@/hooks/use-workouts";
 import { useWorkoutTemplates } from "@/hooks/use-workout-templates";
 import { ApiError } from "@/lib/api-client";
+import { clearFormDraft } from "@/hooks/use-form-draft";
+
+const NEW_WORKOUT_DRAFT_KEY = "workout:new";
 
 export function NewWorkoutPage() {
   const navigate = useNavigate();
@@ -34,6 +37,7 @@ export function NewWorkoutPage() {
           sets: ex.sets.map((s) => ({ reps: s.reps, weight: s.weight })),
         })),
       });
+      clearFormDraft(NEW_WORKOUT_DRAFT_KEY);
       toast.success("Treino registrado!");
       navigate(`/workouts/${created.id}`, { replace: true });
     } catch (err) {
@@ -75,6 +79,7 @@ export function NewWorkoutPage() {
         isSubmitting={create.isPending}
         availableTemplates={templates.data ?? []}
         compareWithHistory
+        draftKey={NEW_WORKOUT_DRAFT_KEY}
       />
     </div>
   );

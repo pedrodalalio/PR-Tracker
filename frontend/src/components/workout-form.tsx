@@ -43,6 +43,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { useExercises } from "@/hooks/use-exercises";
+import { useFormDraft } from "@/hooks/use-form-draft";
 import { useWorkouts } from "@/hooks/use-workouts";
 import { categoryLabel, workoutTypeLabel } from "@/lib/format";
 import { cn } from "@/lib/utils";
@@ -127,6 +128,8 @@ interface WorkoutFormProps {
   isSubmitting?: boolean;
   availableTemplates?: WorkoutTemplate[];
   compareWithHistory?: boolean;
+  /** Chave usada pra salvar o rascunho em localStorage. null/undefined desativa. */
+  draftKey?: string | null;
 }
 
 export function WorkoutForm({
@@ -136,6 +139,7 @@ export function WorkoutForm({
   isSubmitting,
   availableTemplates,
   compareWithHistory = false,
+  draftKey,
 }: WorkoutFormProps) {
   const exercises = useExercises();
   const workouts = useWorkouts();
@@ -148,6 +152,8 @@ export function WorkoutForm({
     resolver: zodResolver(workoutFormSchema),
     defaultValues,
   });
+
+  const draft = useFormDraft(form, draftKey ?? null);
 
   const exerciseFields = useFieldArray({
     control: form.control,
@@ -286,6 +292,16 @@ export function WorkoutForm({
         onSubmit={form.handleSubmit(onSubmit)}
         className="space-y-8"
       >
+        {draft.restoredAt && (
+          <DraftRestoredBanner
+            restoredAt={draft.restoredAt}
+            onDiscard={() => {
+              draft.discard();
+              form.reset(defaultValues);
+            }}
+          />
+        )}
+
         {availableTemplates !== undefined && (
           <TemplateSelector
             templates={availableTemplates.filter(
@@ -871,4 +887,51 @@ function formatKgDelta(value: number): string {
 function formatKgValue(value: number): string {
   const rounded = Math.round(value * 100) / 100;
   return String(rounded).replace(".", ",");
+}
+
+function DraftRestoredBanner({
+  restoredAt,
+  onDiscard,
+}: {
+  restoredAt: Date;
+  onDiscard: () => void;
+}) {
+  return (
+    <div className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
+      <div className="min-w-0">
+        <p className="font-medium text-amber-700 dark:text-amber-300">
+          Rascunho recuperado
+        </p>
+        <p className="text-xs text-amber-700/80 dark:text-amber-300/80">
+          Última edição em {formatDraftTime(restoredAt)}. Salva automaticamente
+          enquanto você edita.
+        </p>
+      </div>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        onClick={onDiscard}
+        className="shrink-0"
+      >
+        Descartar
+      </Button>
+    </div>
+  );
+}
+
+function formatDraftTime(date: Date): string {
+  const now = new Date();
+  const sameDay =
+    date.getFullYear() === now.getFullYear() &&
+    date.getMonth() === now.getMonth() &&
+    date.getDate() === now.getDate();
+  const time = `${String(date.getHours()).padStart(2, "0")}:${String(
+    date.getMinutes(),
+  ).padStart(2, "0")}`;
+  if (sameDay) return `hoje às ${time}`;
+  const d = `${String(date.getDate()).padStart(2, "0")}/${String(
+    date.getMonth() + 1,
+  ).padStart(2, "0")}`;
+  return `${d} às ${time}`;
 }

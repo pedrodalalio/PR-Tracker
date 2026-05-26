@@ -14,12 +14,14 @@ import {
 } from "@/components/workout-form";
 import { useUpdateWorkout, useWorkout } from "@/hooks/use-workouts";
 import { ApiError } from "@/lib/api-client";
+import { clearFormDraft } from "@/hooks/use-form-draft";
 
 export function EditWorkoutPage() {
   const { id } = useParams();
   const navigate = useNavigate();
   const workoutQuery = useWorkout(id);
   const update = useUpdateWorkout(id ?? "");
+  const draftKey = id ? `workout:edit:${id}` : null;
 
   const defaults = useMemo<WorkoutFormValues | null>(() => {
     if (!workoutQuery.data) return null;
@@ -89,6 +91,7 @@ export function EditWorkoutPage() {
           })),
         })),
       });
+      if (draftKey) clearFormDraft(draftKey);
       toast.success("Treino atualizado");
       navigate(`/workouts/${id}`, { replace: true });
     } catch (err) {
@@ -122,6 +125,7 @@ export function EditWorkoutPage() {
         onSubmit={onSubmit}
         submitLabel="Salvar alterações"
         isSubmitting={update.isPending}
+        draftKey={draftKey}
       />
     </div>
   );
