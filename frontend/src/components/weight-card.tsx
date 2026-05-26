@@ -14,7 +14,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useCreateWeight, useWeights } from "@/hooks/use-weights";
+import { useCreateWeight, useUpdateWeight, useWeights } from "@/hooks/use-weights";
 import { formatRelative } from "@/lib/format";
 import type { WeightEntry } from "@/lib/types";
 
@@ -22,6 +22,15 @@ function todayLocalDate(): string {
   const now = new Date();
   const tzOffset = now.getTimezoneOffset() * 60_000;
   return new Date(now.getTime() - tzOffset).toISOString().slice(0, 10);
+}
+
+function toLocalDateString(iso: string): string {
+  const d = new Date(iso);
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+}
+
+function roundDeci(n: number): number {
+  return Math.round(n * 10) / 10;
 }
 
 function formatDelta(diff: number): string {
@@ -170,12 +179,16 @@ interface WeightDialogFormProps {
 
 function WeightDialogForm({ latest, onClose }: WeightDialogFormProps) {
   const create = useCreateWeight();
+  const update = useUpdateWeight();
   const [weight, setWeight] = useState(() =>
     latest ? latest.weight.toString() : "",
   );
   const [date, setDate] = useState(() => todayLocalDate());
-  const [notes, setNotes] = useState("");
-  const [bio, setBio] = useState<BioFormState>(() => emptyBio());
+  const [notes, setNotes] = useState(() => latest?.notes ?? "");
+  const [bio, setBio] = useState<BioFormState>(() =>
+    latest ? bioFromEntry(latest) : emptyBio(),
+  );
+  const pending = create.isPending || update.isPending;
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -197,19 +210,36 @@ function WeightDialogForm({ latest, onClose }: WeightDialogFormProps) {
       return;
     }
 
+    // Se o peso e a data baterem com o último registro, é uma edição do
+    // mesmo entry (tipicamente: o usuário só quer atualizar a bioimpedância
+    // ou as notas). Evita criar um duplicado com o mesmo peso.
+    const isEditingLatest =
+      latest !== undefined &&
+      roundDeci(parsed) === roundDeci(latest.weight) &&
+      date === toLocalDateString(latest.recordedAt);
+
     try {
-      await create.mutateAsync({
-        weight: parsed,
-        recordedAt: recordedAt.toISOString(),
-        notes: notes.trim() || undefined,
-        ...bioParsed.values,
-      });
-      toast.success("Peso registrado");
+      if (isEditingLatest) {
+        await update.mutateAsync({
+          id: latest.id,
+          input: {
+            notes: notes.trim() || null,
+            ...bioParsed.values,
+          },
+        });
+        toast.success("Registro atualizado");
+      } else {
+        await create.mutateAsync({
+          weight: parsed,
+          recordedAt: recordedAt.toISOString(),
+          notes: notes.trim() || undefined,
+          ...bioParsed.values,
+        });
+        toast.success("Peso registrado");
+      }
       onClose();
     } catch (err) {
-      toast.error(
-        err instanceof Error ? err.message : "Falha ao registrar peso",
-      );
+      toast.error(err instanceof Error ? err.message : "Falha ao salvar");
     }
   }
 
@@ -273,12 +303,12 @@ function WeightDialogForm({ latest, onClose }: WeightDialogFormProps) {
             type="button"
             variant="ghost"
             onClick={onClose}
-            disabled={create.isPending}
+            disabled={pending}
           >
             Cancelar
           </Button>
-          <Button type="submit" disabled={create.isPending}>
-            {create.isPending ? "Salvando..." : "Salvar"}
+          <Button type="submit" disabled={pending}>
+            {pending ? "Salvando..." : "Salvar"}
           </Button>
         </DialogFooter>
       </form>
