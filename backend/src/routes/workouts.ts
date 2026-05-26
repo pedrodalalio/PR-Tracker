@@ -21,6 +21,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
       const workouts = await prisma.workout.findMany({
         where: {
           userId: request.user!.userId,
+          deletedAt: null,
         },
         include: {
           exercises: {
@@ -54,6 +55,7 @@ export async function workoutRoutes(fastify: FastifyInstance) {
           where: {
             id,
             userId: request.user!.userId,
+            deletedAt: null,
           },
           include: {
             exercises: {
@@ -252,7 +254,38 @@ export async function workoutRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // Delete workout
+  // Bulk delete. Aceita `{ ids: string[] }` no body.
+  fastify.delete<{ Body: { ids?: string[] } }>(
+    "/workouts",
+    { preHandler: authenticateToken },
+    async (request, reply) => {
+      try {
+        const ids = Array.isArray(request.body?.ids)
+          ? request.body.ids.filter((x) => typeof x === "string")
+          : [];
+        if (ids.length === 0) {
+          return reply.status(400).send({ error: "Nenhum id fornecido" });
+        }
+        if (ids.length > 500) {
+          return reply.status(400).send({ error: "Limite de 500 ids" });
+        }
+        const result = await prisma.workout.updateMany({
+          where: {
+            id: { in: ids },
+            userId: request.user!.userId,
+            deletedAt: null,
+          },
+          data: { deletedAt: new Date() },
+        });
+        return reply.send({ deleted: result.count });
+      } catch (error) {
+        request.log.error(error);
+        reply.status(500).send({ error: "Failed to bulk delete workouts" });
+      }
+    },
+  );
+
+  // Soft-delete. Cliente pode chamar /restore em até X dias pra desfazer.
   fastify.delete<{ Params: { id: string } }>(
     "/workouts/:id",
     {
@@ -261,22 +294,55 @@ export async function workoutRoutes(fastify: FastifyInstance) {
     async (request, reply) => {
       try {
         const { id } = request.params;
-        await prisma.workout.delete({
+        const result = await prisma.workout.updateMany({
           where: {
             id,
             userId: request.user!.userId,
+            deletedAt: null,
           },
+          data: { deletedAt: new Date() },
         });
-
-        reply.code(204);
-        return;
-      } catch (error: any) {
-        if (error.code === "P2025") {
+        if (result.count === 0) {
           reply.code(404);
           return { error: "Workout not found" };
         }
+        reply.code(204);
+        return;
+      } catch (error) {
+        request.log.error(error);
         reply.code(500);
         return { error: "Failed to delete workout" };
+      }
+    },
+  );
+
+  fastify.post<{ Params: { id: string } }>(
+    "/workouts/:id/restore",
+    { preHandler: authenticateToken },
+    async (request, reply) => {
+      try {
+        const { id } = request.params;
+        const result = await prisma.workout.updateMany({
+          where: {
+            id,
+            userId: request.user!.userId,
+            deletedAt: { not: null },
+          },
+          data: { deletedAt: null },
+        });
+        if (result.count === 0) {
+          reply.code(404);
+          return { error: "Workout not found" };
+        }
+        const workout = await prisma.workout.findUnique({
+          where: { id },
+          include: { exercises: { include: { exercise: true, sets: true } } },
+        });
+        return { workout };
+      } catch (error) {
+        request.log.error(error);
+        reply.code(500);
+        return { error: "Failed to restore workout" };
       }
     },
   );

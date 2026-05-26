@@ -18,6 +18,7 @@ import { useEffect, useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
+import { ExportMenu } from "@/components/export-menu";
 import { PageHeader } from "@/components/page-header";
 import { StatCard } from "@/components/stat-card";
 import { Badge } from "@/components/ui/badge";
@@ -124,6 +125,7 @@ export function RunsPage() {
         description="Importe do Strava (.gpx), registre manualmente e acompanhe pace, distância e evolução."
         action={
           <div className="flex flex-wrap items-center gap-2">
+            <ExportMenu resource="runs" />
             <Button asChild variant="outline">
               <Link to="/runs/strava">
                 <Plug className="size-4" />

@@ -15,25 +15,41 @@ datasource db {
 }
 
 model User {
-  id        String   @id @default(uuid())
-  username  String   @unique
-  email     String   @unique
-  password  String   // bcrypt hash
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String    @id @default(uuid())
+  username        String    @unique
+  email           String    @unique
+  password        String    // bcrypt hash
+  emailVerifiedAt DateTime?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
 
   // Relations
-  workouts            Workout[]
-  userGoals           UserGoals?
-  refreshTokens       RefreshToken[]
-  weightEntries       WeightEntry[]
-  weeklyGoalHistory   WeeklyGoalEntry[]
-  runs                Run[]
-  stravaConnection    StravaConnection?
-  passwordResetTokens PasswordResetToken[]
-  workoutTemplates    WorkoutTemplate[]
+  workouts                Workout[]
+  userGoals               UserGoals?
+  refreshTokens           RefreshToken[]
+  weightEntries           WeightEntry[]
+  weeklyGoalHistory       WeeklyGoalEntry[]
+  runs                    Run[]
+  stravaConnection        StravaConnection?
+  passwordResetTokens     PasswordResetToken[]
+  emailVerificationTokens EmailVerificationToken[]
+  workoutTemplates        WorkoutTemplate[]
 
   @@map("users")
+}
+
+model EmailVerificationToken {
+  id        String    @id @default(uuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, usedAt])
+  @@map("email_verification_tokens")
 }
 
 model StravaConnection {
@@ -111,6 +127,9 @@ model ExerciseMuscleGroup {
 model Workout {
   id          String      @id @default(uuid())
   userId      String
+  // Soft-delete. List endpoints filtram deletedAt: null. Bulk cleanup pode
+  // ser feito por job periódico futuramente.
+  deletedAt   DateTime?
   name        String
   date        DateTime
   workoutType WorkoutType
@@ -204,6 +223,9 @@ model UserGoals {
   bestStreak          Int      @default(0)
   totalWeeksCompleted Int      @default(0)
   lastWorkoutDate     DateTime?
+  // Meta opcional de peso (kg). UI exibe ETA via regressão linear sobre as
+  // últimas entries de WeightEntry. Null = sem meta.
+  targetWeight        Float?
   createdAt           DateTime @default(now())
   updatedAt           DateTime @updatedAt
 
@@ -234,6 +256,7 @@ model Run {
   date          DateTime
   startTime     DateTime?
   endTime       DateTime?
+  deletedAt     DateTime?
   distance      Float     // metros
   duration      Int       // segundos (elapsed: tempo total da sessão)
   movingTime    Int?      // segundos (excluindo paradas; ~o que o Strava chama de "moving time")
@@ -258,12 +281,30 @@ model Run {
   @@map("runs")
 }
 
+model AuthEvent {
+  id        String   @id @default(uuid())
+  // userId null = login com email/username inexistente. Não há FK pra
+  // sobreviver à deleção da conta (LGPD).
+  userId    String?
+  eventType String   // login_success, login_failed, register, password_reset_request, password_reset_complete, password_changed
+  email     String?
+  ip        String?
+  userAgent String?  @db.Text
+  metadata  Json?
+  createdAt DateTime @default(now())
+
+  @@index([userId, createdAt])
+  @@index([eventType, createdAt])
+  @@map("auth_events")
+}
+
 model WeightEntry {
   id              String   @id @default(uuid())
   userId          String
   weight          Float
   recordedAt      DateTime
   notes           String?
+  deletedAt       DateTime?
   // Métricas opcionais de bioimpedância (ex.: balança Xiaomi/Omron).
   bodyFatPct      Float?
   muscleMassKg    Float?

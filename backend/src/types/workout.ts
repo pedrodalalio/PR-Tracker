@@ -72,6 +72,7 @@ export interface UserGoals {
   bestStreak: number; // Best streak achieved in days
   totalWeeksCompleted: number; // Total weeks where goal was met
   lastWorkoutDate: string; // ISO date string of last workout
+  targetWeight: number | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -79,11 +80,13 @@ export interface UserGoals {
 export interface CreateGoalsRequest {
   weeklyWorkoutGoal: number;
   targetDays?: WeekDay[];
+  targetWeight?: number | null;
 }
 
 export interface UpdateGoalsRequest {
   weeklyWorkoutGoal?: number;
   targetDays?: WeekDay[];
+  targetWeight?: number | null;
 }
 
 export interface WeeklyProgress {

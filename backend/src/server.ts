@@ -15,6 +15,9 @@ import { authRoutes } from "./routes/auth";
 import { weightsRoutes } from "./routes/weights";
 import { runsRoutes } from "./routes/runs";
 import { stravaRoutes } from "./routes/strava";
+import { refreshExpiringStravaTokens } from "./lib/strava-client";
+import { exportRoutes } from "./routes/export";
+import { accountRoutes } from "./routes/account";
 
 const fastify = Fastify({
   logger: true,
@@ -122,6 +125,8 @@ fastify.register(goalsRoutes);
 fastify.register(weightsRoutes);
 fastify.register(runsRoutes);
 fastify.register(stravaRoutes);
+fastify.register(exportRoutes);
+fastify.register(accountRoutes);
 
 // Limpa refresh tokens expirados/revogados a cada 24h. Roda 1x no boot.
 const TOKEN_CLEANUP_INTERVAL_MS = 24 * 60 * 60 * 1000;
@@ -134,10 +139,32 @@ function scheduleRefreshTokenCleanup() {
   if (typeof timer.unref === "function") timer.unref();
 }
 
+// Refresh proativo de tokens do Strava que vencem em <12h. Resolve o problema
+// de usuário que fica offline por dias — o refresh lazy nunca dispara.
+const STRAVA_REFRESH_INTERVAL_MS = 30 * 60 * 1000; // 30min
+function scheduleStravaTokenRefresh() {
+  const run = () => {
+    refreshExpiringStravaTokens()
+      .then((res) => {
+        if (res.refreshed > 0 || res.failed > 0) {
+          fastify.log.info(
+            { refreshed: res.refreshed, failed: res.failed },
+            "strava token refresh tick",
+          );
+        }
+      })
+      .catch((err) => fastify.log.warn({ err }, "strava refresh tick failed"));
+  };
+  run();
+  const timer = setInterval(run, STRAVA_REFRESH_INTERVAL_MS);
+  if (typeof timer.unref === "function") timer.unref();
+}
+
 const start = async () => {
   try {
     await fastify.listen({ port: 3000, host: "0.0.0.0" });
     scheduleRefreshTokenCleanup();
+    scheduleStravaTokenRefresh();
   } catch (err) {
     fastify.log.error(err);
     process.exit(1);

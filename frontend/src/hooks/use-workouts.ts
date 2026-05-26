@@ -59,4 +59,15 @@ export function useDeleteWorkout() {
   });
 }
 
+export function useBulkDeleteWorkouts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => workoutsApi.bulkRemove(ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.all });
+      qc.invalidateQueries({ queryKey: ["goals"] });
+    },
+  });
+}
+
 export const workoutKeys = keys;

@@ -132,7 +132,7 @@ export async function runsRoutes(fastify: FastifyInstance) {
         // Slim list: routePoints/splits podem ter milhares de pontos GPS;
         // o detalhe (`/runs/:id`) é onde a UI precisa deles.
         const runs = await prisma.run.findMany({
-          where: { userId: request.user!.userId },
+          where: { userId: request.user!.userId, deletedAt: null },
           orderBy: { date: "desc" },
           take,
           select: {
@@ -176,7 +176,11 @@ export async function runsRoutes(fastify: FastifyInstance) {
     ) => {
       try {
         const run = await prisma.run.findFirst({
-          where: { id: request.params.id, userId: request.user!.userId },
+          where: {
+            id: request.params.id,
+            userId: request.user!.userId,
+            deletedAt: null,
+          },
         });
         if (!run) {
           return reply.status(404).send({ error: "Corrida não encontrada" });
@@ -386,18 +390,51 @@ export async function runsRoutes(fastify: FastifyInstance) {
       reply: FastifyReply,
     ) => {
       try {
-        const existing = await prisma.run.findFirst({
-          where: { id: request.params.id, userId: request.user!.userId },
+        const result = await prisma.run.updateMany({
+          where: {
+            id: request.params.id,
+            userId: request.user!.userId,
+            deletedAt: null,
+          },
+          data: { deletedAt: new Date() },
         });
-        if (!existing) {
+        if (result.count === 0) {
           return reply.status(404).send({ error: "Corrida não encontrada" });
         }
-
-        await prisma.run.delete({ where: { id: existing.id } });
         reply.status(204).send();
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to delete run" });
+      }
+    },
+  );
+
+  fastify.post<{ Params: { id: string } }>(
+    "/runs/:id/restore",
+    { preHandler: authenticateToken },
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply,
+    ) => {
+      try {
+        const result = await prisma.run.updateMany({
+          where: {
+            id: request.params.id,
+            userId: request.user!.userId,
+            deletedAt: { not: null },
+          },
+          data: { deletedAt: null },
+        });
+        if (result.count === 0) {
+          return reply.status(404).send({ error: "Corrida não encontrada" });
+        }
+        const run = await prisma.run.findUnique({
+          where: { id: request.params.id },
+        });
+        reply.send({ run: run ? toRunDTO(run) : null });
+      } catch (error) {
+        request.log.error(error);
+        reply.status(500).send({ error: "Failed to restore run" });
       }
     },
   );

@@ -2,6 +2,8 @@ import { ArrowLeft, Loader2, Pencil, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate, useParams } from "react-router";
 import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
+import { workoutsApi } from "@/services/workouts-api";
 import { EmptyState } from "@/components/empty-state";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -30,13 +32,31 @@ export function WorkoutDetailPage() {
   const navigate = useNavigate();
   const { data, isLoading, isError, error } = useWorkout(id);
   const remove = useDeleteWorkout();
+  const qc = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   const onDelete = async () => {
     if (!id) return;
     try {
       await remove.mutateAsync(id);
-      toast.success("Treino removido");
+      toast.success("Treino removido", {
+        action: {
+          label: "Desfazer",
+          onClick: async () => {
+            try {
+              await workoutsApi.restore(id);
+              qc.invalidateQueries({ queryKey: ["workouts"] });
+              qc.invalidateQueries({ queryKey: ["goals"] });
+              toast.success("Treino restaurado");
+              navigate(`/workouts/${id}`);
+            } catch (err) {
+              toast.error(
+                err instanceof Error ? err.message : "Falha ao restaurar",
+              );
+            }
+          },
+        },
+      });
       navigate("/workouts", { replace: true });
     } catch (err) {
       toast.error(

@@ -63,6 +63,7 @@ function toUserGoalsResponse(goals: {
   bestStreak: number;
   totalWeeksCompleted: number;
   lastWorkoutDate: Date | null;
+  targetWeight: number | null;
   createdAt: Date;
   updatedAt: Date;
 }): UserGoals {
@@ -74,9 +75,26 @@ function toUserGoalsResponse(goals: {
     bestStreak: goals.bestStreak,
     totalWeeksCompleted: goals.totalWeeksCompleted,
     lastWorkoutDate: goals.lastWorkoutDate?.toISOString() || "",
+    targetWeight: goals.targetWeight,
     createdAt: goals.createdAt.toISOString(),
     updatedAt: goals.updatedAt.toISOString(),
   };
+}
+
+type ParsedTargetWeight =
+  | { kind: "absent" }
+  | { kind: "clear" }
+  | { kind: "set"; value: number }
+  | { kind: "invalid" };
+
+function parseTargetWeight(value: unknown): ParsedTargetWeight {
+  if (value === undefined) return { kind: "absent" };
+  if (value === null || value === "") return { kind: "clear" };
+  const n = typeof value === "string" ? Number(value.replace(",", ".")) : value;
+  if (typeof n !== "number" || !Number.isFinite(n) || n <= 0 || n > 1000) {
+    return { kind: "invalid" };
+  }
+  return { kind: "set", value: Math.round(n * 10) / 10 };
 }
 
 export async function goalsRoutes(fastify: FastifyInstance) {
@@ -131,6 +149,12 @@ export async function goalsRoutes(fastify: FastifyInstance) {
       try {
         const { weeklyWorkoutGoal } = request.body;
         const sanitizedTargetDays = sanitizeTargetDays(request.body.targetDays);
+        const parsedTargetWeight = parseTargetWeight(request.body.targetWeight);
+        if (parsedTargetWeight.kind === "invalid") {
+          return reply
+            .status(400)
+            .send({ error: "Peso alvo inválido (0–1000 kg)" });
+        }
 
         let goals = await prisma.userGoals.findFirst({
           where: { userId: request.user!.userId },
@@ -144,6 +168,10 @@ export async function goalsRoutes(fastify: FastifyInstance) {
               userId: request.user!.userId,
               weeklyWorkoutGoal: weeklyWorkoutGoal || 3,
               targetDays: sanitizedTargetDays ?? [],
+              targetWeight:
+                parsedTargetWeight.kind === "set"
+                  ? parsedTargetWeight.value
+                  : null,
               currentStreak: 0,
               bestStreak: 0,
               totalWeeksCompleted: 0,
@@ -156,6 +184,12 @@ export async function goalsRoutes(fastify: FastifyInstance) {
               weeklyWorkoutGoal: weeklyWorkoutGoal ?? goals.weeklyWorkoutGoal,
               ...(sanitizedTargetDays !== null && {
                 targetDays: sanitizedTargetDays,
+              }),
+              ...(parsedTargetWeight.kind === "set" && {
+                targetWeight: parsedTargetWeight.value,
+              }),
+              ...(parsedTargetWeight.kind === "clear" && {
+                targetWeight: null,
               }),
             },
           });

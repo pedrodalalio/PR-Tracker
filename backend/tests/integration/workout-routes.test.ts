@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, afterAll, vi } from 'vitest'
+import { describe, it, expect, beforeEach, afterAll } from 'vitest'
 import supertest from 'supertest'
 import { createTestApp, mockPrisma } from '../setup/test-app'
 import { mockWorkouts, mockExercises } from '../setup/test-database'
@@ -15,9 +15,6 @@ describe('Workout Routes Integration', () => {
     Object.values(mockPrisma).forEach(model => {
       Object.values(model as any).forEach((method: any) => method.mockReset?.())
     })
-
-    // Mock global fetch for streak updates
-    global.fetch = vi.fn().mockResolvedValue({ ok: true })
   })
 
   afterAll(async () => {
@@ -36,7 +33,7 @@ describe('Workout Routes Integration', () => {
       expect(response.status).toBe(200)
       expect(response.body.workouts).toEqual(userWorkouts)
       expect(mockPrisma.workout.findMany).toHaveBeenCalledWith({
-        where: { userId: 'user-123' },
+        where: { userId: 'user-123', deletedAt: null },
         include: {
           exercises: {
             include: {
@@ -45,7 +42,8 @@ describe('Workout Routes Integration', () => {
             }
           }
         },
-        orderBy: { date: 'desc' }
+        orderBy: { date: 'desc' },
+        take: 500,
       })
     })
 
@@ -70,7 +68,7 @@ describe('Workout Routes Integration', () => {
 
   describe('GET /workouts/:id', () => {
     it('should return specific workout', async () => {
-      mockPrisma.workout.findUnique.mockResolvedValue(mockWorkouts.workout1)
+      mockPrisma.workout.findFirst.mockResolvedValue(mockWorkouts.workout1)
 
       const response = await request
         .get('/workouts/workout-1')
@@ -78,8 +76,8 @@ describe('Workout Routes Integration', () => {
 
       expect(response.status).toBe(200)
       expect(response.body.workout).toEqual(mockWorkouts.workout1)
-      expect(mockPrisma.workout.findUnique).toHaveBeenCalledWith({
-        where: { id: 'workout-1', userId: 'user-123' },
+      expect(mockPrisma.workout.findFirst).toHaveBeenCalledWith({
+        where: { id: 'workout-1', userId: 'user-123', deletedAt: null },
         include: {
           exercises: {
             include: {
@@ -92,7 +90,7 @@ describe('Workout Routes Integration', () => {
     })
 
     it('should return 404 if workout not found', async () => {
-      mockPrisma.workout.findUnique.mockResolvedValue(null)
+      mockPrisma.workout.findFirst.mockResolvedValue(null)
 
       const response = await request
         .get('/workouts/nonexistent')
@@ -137,7 +135,6 @@ describe('Workout Routes Integration', () => {
 
       expect(response.status).toBe(201)
       expect(response.body.workout).toEqual(newWorkout)
-      expect(global.fetch).toHaveBeenCalled() // Streak update call
     })
 
     it('should create workout with exercises', async () => {
@@ -268,23 +265,22 @@ describe('Workout Routes Integration', () => {
   })
 
   describe('DELETE /workouts/:id', () => {
-    it('should delete workout', async () => {
-      mockPrisma.workout.delete.mockResolvedValue(mockWorkouts.workout1)
+    it('should soft-delete workout', async () => {
+      mockPrisma.workout.updateMany.mockResolvedValue({ count: 1 })
 
       const response = await request
         .delete('/workouts/workout-1')
         .set('Authorization', 'Bearer valid-token')
 
       expect(response.status).toBe(204)
-      expect(mockPrisma.workout.delete).toHaveBeenCalledWith({
-        where: { id: 'workout-1', userId: 'user-123' }
+      expect(mockPrisma.workout.updateMany).toHaveBeenCalledWith({
+        where: { id: 'workout-1', userId: 'user-123', deletedAt: null },
+        data: { deletedAt: expect.any(Date) },
       })
     })
 
     it('should return 404 if workout not found', async () => {
-      const error = new Error('Record not found')
-      ;(error as any).code = 'P2025'
-      mockPrisma.workout.delete.mockRejectedValue(error)
+      mockPrisma.workout.updateMany.mockResolvedValue({ count: 0 })
 
       const response = await request
         .delete('/workouts/nonexistent')
@@ -313,7 +309,7 @@ describe('Workout Routes Integration', () => {
         sets: [{ reps: 10, weight: 0 }]
       }
 
-      mockPrisma.workout.findUnique.mockResolvedValue(mockWorkout)
+      mockPrisma.workout.findFirst.mockResolvedValue(mockWorkout)
       mockPrisma.exercise.findUnique.mockResolvedValue(mockExercises.pushUp)
       mockPrisma.workoutExercise.create.mockResolvedValue(mockWorkoutExercise)
 
@@ -330,7 +326,7 @@ describe('Workout Routes Integration', () => {
     })
 
     it('should return 404 if workout not found', async () => {
-      mockPrisma.workout.findUnique.mockResolvedValue(null)
+      mockPrisma.workout.findFirst.mockResolvedValue(null)
 
       const response = await request
         .post('/workouts/nonexistent/exercises')
@@ -342,7 +338,7 @@ describe('Workout Routes Integration', () => {
     })
 
     it('should return 404 if exercise not found', async () => {
-      mockPrisma.workout.findUnique.mockResolvedValue({ id: 'workout-1', userId: 'user-123' })
+      mockPrisma.workout.findFirst.mockResolvedValue({ id: 'workout-1', userId: 'user-123' })
       mockPrisma.exercise.findUnique.mockResolvedValue(null)
 
       const response = await request

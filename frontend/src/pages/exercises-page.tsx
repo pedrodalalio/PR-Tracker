@@ -17,7 +17,6 @@ const categoryFilters: Array<{ value: Category | "all"; label: string }> = [
   { value: "all", label: "Todos" },
   { value: "Upper", label: "Superior" },
   { value: "Lower", label: "Inferior" },
-  { value: "Cardio", label: "Cardio" },
 ];
 
 export function ExercisesPage() {

@@ -187,7 +187,7 @@ export async function weightsRoutes(fastify: FastifyInstance) {
           Math.max(1, Number(request.query.limit) || 1000),
         );
         const entries = await prisma.weightEntry.findMany({
-          where: { userId: request.user!.userId },
+          where: { userId: request.user!.userId, deletedAt: null },
           orderBy: { recordedAt: "desc" },
           take,
         });
@@ -319,18 +319,85 @@ export async function weightsRoutes(fastify: FastifyInstance) {
       reply: FastifyReply,
     ) => {
       try {
-        const existing = await prisma.weightEntry.findFirst({
-          where: { id: request.params.id, userId: request.user!.userId },
+        const result = await prisma.weightEntry.updateMany({
+          where: {
+            id: request.params.id,
+            userId: request.user!.userId,
+            deletedAt: null,
+          },
+          data: { deletedAt: new Date() },
         });
-        if (!existing) {
+        if (result.count === 0) {
           return reply.status(404).send({ error: "Registro não encontrado" });
         }
-
-        await prisma.weightEntry.delete({ where: { id: existing.id } });
         reply.status(204).send();
       } catch (error) {
         request.log.error(error);
         reply.status(500).send({ error: "Failed to delete weight entry" });
+      }
+    },
+  );
+
+  fastify.post<{ Params: { id: string } }>(
+    "/weights/:id/restore",
+    { preHandler: authenticateToken },
+    async (
+      request: FastifyRequest<{ Params: { id: string } }>,
+      reply: FastifyReply,
+    ) => {
+      try {
+        const result = await prisma.weightEntry.updateMany({
+          where: {
+            id: request.params.id,
+            userId: request.user!.userId,
+            deletedAt: { not: null },
+          },
+          data: { deletedAt: null },
+        });
+        if (result.count === 0) {
+          return reply.status(404).send({ error: "Registro não encontrado" });
+        }
+        const entry = await prisma.weightEntry.findUnique({
+          where: { id: request.params.id },
+        });
+        return reply.send({ weight: entry ? toDTO(entry) : null });
+      } catch (error) {
+        request.log.error(error);
+        reply.status(500).send({ error: "Failed to restore weight entry" });
+      }
+    },
+  );
+
+  // Bulk delete. Limita a 500 IDs por chamada pra evitar request gigante.
+  fastify.delete<{ Body: { ids?: string[] } }>(
+    "/weights",
+    { preHandler: authenticateToken },
+    async (
+      request: FastifyRequest<{ Body: { ids?: string[] } }>,
+      reply: FastifyReply,
+    ) => {
+      try {
+        const ids = Array.isArray(request.body?.ids)
+          ? request.body.ids.filter((x) => typeof x === "string")
+          : [];
+        if (ids.length === 0) {
+          return reply.status(400).send({ error: "Nenhum id fornecido" });
+        }
+        if (ids.length > 500) {
+          return reply.status(400).send({ error: "Limite de 500 ids" });
+        }
+        const result = await prisma.weightEntry.updateMany({
+          where: {
+            id: { in: ids },
+            userId: request.user!.userId,
+            deletedAt: null,
+          },
+          data: { deletedAt: new Date() },
+        });
+        reply.send({ deleted: result.count });
+      } catch (error) {
+        request.log.error(error);
+        reply.status(500).send({ error: "Failed to bulk delete weight entries" });
       }
     },
   );

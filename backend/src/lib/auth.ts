@@ -11,6 +11,7 @@ import type { PrismaClient } from '../generated/prisma';
 const JWT_EXPIRES_IN = '1h';
 const REFRESH_TOKEN_EXPIRES_IN_DAYS = 30;
 const PASSWORD_RESET_TOKEN_EXPIRES_IN_MINUTES = 60;
+const EMAIL_VERIFICATION_TOKEN_EXPIRES_IN_HOURS = 48;
 
 export class AuthService {
   static async hashPassword(password: string): Promise<string> {
@@ -145,6 +146,48 @@ export class AuthService {
       });
     } catch (error) {
       console.error('Error cleaning expired password reset tokens:', error);
+    }
+  }
+
+  // Email verification segue o mesmo padrão do password reset.
+  static async createEmailVerificationToken(userId: string): Promise<string> {
+    const plaintext = crypto.randomBytes(32).toString('base64url');
+    const tokenHash = crypto.createHash('sha256').update(plaintext).digest('hex');
+    const expiresAt = new Date(
+      Date.now() + EMAIL_VERIFICATION_TOKEN_EXPIRES_IN_HOURS * 60 * 60 * 1000,
+    );
+    await prisma.emailVerificationToken.create({
+      data: { userId, tokenHash, expiresAt },
+    });
+    return plaintext;
+  }
+
+  static async consumeEmailVerificationToken(
+    plaintext: string,
+  ): Promise<{ userId: string } | null> {
+    const tokenHash = crypto.createHash('sha256').update(plaintext).digest('hex');
+    try {
+      return await prisma.$transaction(async (tx: Omit<PrismaClient, '$connect' | '$disconnect' | '$on' | '$transaction' | '$extends'>) => {
+        const record = await tx.emailVerificationToken.findUnique({
+          where: { tokenHash },
+        });
+        if (!record) return null;
+        if (record.usedAt) return null;
+        if (record.expiresAt.getTime() <= Date.now()) return null;
+
+        await tx.emailVerificationToken.update({
+          where: { id: record.id },
+          data: { usedAt: new Date() },
+        });
+        await tx.user.update({
+          where: { id: record.userId },
+          data: { emailVerifiedAt: new Date() },
+        });
+        return { userId: record.userId };
+      });
+    } catch (error) {
+      console.error('Error consuming email verification token:', error);
+      return null;
     }
   }
 

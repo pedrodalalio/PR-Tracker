@@ -10,8 +10,9 @@ import {
 import { RegisterRequest, LoginRequest } from "../types/auth";
 import { authenticateToken } from "../lib/middleware";
 import { setRefreshCookie, clearRefreshCookie, REFRESH_COOKIE } from "../lib/cookies";
-import { sendPasswordResetEmail } from "../lib/mail";
+import { sendEmailVerification, sendPasswordResetEmail } from "../lib/mail";
 import { getFrontendUrl } from "../lib/strava-client";
+import { logAuthEvent } from "../lib/audit";
 
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: RegisterRequest }>(
@@ -53,6 +54,27 @@ export async function authRoutes(fastify: FastifyInstance) {
         });
 
         await prisma.userGoals.create({ data: { userId: user.id } });
+
+        // Dispara verificação de email — não bloqueia o fluxo se o mail
+        // provider (hoje mock) falhar.
+        try {
+          const verifyToken = await AuthService.createEmailVerificationToken(
+            user.id,
+          );
+          const verifyUrl = `${getFrontendUrl()}/verify-email?token=${encodeURIComponent(
+            verifyToken,
+          )}`;
+          await sendEmailVerification(user.email, verifyUrl);
+        } catch (err) {
+          fastify.log.warn({ err }, "failed to send verification email");
+        }
+
+        logAuthEvent({
+          request,
+          userId: user.id,
+          eventType: "register",
+          email: user.email,
+        });
 
         const token = AuthService.generateToken({
           userId: user.id,
@@ -104,6 +126,12 @@ export async function authRoutes(fastify: FastifyInstance) {
         });
 
         if (!user) {
+          logAuthEvent({
+            request,
+            eventType: "login_failed",
+            email: usernameOrEmail,
+            metadata: { reason: "unknown_user" },
+          });
           return reply.status(401).send({ error: "Invalid credentials" });
         }
 
@@ -112,8 +140,22 @@ export async function authRoutes(fastify: FastifyInstance) {
           user.password,
         );
         if (!isPasswordValid) {
+          logAuthEvent({
+            request,
+            userId: user.id,
+            eventType: "login_failed",
+            email: user.email,
+            metadata: { reason: "wrong_password" },
+          });
           return reply.status(401).send({ error: "Invalid credentials" });
         }
+
+        logAuthEvent({
+          request,
+          userId: user.id,
+          eventType: "login_success",
+          email: user.email,
+        });
 
         const token = AuthService.generateToken({
           userId: user.id,
@@ -146,14 +188,25 @@ export async function authRoutes(fastify: FastifyInstance) {
       try {
         const user = await prisma.user.findUnique({
           where: { id: request.user!.userId },
-          select: { id: true, username: true, email: true, createdAt: true },
+          select: {
+            id: true,
+            username: true,
+            email: true,
+            emailVerifiedAt: true,
+            createdAt: true,
+          },
         });
 
         if (!user) {
           return reply.status(404).send({ error: "User not found" });
         }
 
-        return reply.send({ user });
+        return reply.send({
+          user: {
+            ...user,
+            emailVerifiedAt: user.emailVerifiedAt?.toISOString() ?? null,
+          },
+        });
       } catch (error) {
         fastify.log.error(error);
         return reply.status(500).send({ error: "Internal server error" });
@@ -238,6 +291,19 @@ export async function authRoutes(fastify: FastifyInstance) {
             token,
           )}`;
           await sendPasswordResetEmail(user.email, resetUrl);
+          logAuthEvent({
+            request,
+            userId: user.id,
+            eventType: "password_reset_request",
+            email: user.email,
+          });
+        } else {
+          logAuthEvent({
+            request,
+            eventType: "password_reset_request",
+            email,
+            metadata: { unknownEmail: true },
+          });
         }
 
         return reply.send({
@@ -287,8 +353,79 @@ export async function authRoutes(fastify: FastifyInstance) {
         // Revoga todas as sessões ativas — força re-login com senha nova.
         await AuthService.revokeAllUserRefreshTokens(consumed.userId);
 
+        logAuthEvent({
+          request,
+          userId: consumed.userId,
+          eventType: "password_reset_complete",
+        });
+
         return reply.send({
           message: "Senha redefinida com sucesso. Faça login com a nova senha.",
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: "Internal server error" });
+      }
+    },
+  );
+
+  fastify.post<{ Body: { token: string } }>(
+    "/auth/verify-email",
+    {
+      config: {
+        rateLimit: { max: 10, timeWindow: "1 hour" },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const token = (request.body as any)?.token;
+        if (typeof token !== "string" || token.length === 0) {
+          return reply.status(400).send({ error: "Token obrigatório" });
+        }
+
+        const consumed = await AuthService.consumeEmailVerificationToken(token);
+        if (!consumed) {
+          return reply.status(400).send({ error: "Token inválido ou expirado" });
+        }
+
+        logAuthEvent({
+          request,
+          userId: consumed.userId,
+          eventType: "email_verified",
+        });
+
+        return reply.send({ message: "E-mail verificado com sucesso." });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: "Internal server error" });
+      }
+    },
+  );
+
+  // Reenviar verificação. Sempre 200 com mensagem genérica pra não vazar se
+  // o email está cadastrado ou já foi verificado.
+  fastify.post(
+    "/auth/resend-verification",
+    {
+      preHandler: authenticateToken,
+      config: { rateLimit: { max: 3, timeWindow: "1 hour" } },
+    },
+    async (request, reply) => {
+      try {
+        const user = await prisma.user.findUnique({
+          where: { id: request.user!.userId },
+        });
+        if (user && !user.emailVerifiedAt) {
+          const verifyToken = await AuthService.createEmailVerificationToken(
+            user.id,
+          );
+          const verifyUrl = `${getFrontendUrl()}/verify-email?token=${encodeURIComponent(
+            verifyToken,
+          )}`;
+          await sendEmailVerification(user.email, verifyUrl);
+        }
+        return reply.send({
+          message: "Se ainda não verificado, enviamos um novo link.",
         });
       } catch (error) {
         fastify.log.error(error);

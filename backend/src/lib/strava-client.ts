@@ -221,6 +221,31 @@ export async function getActivityStreams(
   );
 }
 
+/**
+ * Renova tokens que vencem em menos de X horas. Pensado pra rodar via job
+ * periódico — quando o app fica ofline ou o usuário some por dias, o refresh
+ * lazy do `getValidAccessToken` nunca dispara e o token expira.
+ */
+export async function refreshExpiringStravaTokens(
+  hoursAhead = 12,
+): Promise<{ refreshed: number; failed: number }> {
+  const threshold = new Date(Date.now() + hoursAhead * 60 * 60 * 1000);
+  const candidates = await prisma.stravaConnection.findMany({
+    where: { expiresAt: { lte: threshold } },
+  });
+  let refreshed = 0;
+  let failed = 0;
+  for (const conn of candidates) {
+    try {
+      await refreshTokens(conn);
+      refreshed++;
+    } catch {
+      failed++;
+    }
+  }
+  return { refreshed, failed };
+}
+
 export async function deauthorize(userId: string): Promise<void> {
   // O endpoint de deauthorize é em www.strava.com, não em /api/v3
   try {

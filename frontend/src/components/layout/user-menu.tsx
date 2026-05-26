@@ -1,4 +1,5 @@
-import { LogOut } from "lucide-react";
+import { LogOut, UserCog } from "lucide-react";
+import { Link } from "react-router";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { useAuth } from "@/contexts/auth-context";
@@ -26,6 +27,11 @@ export function UserMenu({ className }: UserMenuProps) {
         <p className="truncate text-sm font-medium">{user.username}</p>
         <p className="truncate text-xs text-muted-foreground">{user.email}</p>
       </div>
+      <Button asChild variant="ghost" size="icon-sm" aria-label="Conta">
+        <Link to="/account">
+          <UserCog className="size-4" />
+        </Link>
+      </Button>
       <Button
         variant="ghost"
         size="icon-sm"

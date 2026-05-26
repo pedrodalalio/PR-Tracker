@@ -15,6 +15,7 @@ import {
 export interface UpdateGoalsInput {
   weeklyWorkoutGoal?: number;
   targetDays?: WeekDay[];
+  targetWeight?: number | null;
 }
 
 interface GoalsResponse {
@@ -62,6 +63,9 @@ export const goalsApi = {
             }),
             ...(input.targetDays !== undefined && {
               targetDays: input.targetDays,
+            }),
+            ...(input.targetWeight !== undefined && {
+              targetWeight: input.targetWeight,
             }),
           };
           await db.goals.put(merged);

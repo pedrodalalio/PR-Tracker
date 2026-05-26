@@ -139,4 +139,17 @@ export const workoutsApi = {
       throw err;
     }
   },
+
+  async bulkRemove(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const data = await apiClient.delete<{ deleted: number }>("/workouts", {
+      ids,
+    });
+    await db.workouts.bulkDelete(ids);
+    return data.deleted;
+  },
+
+  async restore(id: string): Promise<void> {
+    await apiClient.post<{ workout: unknown }>(`/workouts/${id}/restore`);
+  },
 };

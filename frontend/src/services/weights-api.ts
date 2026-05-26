@@ -137,4 +137,25 @@ export const weightsApi = {
       throw err;
     }
   },
+
+  async bulkRemove(ids: string[]): Promise<number> {
+    if (ids.length === 0) return 0;
+    const data = await apiClient.delete<{ deleted: number }>("/weights", {
+      ids,
+    });
+    await db.weights.bulkDelete(ids);
+    return data.deleted;
+  },
+
+  async restore(id: string): Promise<WeightEntry | null> {
+    const data = await apiClient.post<{ weight: WeightEntry | null }>(
+      `/weights/${id}/restore`,
+    );
+    if (data.weight) {
+      const parsed = weightEntrySchema.parse(data.weight);
+      await db.weights.put(parsed);
+      return parsed;
+    }
+    return null;
+  },
 };

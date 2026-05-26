@@ -3,6 +3,7 @@ import { Outlet, useLocation } from "react-router";
 import { AppHeader } from "@/components/layout/app-header";
 import { BottomNav } from "@/components/layout/bottom-nav";
 import { SidebarNav } from "@/components/layout/sidebar-nav";
+import { EmailVerificationBanner } from "@/components/layout/email-verification-banner";
 import { useOnline } from "@/hooks/use-online";
 import { cn } from "@/lib/utils";
 
@@ -20,6 +21,7 @@ export function AppLayout() {
       <SidebarNav />
       <div className="flex min-w-0 flex-1 flex-col">
         <AppHeader />
+        <EmailVerificationBanner />
         {!online && (
           <div
             role="status"

@@ -23,9 +23,11 @@ export const createMockPrisma = () => ({
   },
   workout: {
     findMany: vi.fn(),
+    findFirst: vi.fn(),
     findUnique: vi.fn(),
     create: vi.fn(),
     update: vi.fn(),
+    updateMany: vi.fn(),
     delete: vi.fn(),
   },
   workoutExercise: {

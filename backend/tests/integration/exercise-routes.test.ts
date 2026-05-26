@@ -3,6 +3,8 @@ import supertest from 'supertest'
 import { createTestApp, mockPrisma } from '../setup/test-app'
 import { mockExercises } from '../setup/test-database'
 
+const AUTH = ['Authorization', 'Bearer valid-token'] as const
+
 describe('Exercise Routes Integration', () => {
   let app: any
   let request: supertest.SuperTest<supertest.Test>
@@ -26,23 +28,31 @@ describe('Exercise Routes Integration', () => {
       const exercises = [mockExercises.pushUp, mockExercises.squat]
       mockPrisma.exercise.findMany.mockResolvedValue(exercises)
 
-      const response = await request.get('/exercises')
+      const response = await request.get('/exercises').set(...AUTH)
 
       expect(response.status).toBe(200)
       expect(response.body.exercises).toEqual(exercises)
       expect(mockPrisma.exercise.findMany).toHaveBeenCalledWith({
         include: { muscleGroups: true },
-        orderBy: { name: 'asc' }
+        orderBy: { name: 'asc' },
+        take: 1000,
       })
     })
 
     it('should handle database errors gracefully', async () => {
       mockPrisma.exercise.findMany.mockRejectedValue(new Error('Database error'))
 
-      const response = await request.get('/exercises')
+      const response = await request.get('/exercises').set(...AUTH)
 
       expect(response.status).toBe(500)
       expect(response.body.error).toBe('Failed to fetch exercises')
+    })
+
+    it('should return 401 without token', async () => {
+      const response = await request.get('/exercises')
+
+      expect(response.status).toBe(401)
+      expect(response.body.error).toBe('Unauthorized')
     })
   })
 
@@ -50,7 +60,7 @@ describe('Exercise Routes Integration', () => {
     it('should return specific exercise', async () => {
       mockPrisma.exercise.findUnique.mockResolvedValue(mockExercises.pushUp)
 
-      const response = await request.get('/exercises/ex-1')
+      const response = await request.get('/exercises/ex-1').set(...AUTH)
 
       expect(response.status).toBe(200)
       expect(response.body.exercise).toEqual(mockExercises.pushUp)
@@ -63,7 +73,7 @@ describe('Exercise Routes Integration', () => {
     it('should return 404 if exercise not found', async () => {
       mockPrisma.exercise.findUnique.mockResolvedValue(null)
 
-      const response = await request.get('/exercises/nonexistent')
+      const response = await request.get('/exercises/nonexistent').set(...AUTH)
 
       expect(response.status).toBe(404)
       expect(response.body.error).toBe('Exercise not found')
@@ -83,6 +93,7 @@ describe('Exercise Routes Integration', () => {
 
       const response = await request
         .post('/exercises')
+        .set(...AUTH)
         .send({
           name: 'Pull-up',
           category: 'strength',
@@ -113,6 +124,7 @@ describe('Exercise Routes Integration', () => {
 
       const response = await request
         .post('/exercises')
+        .set(...AUTH)
         .send({
           name: 'Push-up',
           category: 'strength',
@@ -128,6 +140,7 @@ describe('Exercise Routes Integration', () => {
 
       const response = await request
         .post('/exercises')
+        .set(...AUTH)
         .send({
           name: 'New Exercise',
           category: 'strength',
@@ -151,6 +164,7 @@ describe('Exercise Routes Integration', () => {
 
       const response = await request
         .put('/exercises/ex-1')
+        .set(...AUTH)
         .send({
           name: 'Modified Push-up',
           muscleGroups: ['chest', 'shoulders']
@@ -181,6 +195,7 @@ describe('Exercise Routes Integration', () => {
 
       const response = await request
         .put('/exercises/nonexistent')
+        .set(...AUTH)
         .send({ name: 'Updated Exercise' })
 
       expect(response.status).toBe(404)
@@ -194,6 +209,7 @@ describe('Exercise Routes Integration', () => {
 
       const response = await request
         .put('/exercises/ex-1')
+        .set(...AUTH)
         .send({ name: 'Squat' })
 
       expect(response.status).toBe(400)
@@ -205,7 +221,7 @@ describe('Exercise Routes Integration', () => {
     it('should delete exercise', async () => {
       mockPrisma.exercise.delete.mockResolvedValue(mockExercises.pushUp)
 
-      const response = await request.delete('/exercises/ex-1')
+      const response = await request.delete('/exercises/ex-1').set(...AUTH)
 
       expect(response.status).toBe(204)
       expect(mockPrisma.exercise.delete).toHaveBeenCalledWith({
@@ -218,7 +234,7 @@ describe('Exercise Routes Integration', () => {
       ;(error as any).code = 'P2025'
       mockPrisma.exercise.delete.mockRejectedValue(error)
 
-      const response = await request.delete('/exercises/nonexistent')
+      const response = await request.delete('/exercises/nonexistent').set(...AUTH)
 
       expect(response.status).toBe(404)
       expect(response.body.error).toBe('Exercise not found')
@@ -230,7 +246,7 @@ describe('Exercise Routes Integration', () => {
       const strengthExercises = [mockExercises.pushUp, mockExercises.squat]
       mockPrisma.exercise.findMany.mockResolvedValue(strengthExercises)
 
-      const response = await request.get('/exercises/category/strength')
+      const response = await request.get('/exercises/category/strength').set(...AUTH)
 
       expect(response.status).toBe(200)
       expect(response.body.exercises).toEqual(strengthExercises)
@@ -244,7 +260,7 @@ describe('Exercise Routes Integration', () => {
     it('should handle errors in category search', async () => {
       mockPrisma.exercise.findMany.mockRejectedValue(new Error('Database error'))
 
-      const response = await request.get('/exercises/category/cardio')
+      const response = await request.get('/exercises/category/cardio').set(...AUTH)
 
       expect(response.status).toBe(500)
       expect(response.body.error).toBe('Failed to fetch exercises')
@@ -258,6 +274,7 @@ describe('Exercise Routes Integration', () => {
 
       const response = await request
         .get('/exercises/search')
+        .set(...AUTH)
         .query({ muscle: 'chest' })
 
       expect(response.status).toBe(200)
@@ -279,7 +296,7 @@ describe('Exercise Routes Integration', () => {
       const allExercises = [mockExercises.pushUp, mockExercises.squat]
       mockPrisma.exercise.findMany.mockResolvedValue(allExercises)
 
-      const response = await request.get('/exercises/search')
+      const response = await request.get('/exercises/search').set(...AUTH)
 
       expect(response.status).toBe(200)
       expect(response.body.exercises).toEqual(allExercises)
@@ -294,6 +311,7 @@ describe('Exercise Routes Integration', () => {
 
       const response = await request
         .get('/exercises/search')
+        .set(...AUTH)
         .query({ muscle: 'chest' })
 
       expect(response.status).toBe(500)

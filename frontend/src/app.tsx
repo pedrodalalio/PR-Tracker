@@ -15,6 +15,8 @@ import { EditWorkoutTemplatePage } from "@/pages/edit-workout-template-page";
 import { ExercisesPage } from "@/pages/exercises-page";
 import { ForgotPasswordPage } from "@/pages/forgot-password-page";
 import { GoalSettingsPage } from "@/pages/goal-settings-page";
+import { AccountPage } from "@/pages/account-page";
+import { VerifyEmailPage } from "@/pages/verify-email-page";
 import { HomePage } from "@/pages/home-page";
 import { LoginPage } from "@/pages/login-page";
 import { ManageExercisesPage } from "@/pages/manage-exercises-page";
@@ -76,6 +78,7 @@ export default function App() {
                   </RequireAnonymous>
                 }
               />
+              <Route path="/verify-email" element={<VerifyEmailPage />} />
               <Route
                 element={
                   <RequireAuth>
@@ -114,6 +117,7 @@ export default function App() {
                 <Route path="runs/new" element={<NewRunPage />} />
                 <Route path="runs/:id" element={<RunDetailPage />} />
                 <Route path="goals" element={<GoalSettingsPage />} />
+                <Route path="account" element={<AccountPage />} />
               </Route>
               <Route path="*" element={<NotFoundPage />} />
             </Routes>

@@ -57,6 +57,89 @@ interface StravaActivityDTO {
   importedRunId: string | null;
 }
 
+/**
+ * Importa atividade do Strava para o banco como Run. Retorna o Run criado, ou
+ * o Run existente se já importado (idempotente). Lança StravaError em falhas
+ * de API; caller decide como responder.
+ */
+export async function importStravaActivityForUser(
+  userId: string,
+  stravaId: number,
+): Promise<{ run: Awaited<ReturnType<typeof prisma.run.create>>; alreadyImported: boolean }> {
+  const externalId = `strava:${stravaId}`;
+  const existing = await prisma.run.findFirst({
+    where: { userId, externalId },
+  });
+  if (existing) return { run: existing, alreadyImported: true };
+
+  const [activity, streams] = await Promise.all([
+    getActivity(userId, stravaId),
+    getActivityStreams(userId, stravaId).catch(
+      () => ({}) as Awaited<ReturnType<typeof getActivityStreams>>,
+    ),
+  ]);
+
+  const startDate = new Date(activity.start_date);
+  const endDate = new Date(startDate.getTime() + activity.elapsed_time * 1000);
+
+  const latlng = streams.latlng?.data;
+  const time = streams.time?.data;
+  const altitude = streams.altitude?.data;
+  const routePoints: Array<{
+    lat: number;
+    lng: number;
+    ele?: number;
+    t?: number;
+  }> = [];
+  if (latlng && Array.isArray(latlng)) {
+    for (let i = 0; i < latlng.length; i++) {
+      const p = latlng[i]!;
+      routePoints.push({
+        lat: p[0],
+        lng: p[1],
+        ele:
+          altitude && typeof altitude[i] === "number" ? altitude[i] : undefined,
+        t: time && typeof time[i] === "number" ? time[i] : undefined,
+      });
+    }
+  }
+
+  const splits =
+    activity.splits_metric?.map((s) => ({
+      km: s.split,
+      duration: s.moving_time,
+      pace: s.distance > 0 ? s.moving_time / (s.distance / 1000) : 0,
+    })) ?? [];
+
+  const pace =
+    activity.distance > 0 && activity.moving_time > 0
+      ? activity.moving_time / (activity.distance / 1000)
+      : null;
+
+  const run = await prisma.run.create({
+    data: {
+      userId,
+      name: activity.name?.trim() || null,
+      date: startDate,
+      startTime: startDate,
+      endTime: endDate,
+      distance: activity.distance,
+      duration: activity.elapsed_time,
+      movingTime: activity.moving_time,
+      pace,
+      elevationGain: activity.total_elevation_gain ?? null,
+      notes: activity.description?.trim() || null,
+      source: "strava",
+      externalId,
+      routePoints: routePoints.length
+        ? (routePoints as unknown as object)
+        : undefined,
+      splits: splits.length ? (splits as unknown as object) : undefined,
+    },
+  });
+  return { run, alreadyImported: false };
+}
+
 function summaryToDTO(
   s: StravaActivitySummary,
   importedRunId: string | null,
@@ -260,93 +343,14 @@ export async function stravaRoutes(fastify: FastifyInstance) {
       if (!Number.isInteger(stravaId) || stravaId <= 0) {
         return reply.status(400).send({ error: "ID inválido" });
       }
-      const externalId = `strava:${stravaId}`;
-
-      // Idempotência
-      const existing = await prisma.run.findFirst({
-        where: { userId, externalId },
-      });
-      if (existing) {
-        return reply.send({ run: toRunDTO(existing), alreadyImported: true });
-      }
-
       try {
-        const [activity, streams] = await Promise.all([
-          getActivity(userId, stravaId),
-          getActivityStreams(userId, stravaId).catch(
-            () => ({}) as Awaited<ReturnType<typeof getActivityStreams>>,
-          ),
-        ]);
-
-        const startDate = new Date(activity.start_date);
-        const endDate = new Date(
-          startDate.getTime() + activity.elapsed_time * 1000,
-        );
-
-        // Monta routePoints a partir dos streams (se houver lat/lng)
-        const latlng = streams.latlng?.data;
-        const time = streams.time?.data;
-        const altitude = streams.altitude?.data;
-        const routePoints: Array<{
-          lat: number;
-          lng: number;
-          ele?: number;
-          t?: number;
-        }> = [];
-        if (latlng && Array.isArray(latlng)) {
-          for (let i = 0; i < latlng.length; i++) {
-            const p = latlng[i]!;
-            routePoints.push({
-              lat: p[0],
-              lng: p[1],
-              ele:
-                altitude && typeof altitude[i] === "number"
-                  ? altitude[i]
-                  : undefined,
-              t: time && typeof time[i] === "number" ? time[i] : undefined,
-            });
-          }
-        }
-
-        // Splits (km) — vêm prontos do Strava
-        const splits =
-          activity.splits_metric?.map((s) => ({
-            km: s.split,
-            duration: s.moving_time,
-            pace:
-              s.distance > 0 ? s.moving_time / (s.distance / 1000) : 0,
-          })) ?? [];
-
-        const pace =
-          activity.distance > 0 && activity.moving_time > 0
-            ? activity.moving_time / (activity.distance / 1000)
-            : null;
-
-        const run = await prisma.run.create({
-          data: {
-            userId,
-            name: activity.name?.trim() || null,
-            date: startDate,
-            startTime: startDate,
-            endTime: endDate,
-            distance: activity.distance,
-            duration: activity.elapsed_time,
-            movingTime: activity.moving_time,
-            pace,
-            elevationGain: activity.total_elevation_gain ?? null,
-            notes: activity.description?.trim() || null,
-            source: "strava",
-            externalId,
-            routePoints: routePoints.length
-              ? (routePoints as unknown as object)
-              : undefined,
-            splits: splits.length ? (splits as unknown as object) : undefined,
-          },
-        });
-
+        const result = await importStravaActivityForUser(userId, stravaId);
         return reply
-          .status(201)
-          .send({ run: toRunDTO(run), alreadyImported: false });
+          .status(result.alreadyImported ? 200 : 201)
+          .send({
+            run: toRunDTO(result.run),
+            alreadyImported: result.alreadyImported,
+          });
       } catch (err) {
         if (err instanceof StravaError) {
           return reply.status(err.status ?? 500).send({ error: err.message });
@@ -356,6 +360,81 @@ export async function stravaRoutes(fastify: FastifyInstance) {
           .status(500)
           .send({ error: "Falha ao importar atividade" });
       }
+    },
+  );
+
+  // Webhook do Strava: GET é o handshake de validação (a Strava manda um
+  // hub.challenge que precisamos ecoar), POST recebe os eventos.
+  // Doc: https://developers.strava.com/docs/webhooks/
+  fastify.get<{
+    Querystring: {
+      "hub.mode"?: string;
+      "hub.verify_token"?: string;
+      "hub.challenge"?: string;
+    };
+  }>(
+    "/strava/webhook",
+    async (request, reply) => {
+      const verifyToken = process.env.STRAVA_WEBHOOK_VERIFY_TOKEN;
+      const q = request.query;
+      if (
+        q["hub.mode"] === "subscribe" &&
+        verifyToken &&
+        q["hub.verify_token"] === verifyToken &&
+        q["hub.challenge"]
+      ) {
+        return reply.send({ "hub.challenge": q["hub.challenge"] });
+      }
+      return reply.status(403).send({ error: "Forbidden" });
+    },
+  );
+
+  fastify.post<{
+    Body: {
+      object_type?: string;
+      object_id?: number;
+      aspect_type?: string;
+      owner_id?: number;
+    };
+  }>(
+    "/strava/webhook",
+    async (request, reply) => {
+      const event = request.body;
+      // Responde 200 logo — Strava espera <2s ou marca a subscription como
+      // unhealthy. Processamento real fica em background.
+      reply.status(200).send({ ok: true });
+
+      if (
+        event?.object_type !== "activity" ||
+        event?.aspect_type !== "create" ||
+        typeof event?.object_id !== "number" ||
+        typeof event?.owner_id !== "number"
+      ) {
+        return;
+      }
+
+      const ownerId = event.owner_id;
+      const activityId = event.object_id;
+
+      // Roda o import sem await: o reply já foi enviado.
+      (async () => {
+        try {
+          const conn = await prisma.stravaConnection.findFirst({
+            where: { athleteId: BigInt(ownerId) },
+            select: { userId: true },
+          });
+          if (!conn) {
+            request.log.warn(
+              { ownerId },
+              "webhook: no Strava connection for owner_id",
+            );
+            return;
+          }
+          await importStravaActivityForUser(conn.userId, activityId);
+        } catch (err) {
+          request.log.error({ err, ownerId, activityId }, "webhook import failed");
+        }
+      })();
     },
   );
 }

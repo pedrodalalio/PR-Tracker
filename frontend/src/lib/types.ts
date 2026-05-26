@@ -98,6 +98,7 @@ export const userSchema = z.object({
   id: z.string(),
   username: z.string(),
   email: z.string().email(),
+  emailVerifiedAt: z.string().nullable().optional(),
   createdAt: z.string().optional(),
 });
 export type User = z.infer<typeof userSchema>;
@@ -111,6 +112,7 @@ export const userGoalsSchema = z.object({
   bestStreak: z.number().int().nonnegative(),
   totalWeeksCompleted: z.number().int().nonnegative(),
   lastWorkoutDate: z.string().nullable().optional(),
+  targetWeight: z.number().nullable().optional(),
   createdAt: z.string().optional(),
   updatedAt: z.string().optional(),
 });

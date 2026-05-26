@@ -6,6 +6,7 @@ import {
   CalendarDays,
   Flame,
   Loader2,
+  Scale,
   Target,
 } from "lucide-react";
 import { useState } from "react";
@@ -66,6 +67,17 @@ export function GoalSettingsPage() {
 
   const [weeklyDraft, setWeeklyDraft] = useState<number | null>(null);
   const [daysDraft, setDaysDraft] = useState<WeekDay[] | null>(null);
+  // null = sem alteração; "" = limpar; "78,4" = setar.
+  const [targetWeightDraft, setTargetWeightDraft] = useState<string | null>(
+    null,
+  );
+
+  const savedTargetWeight = goals.data?.targetWeight ?? null;
+  const targetWeightStr =
+    targetWeightDraft ??
+    (savedTargetWeight !== null
+      ? String(savedTargetWeight).replace(".", ",")
+      : "");
 
   const weeklyValue = weeklyDraft ?? goals.data?.weeklyWorkoutGoal ?? 3;
   const daysValue = daysDraft ?? goals.data?.targetDays ?? [];
@@ -83,7 +95,16 @@ export function GoalSettingsPage() {
   const isDaysDirty =
     daysDraft !== null &&
     !arraysEqual(daysDraft, goals.data?.targetDays ?? []);
-  const isDirty = isWeeklyDirty || isDaysDirty;
+  const isWeightDirty = targetWeightDraft !== null;
+  const isDirty = isWeeklyDirty || isDaysDirty || isWeightDirty;
+
+  function parseDraftWeight(): { ok: true; value: number | null } | { ok: false } {
+    const raw = (targetWeightDraft ?? "").trim();
+    if (!raw) return { ok: true, value: null };
+    const n = Number(raw.replace(",", "."));
+    if (!Number.isFinite(n) || n <= 0 || n > 1000) return { ok: false };
+    return { ok: true, value: Math.round(n * 10) / 10 };
+  }
 
   const toggleDay = (day: WeekDay) => {
     const cur = daysDraft ?? goals.data?.targetDays ?? [];
@@ -104,17 +125,25 @@ export function GoalSettingsPage() {
   const discard = () => {
     setWeeklyDraft(null);
     setDaysDraft(goals.data?.targetDays ?? null);
+    setTargetWeightDraft(null);
   };
 
   const onSave = async () => {
+    const parsedWeight = parseDraftWeight();
+    if (!parsedWeight.ok) {
+      toast.error("Peso alvo inválido (0–1000 kg)");
+      return;
+    }
     try {
       await update.mutateAsync({
         weeklyWorkoutGoal: weeklyValue,
         targetDays: daysValue,
+        ...(isWeightDirty && { targetWeight: parsedWeight.value }),
       });
       toast.success("Meta atualizada");
       setWeeklyDraft(null);
       setDaysDraft(null);
+      setTargetWeightDraft(null);
     } catch (err) {
       toast.error(
         err instanceof ApiError ? err.message : "Não foi possível salvar",
@@ -309,6 +338,48 @@ export function GoalSettingsPage() {
               <span className="font-mono text-foreground">{weeklyValue}</span>.
               Tudo bem — nem todo dia marcado precisa virar treino.
             </p>
+          )}
+        </div>
+      </section>
+
+      <section className="rounded-xl border border-border bg-card p-6">
+        <div className="flex items-start gap-3">
+          <span className="grid size-9 place-items-center rounded-md bg-primary/15 text-primary">
+            <Scale className="size-4" />
+          </span>
+          <div className="min-w-0 flex-1">
+            <h2 className="font-display text-lg font-semibold">Peso alvo</h2>
+            <p className="text-sm text-muted-foreground">
+              Meta opcional. A página de progresso mostra quanto falta e uma
+              estimativa de tempo baseada nas últimas medições.
+            </p>
+          </div>
+        </div>
+
+        <div className="mt-6 flex max-w-xs flex-col gap-1.5">
+          <Label htmlFor="target-weight">Peso alvo (kg)</Label>
+          <Input
+            id="target-weight"
+            type="text"
+            inputMode="decimal"
+            value={targetWeightStr}
+            placeholder="Ex.: 75,0"
+            onChange={(e) => {
+              const raw = e.target.value;
+              if (raw === "" || /^\d*[.,]?\d*$/.test(raw)) {
+                setTargetWeightDraft(raw);
+              }
+            }}
+            className="font-mono"
+          />
+          {targetWeightStr && (
+            <button
+              type="button"
+              onClick={() => setTargetWeightDraft("")}
+              className="self-start text-xs text-muted-foreground underline-offset-4 hover:underline"
+            >
+              Limpar meta
+            </button>
           )}
         </div>
       </section>

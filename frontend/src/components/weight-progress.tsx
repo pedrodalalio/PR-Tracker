@@ -8,6 +8,7 @@ import {
   Trash2,
 } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   CartesianGrid,
   Line,
@@ -19,13 +20,14 @@ import {
 } from "recharts";
 import { toast } from "sonner";
 import { EmptyState } from "@/components/empty-state";
+import { ExportMenu } from "@/components/export-menu";
 import {
   BioimpedanceFields,
   bioFromEntry,
-  emptyBio,
   parseBio,
   type BioFormState,
 } from "@/components/weight-card";
+import { useGoals } from "@/hooks/use-goals";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,10 +41,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
+  useBulkDeleteWeights,
   useDeleteWeight,
   useUpdateWeight,
   useWeights,
 } from "@/hooks/use-weights";
+import { weightsApi } from "@/services/weights-api";
 import { formatRelative } from "@/lib/format";
 import type { WeightEntry } from "@/lib/types";
 import { cn } from "@/lib/utils";
@@ -59,9 +63,96 @@ function toLocalDateInput(iso: string): string {
   return new Date(d.getTime() - tzOffset).toISOString().slice(0, 10);
 }
 
+// Regressão linear simples sobre as últimas N entries (kg em função de dias).
+// Retorna null se não dá pra projetar (poucos pontos, slope na direção errada
+// pra meta, ou slope ~0).
+function projectEta(
+  entries: WeightEntry[],
+  target: number,
+  windowSize = 8,
+): { days: number; current: number; slopePerDay: number } | null {
+  if (entries.length < 3) return null;
+  const recent = entries.slice(-windowSize);
+  const t0 = new Date(recent[0]!.recordedAt).getTime();
+  const xs = recent.map(
+    (e) => (new Date(e.recordedAt).getTime() - t0) / 86_400_000,
+  );
+  const ys = recent.map((e) => e.weight);
+  const n = xs.length;
+  const meanX = xs.reduce((a, b) => a + b, 0) / n;
+  const meanY = ys.reduce((a, b) => a + b, 0) / n;
+  let num = 0;
+  let den = 0;
+  for (let i = 0; i < n; i++) {
+    num += (xs[i]! - meanX) * (ys[i]! - meanY);
+    den += (xs[i]! - meanX) ** 2;
+  }
+  if (den === 0) return null;
+  const slope = num / den;
+  const current = ys[n - 1]!;
+  const remaining = target - current;
+  if (Math.abs(remaining) < 0.1) return { days: 0, current, slopePerDay: slope };
+  // Direção da tendência precisa bater com a direção da meta.
+  if (Math.sign(slope) !== Math.sign(remaining)) return null;
+  if (Math.abs(slope) < 0.005) return null; // < 35g/semana — projeção instável
+  const days = Math.ceil(remaining / slope);
+  if (days <= 0 || days > 365 * 5) return null;
+  return { days, current, slopePerDay: slope };
+}
+
 export function WeightProgress() {
   const weights = useWeights();
+  const goals = useGoals();
+  const bulkDelete = useBulkDeleteWeights();
   const [editing, setEditing] = useState<WeightEntry | null>(null);
+  const [selectMode, setSelectMode] = useState(false);
+  const [selected, setSelected] = useState<Set<string>>(() => new Set());
+
+  const toggleSelected = (id: string) =>
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelected(new Set());
+  };
+
+  const qcMain = useQueryClient();
+  const onBulkDelete = async () => {
+    const ids = [...selected];
+    if (ids.length === 0) return;
+    try {
+      await bulkDelete.mutateAsync(ids);
+      toast.success(
+        `${ids.length} registro${ids.length === 1 ? "" : "s"} removido${
+          ids.length === 1 ? "" : "s"
+        }`,
+        {
+          action: {
+            label: "Desfazer",
+            onClick: async () => {
+              try {
+                await Promise.all(ids.map((id) => weightsApi.restore(id)));
+                qcMain.invalidateQueries({ queryKey: ["weights"] });
+                toast.success("Registros restaurados");
+              } catch (err) {
+                toast.error(
+                  err instanceof Error ? err.message : "Falha ao restaurar",
+                );
+              }
+            },
+          },
+        },
+      );
+      exitSelectMode();
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Falha ao remover");
+    }
+  };
 
   const sortedAsc = useMemo(
     () =>
@@ -101,6 +192,15 @@ export function WeightProgress() {
     };
   }, [sortedAsc]);
 
+  const targetWeight = goals.data?.targetWeight ?? null;
+  const eta = useMemo(
+    () =>
+      targetWeight !== null && sortedAsc.length > 0
+        ? projectEta(sortedAsc, targetWeight)
+        : null,
+    [sortedAsc, targetWeight],
+  );
+
   if (weights.isLoading) {
     return (
       <div className="space-y-4">
@@ -138,13 +238,6 @@ export function WeightProgress() {
                 : summary.delta.toFixed(1)
             }
             unit="kg"
-            tone={
-              summary.delta > 0
-                ? "warn"
-                : summary.delta < 0
-                  ? "down"
-                  : "neutral"
-            }
           />
           <Mini
             label="Mínimo"
@@ -157,6 +250,14 @@ export function WeightProgress() {
             unit="kg"
           />
         </div>
+      )}
+
+      {targetWeight !== null && summary && (
+        <TargetWeightCard
+          target={targetWeight}
+          current={summary.latest.weight}
+          eta={eta}
+        />
       )}
 
       <section className="overflow-hidden rounded-xl border border-border bg-card p-5">
@@ -237,11 +338,26 @@ export function WeightProgress() {
       </section>
 
       <section className="rounded-xl border border-border bg-card p-5">
-        <header className="mb-3">
-          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
-            Histórico
-          </p>
-          <h2 className="font-display text-lg font-semibold">Registros</h2>
+        <header className="mb-3 flex items-end justify-between gap-2">
+          <div>
+            <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+              Histórico
+            </p>
+            <h2 className="font-display text-lg font-semibold">Registros</h2>
+          </div>
+          <div className="flex items-center gap-2">
+            <ExportMenu resource="weights" />
+            <Button
+              type="button"
+              variant={selectMode ? "secondary" : "ghost"}
+              size="sm"
+              onClick={() =>
+                selectMode ? exitSelectMode() : setSelectMode(true)
+              }
+            >
+              {selectMode ? "Cancelar" : "Selecionar"}
+            </Button>
+          </div>
         </header>
         <ul className="divide-y divide-border">
           {sortedDesc.map((entry, index) => {
@@ -249,25 +365,34 @@ export function WeightProgress() {
             const diff = next
               ? Math.round((entry.weight - next.weight) * 10) / 10
               : 0;
+            const isSelected = selected.has(entry.id);
             return (
               <li
                 key={entry.id}
-                className="flex items-center gap-3 py-3 first:pt-0 last:pb-0"
+                className={cn(
+                  "flex items-center gap-3 py-3 first:pt-0 last:pb-0",
+                  selectMode && "cursor-pointer",
+                  selectMode && isSelected && "bg-primary/5",
+                )}
+                onClick={() => selectMode && toggleSelected(entry.id)}
               >
+                {selectMode && (
+                  <input
+                    type="checkbox"
+                    checked={isSelected}
+                    onChange={() => toggleSelected(entry.id)}
+                    onClick={(e) => e.stopPropagation()}
+                    aria-label="Selecionar registro"
+                    className="size-4 shrink-0 accent-primary"
+                  />
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="flex flex-wrap items-baseline gap-2">
                     <span className="font-display text-base font-semibold">
                       {entry.weight.toFixed(1)} kg
                     </span>
                     {next && diff !== 0 && (
-                      <span
-                        className={cn(
-                          "inline-flex items-center gap-0.5 font-mono text-[10px] uppercase tracking-[0.18em]",
-                          diff > 0
-                            ? "text-amber-600 dark:text-amber-400"
-                            : "text-emerald-600 dark:text-emerald-400",
-                        )}
-                      >
+                      <span className="inline-flex items-center gap-0.5 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground">
                         {diff > 0 ? (
                           <ArrowUpRight className="size-3" />
                         ) : (
@@ -289,23 +414,53 @@ export function WeightProgress() {
                   )}
                   <BioMetricsRow entry={entry} />
                 </div>
-                <div className="flex shrink-0 items-center gap-1">
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon"
-                    onClick={() => setEditing(entry)}
-                    aria-label="Editar"
-                  >
-                    <Pencil className="size-4" />
-                  </Button>
-                  <DeleteButton id={entry.id} />
-                </div>
+                {!selectMode && (
+                  <div className="flex shrink-0 items-center gap-1">
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon"
+                      onClick={() => setEditing(entry)}
+                      aria-label="Editar"
+                    >
+                      <Pencil className="size-4" />
+                    </Button>
+                    <DeleteButton id={entry.id} />
+                  </div>
+                )}
               </li>
             );
           })}
         </ul>
       </section>
+
+      {selectMode && selected.size > 0 && (
+        <div className="sticky bottom-20 z-20 mx-auto flex max-w-md items-center justify-between gap-3 rounded-full border border-border bg-card px-4 py-2.5 shadow-lg safe-bottom md:bottom-4">
+          <span className="font-mono text-sm">
+            {selected.size} selecionado{selected.size === 1 ? "" : "s"}
+          </span>
+          <div className="flex gap-2">
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              onClick={exitSelectMode}
+            >
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              size="sm"
+              onClick={onBulkDelete}
+              disabled={bulkDelete.isPending}
+            >
+              <Trash2 className="size-4" />
+              Excluir
+            </Button>
+          </div>
+        </div>
+      )}
 
       <EditWeightDialog
         entry={editing}
@@ -320,10 +475,9 @@ interface MiniProps {
   value: React.ReactNode;
   unit?: string;
   emphasis?: boolean;
-  tone?: "warn" | "down" | "neutral";
 }
 
-function Mini({ label, value, unit, emphasis, tone }: MiniProps) {
+function Mini({ label, value, unit, emphasis }: MiniProps) {
   return (
     <div
       className={cn(
@@ -339,8 +493,6 @@ function Mini({ label, value, unit, emphasis, tone }: MiniProps) {
           className={cn(
             "font-display text-xl font-bold tracking-tight",
             emphasis && "text-primary",
-            tone === "warn" && "text-amber-600 dark:text-amber-400",
-            tone === "down" && "text-emerald-600 dark:text-emerald-400",
           )}
         >
           {value}
@@ -357,6 +509,7 @@ function Mini({ label, value, unit, emphasis, tone }: MiniProps) {
 
 function DeleteButton({ id }: { id: string }) {
   const remove = useDeleteWeight();
+  const qc = useQueryClient();
   const [confirm, setConfirm] = useState(false);
   const timeoutRef = useRef<number | null>(null);
 
@@ -386,7 +539,22 @@ function DeleteButton({ id }: { id: string }) {
     }
     try {
       await remove.mutateAsync(id);
-      toast.success("Registro removido");
+      toast.success("Registro removido", {
+        action: {
+          label: "Desfazer",
+          onClick: async () => {
+            try {
+              await weightsApi.restore(id);
+              qc.invalidateQueries({ queryKey: ["weights"] });
+              toast.success("Registro restaurado");
+            } catch (err) {
+              toast.error(
+                err instanceof Error ? err.message : "Falha ao restaurar",
+              );
+            }
+          },
+        },
+      });
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Falha ao remover");
     }
@@ -585,4 +753,90 @@ function BioMetricsRow({ entry }: { entry: WeightEntry }) {
 
 function formatNumber(value: number, decimals: number): string {
   return value.toFixed(decimals).replace(".", ",");
+}
+
+function formatEtaDays(days: number): string {
+  if (days <= 0) return "agora";
+  if (days < 14) return `${days} dia${days === 1 ? "" : "s"}`;
+  if (days < 60) {
+    const weeks = Math.round(days / 7);
+    return `~${weeks} semana${weeks === 1 ? "" : "s"}`;
+  }
+  if (days < 730) {
+    const months = Math.round(days / 30);
+    return `~${months} mes${months === 1 ? "" : "es"}`;
+  }
+  const years = (days / 365).toFixed(1);
+  return `~${years.replace(".", ",")} anos`;
+}
+
+function TargetWeightCard({
+  target,
+  current,
+  eta,
+}: {
+  target: number;
+  current: number;
+  eta: { days: number; current: number; slopePerDay: number } | null;
+}) {
+  const remaining = Math.round((target - current) * 10) / 10;
+  const reached = Math.abs(remaining) < 0.1;
+  const direction = remaining > 0 ? "ganhar" : "perder";
+  const etaDate = eta
+    ? new Date(Date.now() + eta.days * 86_400_000)
+    : null;
+  return (
+    <section className="rounded-xl border border-border bg-card p-5">
+      <header className="mb-3 flex items-baseline justify-between">
+        <div>
+          <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
+            Meta de peso
+          </p>
+          <h2 className="font-display text-lg font-semibold">
+            {target.toFixed(1).replace(".", ",")} kg
+          </h2>
+        </div>
+        <span className="font-mono text-xs text-muted-foreground">
+          atual {current.toFixed(1).replace(".", ",")} kg
+        </span>
+      </header>
+      {reached ? (
+        <p className="text-sm text-muted-foreground">Você bateu a meta. 🎯</p>
+      ) : (
+        <div className="space-y-2">
+          <p className="text-sm">
+            Faltam{" "}
+            <span className="font-mono font-semibold">
+              {Math.abs(remaining).toFixed(1).replace(".", ",")} kg
+            </span>{" "}
+            pra {direction}.
+          </p>
+          {eta ? (
+            <p className="text-xs text-muted-foreground">
+              No ritmo dos últimos registros (
+              {(eta.slopePerDay * 7).toFixed(2).replace(".", ",")} kg/semana),
+              estimativa de chegada em{" "}
+              <span className="font-mono text-foreground">
+                {formatEtaDays(eta.days)}
+              </span>
+              {etaDate && (
+                <>
+                  {" "}— por volta de{" "}
+                  <span className="font-mono text-foreground">
+                    {format(etaDate, "PP", { locale: ptBR })}
+                  </span>
+                </>
+              )}
+              .
+            </p>
+          ) : (
+            <p className="text-xs text-muted-foreground">
+              Sem tendência suficiente pra estimar prazo. Registre mais pesagens
+              ou ajuste o ritmo.
+            </p>
+          )}
+        </div>
+      )}
+    </section>
+  );
 }

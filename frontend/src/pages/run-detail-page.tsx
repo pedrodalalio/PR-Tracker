@@ -29,6 +29,8 @@ import {
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useDeleteRun, useRun } from "@/hooks/use-runs";
+import { runsApi } from "@/services/runs-api";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   formatDate,
   formatDistance,
@@ -43,6 +45,7 @@ export function RunDetailPage() {
   const run = useRun(id);
   const navigate = useNavigate();
   const remove = useDeleteRun();
+  const qc = useQueryClient();
   const [confirmOpen, setConfirmOpen] = useState(false);
 
   if (run.isLoading) {
@@ -76,9 +79,26 @@ export function RunDetailPage() {
 
   async function onDelete() {
     if (!r) return;
+    const id = r.id;
     try {
-      await remove.mutateAsync(r.id);
-      toast.success("Corrida removida");
+      await remove.mutateAsync(id);
+      toast.success("Corrida removida", {
+        action: {
+          label: "Desfazer",
+          onClick: async () => {
+            try {
+              await runsApi.restore(id);
+              qc.invalidateQueries({ queryKey: ["runs"] });
+              toast.success("Corrida restaurada");
+              navigate(`/runs/${id}`);
+            } catch (err) {
+              toast.error(
+                err instanceof Error ? err.message : "Falha ao restaurar",
+              );
+            }
+          },
+        },
+      });
       navigate("/runs");
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Falha ao remover");

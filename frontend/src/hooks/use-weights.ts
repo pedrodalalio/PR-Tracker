@@ -49,4 +49,14 @@ export function useDeleteWeight() {
   });
 }
 
+export function useBulkDeleteWeights() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (ids: string[]) => weightsApi.bulkRemove(ids),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.all });
+    },
+  });
+}
+
 export const weightKeys = keys;

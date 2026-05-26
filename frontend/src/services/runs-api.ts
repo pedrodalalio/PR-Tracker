@@ -170,4 +170,8 @@ export const runsApi = {
       throw err;
     }
   },
+
+  async restore(id: string): Promise<void> {
+    await apiClient.post<{ run: unknown }>(`/runs/${id}/restore`);
+  },
 };
