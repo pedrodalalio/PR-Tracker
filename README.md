@@ -13,7 +13,7 @@
   <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green.svg">
 </p>
 
-🔗 **Demo ao vivo:** [pr-tracker-ecru.vercel.app](https://pr-tracker-ecru.vercel.app/) &nbsp;·&nbsp; 📦 **Código:** [github.com/pedrodalalio/PR-Tracker](https://github.com/pedrodalalio/PR-Tracker)
+🔗 **Demo:** [pr-tracker-ecru.vercel.app](https://pr-tracker-ecru.vercel.app/)
 
 > 💡 Na tela de login, clique em **"Entrar como visitante"** para explorar o app com dados de exemplo, sem precisar criar conta.
 
