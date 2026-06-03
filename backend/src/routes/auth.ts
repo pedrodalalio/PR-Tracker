@@ -13,6 +13,7 @@ import { setRefreshCookie, clearRefreshCookie, REFRESH_COOKIE } from "../lib/coo
 import { sendEmailVerification, sendPasswordResetEmail } from "../lib/mail";
 import { getFrontendUrl } from "../lib/strava-client";
 import { logAuthEvent } from "../lib/audit";
+import { createDemoUser } from "../lib/demo";
 
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: RegisterRequest }>(
@@ -177,6 +178,43 @@ export async function authRoutes(fastify: FastifyInstance) {
       } catch (error) {
         fastify.log.error(error);
         return reply.status(500).send({ error: "Internal server error" });
+      }
+    },
+  );
+
+  // Acesso demo: cria uma conta efêmera já populada e devolve tokens, igual
+  // ao login. Sem senha — o objetivo é entrada em 1 clique para visualização.
+  fastify.post(
+    "/auth/demo",
+    {
+      config: {
+        rateLimit: { max: 5, timeWindow: "1 minute" },
+      },
+    },
+    async (request, reply) => {
+      try {
+        const user = await createDemoUser();
+
+        const token = AuthService.generateToken({
+          userId: user.id,
+          username: user.username,
+          email: user.email,
+        });
+        const refreshToken = await AuthService.createRefreshToken(user.id);
+
+        setRefreshCookie(reply, refreshToken);
+
+        return reply.status(201).send({
+          user: {
+            id: user.id,
+            username: user.username,
+            email: user.email,
+          },
+          token,
+        });
+      } catch (error) {
+        fastify.log.error(error);
+        return reply.status(500).send({ error: "Failed to create demo session" });
       }
     },
   );

@@ -46,6 +46,7 @@ interface AuthContextValue {
     email: string;
     password: string;
   }) => Promise<void>;
+  demoLogin: () => Promise<void>;
   logout: () => Promise<void>;
   refresh: () => Promise<void>;
 }
@@ -134,6 +135,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     [],
   );
 
+  const demoLogin = useCallback(async () => {
+    const u = await authApi.demo();
+    setUser(u);
+    writeCachedUser(u);
+    setStatus("authenticated");
+  }, []);
+
   const logout = useCallback(async () => {
     try {
       await authApi.logout();
@@ -149,8 +157,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }, [loadSession]);
 
   const value = useMemo<AuthContextValue>(
-    () => ({ user, status, login, register, logout, refresh }),
-    [user, status, login, register, logout, refresh],
+    () => ({ user, status, login, register, demoLogin, logout, refresh }),
+    [user, status, login, register, demoLogin, logout, refresh],
   );
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

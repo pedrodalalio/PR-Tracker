@@ -29,8 +29,9 @@ type FormValues = z.infer<typeof schema>;
 export function LoginPage() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { login } = useAuth();
+  const { login, demoLogin } = useAuth();
   const [showPassword, setShowPassword] = useState(false);
+  const [demoLoading, setDemoLoading] = useState(false);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -48,6 +49,22 @@ export function LoginPage() {
           ? err.message
           : "Não conseguimos entrar. Tente novamente.";
       toast.error(message);
+    }
+  };
+
+  const onDemo = async () => {
+    setDemoLoading(true);
+    try {
+      await demoLogin();
+      navigate("/", { replace: true });
+    } catch (err) {
+      const message =
+        err instanceof ApiError
+          ? err.message
+          : "Não conseguimos abrir a demo. Tente novamente.";
+      toast.error(message);
+    } finally {
+      setDemoLoading(false);
     }
   };
 
@@ -123,7 +140,7 @@ export function LoginPage() {
             type="submit"
             size="lg"
             className="w-full"
-            disabled={form.formState.isSubmitting}
+            disabled={form.formState.isSubmitting || demoLoading}
           >
             {form.formState.isSubmitting && (
               <Loader2 className="size-4 animate-spin" />
@@ -132,6 +149,28 @@ export function LoginPage() {
           </Button>
         </form>
       </Form>
+
+      <div className="my-6 flex items-center gap-3 text-xs text-muted-foreground">
+        <span className="h-px flex-1 bg-border" />
+        ou
+        <span className="h-px flex-1 bg-border" />
+      </div>
+
+      <Button
+        type="button"
+        variant="outline"
+        size="lg"
+        className="w-full"
+        onClick={onDemo}
+        disabled={demoLoading || form.formState.isSubmitting}
+      >
+        {demoLoading && <Loader2 className="size-4 animate-spin" />}
+        Entrar como visitante
+      </Button>
+      <p className="mt-2 text-center text-xs text-muted-foreground">
+        Explore o app com dados de exemplo, sem criar conta.
+      </p>
+
       <p className="mt-6 text-center text-sm text-muted-foreground">
         Ainda não tem uma conta?{" "}
         <Link

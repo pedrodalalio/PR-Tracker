@@ -31,6 +31,14 @@ export const authApi = {
     return userSchema.parse(data.user);
   },
 
+  async demo(): Promise<User> {
+    const data = await apiClient.post<AuthResponse>("/auth/demo", undefined, {
+      skipAuth: true,
+    });
+    setAccessToken(data.token);
+    return userSchema.parse(data.user);
+  },
+
   async me(): Promise<User> {
     const data = await apiClient.get<MeResponse>("/auth/me");
     return userSchema.parse(data.user);
