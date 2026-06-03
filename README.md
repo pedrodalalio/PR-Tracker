@@ -13,21 +13,11 @@
   <img alt="License: MIT" src="https://img.shields.io/badge/License-MIT-green.svg">
 </p>
 
-🔗 **Demo ao vivo:** [pr-tracker-ecru.vercel.app](https://pr-tracker-ecru.vercel.app/) &nbsp;·&nbsp; 📦 **Código:** [github.com/pedrodalalio/PR-Tracker](https://github.com/pedrodalalio/PR-Tracker)
+🔗 **Demo:** [pr-tracker-ecru.vercel.app](https://pr-tracker-ecru.vercel.app/)
 
 > 💡 Na tela de login, clique em **"Entrar como visitante"** para explorar o app com dados de exemplo, sem precisar criar conta.
 
 ## Screenshots
-
-<!--
-  TODO: adicione imagens em docs/screenshots/ e descomente a tabela abaixo.
-  Dica: capture Home, Progresso (gráficos), Calendário e a corrida com mapa Strava.
--->
-<!--
-| Home | Progresso | Calendário | Corrida (Strava) |
-|------|-----------|------------|------------------|
-| ![Home](docs/screenshots/home.png) | ![Progresso](docs/screenshots/progresso.png) | ![Calendário](docs/screenshots/calendario.png) | ![Corrida](docs/screenshots/corrida.png) |
--->
 
 > 📸 _Screenshots em breve._
 
