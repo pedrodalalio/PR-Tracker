@@ -19,8 +19,6 @@
 
 ## Screenshots
 
-> Geradas automaticamente via Playwright (`backend/e2e/screenshots.mjs`), usando a própria conta demo.
-
 ### Desktop
 
 | Início | Progresso |
