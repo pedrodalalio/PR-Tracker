@@ -19,17 +19,42 @@
 
 ## Screenshots
 
-<!--
-  TODO: adicione imagens em docs/screenshots/ e descomente a tabela abaixo.
-  Dica: capture Home, Progresso (gráficos), Calendário e a corrida com mapa Strava.
--->
-<!--
-| Home | Progresso | Calendário | Corrida (Strava) |
-|------|-----------|------------|------------------|
-| ![Home](docs/screenshots/home.png) | ![Progresso](docs/screenshots/progresso.png) | ![Calendário](docs/screenshots/calendario.png) | ![Corrida](docs/screenshots/corrida.png) |
--->
+> Geradas automaticamente via Playwright (`backend/e2e/screenshots.mjs`), usando a própria conta demo.
 
-> 📸 _Screenshots em breve._
+### Desktop
+
+| Início | Progresso |
+|---|---|
+| ![Início](docs/screenshots/home-dark-desktop.png) | ![Progresso](docs/screenshots/progress-dark-desktop.png) |
+| **Calendário** | **Corrida — mapa do trajeto** |
+| ![Calendário](docs/screenshots/calendar-dark-desktop.png) | ![Corrida](docs/screenshots/run-dark-desktop.png) |
+
+### No celular (PWA instalável)
+
+<p>
+  <img src="docs/screenshots/home-dark-mobile.png" width="200" alt="Início (mobile)">
+  <img src="docs/screenshots/calendar-dark-mobile.png" width="200" alt="Calendário (mobile)">
+  <img src="docs/screenshots/progress-dark-mobile.png" width="200" alt="Progresso (mobile)">
+  <img src="docs/screenshots/run-dark-mobile.png" width="200" alt="Corrida (mobile)">
+</p>
+
+<details>
+<summary>🌞 Versões no tema claro</summary>
+
+| Início | Progresso |
+|---|---|
+| ![Início](docs/screenshots/home-light-desktop.png) | ![Progresso](docs/screenshots/progress-light-desktop.png) |
+| **Calendário** | **Corrida — mapa do trajeto** |
+| ![Calendário](docs/screenshots/calendar-light-desktop.png) | ![Corrida](docs/screenshots/run-light-desktop.png) |
+
+<p>
+  <img src="docs/screenshots/home-light-mobile.png" width="200" alt="Início (mobile, claro)">
+  <img src="docs/screenshots/calendar-light-mobile.png" width="200" alt="Calendário (mobile, claro)">
+  <img src="docs/screenshots/progress-light-mobile.png" width="200" alt="Progresso (mobile, claro)">
+  <img src="docs/screenshots/run-light-mobile.png" width="200" alt="Corrida (mobile, claro)">
+</p>
+
+</details>
 
 ## Estrutura do projeto
 
