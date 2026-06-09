@@ -1,7 +1,8 @@
-import { Menu } from "lucide-react";
+import { Menu, Plus } from "lucide-react";
 import { useState } from "react";
 import { NavLink } from "react-router";
 import { Brand } from "@/components/brand";
+import { navGroups } from "@/components/layout/nav-config";
 import { UserMenu } from "@/components/layout/user-menu";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { Button } from "@/components/ui/button";
@@ -18,14 +19,6 @@ import { cn } from "@/lib/utils";
 interface AppHeaderProps {
   title?: string;
 }
-
-const moreItems = [
-  { to: "/calendar", label: "Calendário" },
-  { to: "/reports", label: "Relatórios" },
-  { to: "/exercises", label: "Exercícios" },
-  { to: "/exercises/manage", label: "Gerenciar exercícios" },
-  { to: "/goals", label: "Metas" },
-];
 
 export function AppHeader({ title }: AppHeaderProps) {
   const [open, setOpen] = useState(false);
@@ -52,33 +45,69 @@ export function AppHeader({ title }: AppHeaderProps) {
               <Menu className="size-5" />
             </Button>
           </SheetTrigger>
-          <SheetContent side="right" className="w-72">
+          <SheetContent side="right" className="flex w-72 flex-col">
             <SheetHeader>
-              <SheetTitle>Mais</SheetTitle>
+              <SheetTitle>Menu</SheetTitle>
               <SheetDescription>
-                Acesse outras seções do app.
+                Acesse todas as seções do app.
               </SheetDescription>
             </SheetHeader>
-            <nav className="mt-6 flex flex-col gap-1">
-              {moreItems.map((item) => (
-                <NavLink
-                  key={item.to}
-                  to={item.to}
-                  onClick={() => setOpen(false)}
-                  className={({ isActive }) =>
-                    cn(
-                      "rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
-                      isActive
-                        ? "bg-accent text-accent-foreground"
-                        : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
-                    )
-                  }
-                >
-                  {item.label}
+            <div className="px-1 pt-4">
+              <Button asChild size="lg" className="w-full justify-start gap-2">
+                <NavLink to="/workouts/new" onClick={() => setOpen(false)}>
+                  <Plus className="size-4" />
+                  Novo treino
                 </NavLink>
+              </Button>
+            </div>
+            <nav className="mt-4 flex flex-1 flex-col gap-6 overflow-y-auto px-1">
+              {navGroups.map((group) => (
+                <div key={group.label}>
+                  <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
+                    {group.label}
+                  </p>
+                  <ul className="flex flex-col gap-0.5">
+                    {group.items.map((item) => {
+                      const Icon = item.icon;
+                      return (
+                        <li key={item.to}>
+                          <NavLink
+                            to={item.to}
+                            end={item.end}
+                            onClick={() => setOpen(false)}
+                            className={({ isActive }) =>
+                              cn(
+                                "group flex items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors",
+                                isActive
+                                  ? "bg-accent text-accent-foreground"
+                                  : "text-muted-foreground hover:bg-accent/60 hover:text-foreground",
+                              )
+                            }
+                          >
+                            {({ isActive }) => (
+                              <>
+                                <span
+                                  className={cn(
+                                    "flex size-7 items-center justify-center rounded-md",
+                                    isActive
+                                      ? "bg-primary/15 text-primary"
+                                      : "text-muted-foreground group-hover:text-foreground",
+                                  )}
+                                >
+                                  <Icon className="size-4" />
+                                </span>
+                                {item.label}
+                              </>
+                            )}
+                          </NavLink>
+                        </li>
+                      );
+                    })}
+                  </ul>
+                </div>
               ))}
             </nav>
-            <UserMenu className="mt-6" />
+            <UserMenu className="mt-2" />
           </SheetContent>
         </Sheet>
       </div>

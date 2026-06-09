@@ -1,47 +1,10 @@
-import {
-  CalendarDays,
-  ClipboardList,
-  Dumbbell,
-  FileBarChart,
-  Footprints,
-  Home,
-  LineChart,
-  ListChecks,
-  Plus,
-  Target,
-} from "lucide-react";
+import { Plus } from "lucide-react";
 import { NavLink } from "react-router";
 import { Brand } from "@/components/brand";
+import { navGroups } from "@/components/layout/nav-config";
 import { UserMenu } from "@/components/layout/user-menu";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-
-const groups = [
-  {
-    label: "Visão geral",
-    items: [
-      { to: "/", label: "Início", icon: Home, end: true },
-      { to: "/workouts", label: "Treinos", icon: Dumbbell, end: false },
-      { to: "/runs", label: "Corridas", icon: Footprints, end: false },
-      { to: "/calendar", label: "Calendário", icon: CalendarDays, end: false },
-      { to: "/progress", label: "Progresso", icon: LineChart, end: false },
-      { to: "/reports", label: "Relatórios", icon: FileBarChart, end: false },
-    ],
-  },
-  {
-    label: "Catálogo",
-    items: [
-      { to: "/exercises", label: "Exercícios", icon: ListChecks, end: false },
-      {
-        to: "/templates",
-        label: "Modelos",
-        icon: ClipboardList,
-        end: false,
-      },
-      { to: "/goals", label: "Metas", icon: Target, end: false },
-    ],
-  },
-];
 
 export function SidebarNav() {
   return (
@@ -58,7 +21,7 @@ export function SidebarNav() {
         </Button>
       </div>
       <nav className="flex flex-1 flex-col gap-6 overflow-y-auto px-3">
-        {groups.map((group) => (
+        {navGroups.map((group) => (
           <div key={group.label}>
             <p className="px-2 pb-2 text-[10px] font-semibold uppercase tracking-[0.18em] text-muted-foreground">
               {group.label}
