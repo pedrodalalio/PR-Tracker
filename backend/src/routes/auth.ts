@@ -13,7 +13,7 @@ import { setRefreshCookie, clearRefreshCookie, REFRESH_COOKIE } from "../lib/coo
 import { sendEmailVerification, sendPasswordResetEmail } from "../lib/mail";
 import { getFrontendUrl } from "../lib/strava-client";
 import { logAuthEvent } from "../lib/audit";
-import { createDemoUser } from "../lib/demo";
+import { getDemoUser } from "../lib/demo";
 
 export async function authRoutes(fastify: FastifyInstance) {
   fastify.post<{ Body: RegisterRequest }>(
@@ -182,8 +182,10 @@ export async function authRoutes(fastify: FastifyInstance) {
     },
   );
 
-  // Acesso demo: cria uma conta efêmera já populada e devolve tokens, igual
-  // ao login. Sem senha — o objetivo é entrada em 1 clique para visualização.
+  // Acesso demo: entra na conta demo compartilhada e devolve tokens, igual ao
+  // login. Sem senha — o objetivo é entrada em 1 clique para visualização.
+  // Quase sempre instantâneo (a conta já existe); o seed completo só ocorre na
+  // primeira vez de todas.
   fastify.post(
     "/auth/demo",
     {
@@ -193,7 +195,7 @@ export async function authRoutes(fastify: FastifyInstance) {
     },
     async (request, reply) => {
       try {
-        const user = await createDemoUser();
+        const user = await getDemoUser();
 
         const token = AuthService.generateToken({
           userId: user.id,

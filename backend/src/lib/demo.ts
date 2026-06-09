@@ -2,13 +2,22 @@ import crypto from "crypto";
 import { prisma } from "./prisma";
 import { AuthService } from "./auth";
 
-// Contas demo são efêmeras: cada visitante que clica em "Entrar como visitante"
-// ganha um usuário isolado, já populado com dados realistas. Identificamos essas
-// contas pelo domínio do e-mail e limpamos as antigas a cada novo acesso, então
-// ninguém precisa rodar job de limpeza e um visitante nunca bagunça o app do
-// próximo. Não exige migração: é só um usuário comum com um e-mail reconhecível.
+// Existe UMA conta demo compartilhada. Todo visitante que clica em "Entrar como
+// visitante" entra nela — o login é instantâneo, sem seed por clique. Para a
+// conta não acumular lixo das alterações dos visitantes, os dados são
+// re-semeados em background quando ficam "velhos" (ver RESET_TTL_MS). Não exige
+// migração: é só um usuário comum com um e-mail reconhecível pelo domínio.
 export const DEMO_EMAIL_DOMAIN = "demo.prtracker.local";
-const DEMO_TTL_MS = 2 * 60 * 60 * 1000; // contas demo vivem ~2h
+const DEMO_EMAIL = `visitante@${DEMO_EMAIL_DOMAIN}`;
+const DEMO_USERNAME = "visitante";
+const RESET_TTL_MS = 6 * 60 * 60 * 1000; // re-semeia no máximo a cada ~6h
+
+// Estado em memória para coordenar criação/reset dentro do processo (deploy
+// single-instance). Reinicia a cada restart, o que no pior caso re-semeia uma
+// vez — inofensivo.
+let lastSeededAt = 0;
+let inFlightCreate: Promise<DemoUser> | null = null;
+let resetting = false;
 
 type ExerciseCategory = "Upper" | "Lower" | "Cardio";
 
@@ -74,39 +83,29 @@ function daysAgo(n: number): Date {
   return d;
 }
 
-// Limpa contas demo expiradas. Cascade deletes cuidam de treinos/runs/etc.
-export async function cleanupExpiredDemoUsers(): Promise<void> {
-  try {
-    await prisma.user.deleteMany({
-      where: {
-        email: { endsWith: `@${DEMO_EMAIL_DOMAIN}` },
-        createdAt: { lt: new Date(Date.now() - DEMO_TTL_MS) },
-      },
-    });
-  } catch (err) {
-    // limpeza é best-effort; não bloqueia a criação do novo demo
-    console.error("Failed to cleanup demo users:", err);
-  }
-}
-
 // Garante que os exercícios usados pelo demo existem (são globais/compartilhados)
-// e devolve um mapa nome -> id.
+// e devolve um mapa nome -> id. Os upserts são independentes (nomes distintos),
+// então rodam em paralelo em vez de um round-trip por exercício.
 async function ensureExercises(): Promise<Map<string, string>> {
-  const map = new Map<string, string>();
-  for (const ex of CORE_EXERCISES) {
-    const record = await prisma.exercise.upsert({
-      where: { name: ex.name },
-      update: {},
-      create: {
-        name: ex.name,
-        category: ex.category,
-        muscleGroups: { create: ex.muscleGroups.map((muscleGroup) => ({ muscleGroup })) },
-      },
-      select: { id: true },
-    });
-    map.set(ex.name, record.id);
-  }
-  return map;
+  const records = await Promise.all(
+    CORE_EXERCISES.map((ex) =>
+      prisma.exercise
+        .upsert({
+          where: { name: ex.name },
+          update: {},
+          create: {
+            name: ex.name,
+            category: ex.category,
+            muscleGroups: {
+              create: ex.muscleGroups.map((muscleGroup) => ({ muscleGroup })),
+            },
+          },
+          select: { id: true },
+        })
+        .then((record) => [ex.name, record.id] as const),
+    ),
+  );
+  return new Map(records);
 }
 
 function buildSets(
@@ -127,6 +126,9 @@ function buildSets(
 
 async function seedWorkouts(userId: string, exerciseIds: Map<string, string>) {
   // Treina seg (upper), qua (lower), sex (upper). Run no sábado (modelo Run).
+  // Cada treino tem sets aninhados (sem createMany), mas são independentes entre
+  // si, então criamos todos em paralelo em vez de um round-trip por treino.
+  const creates: Promise<unknown>[] = [];
   for (let offset = HISTORY_WEEKS * 7; offset >= 0; offset--) {
     const date = daysAgo(offset);
     const dow = date.getDay(); // 0=dom .. 6=sáb
@@ -151,19 +153,22 @@ async function seedWorkouts(userId: string, exerciseIds: Map<string, string>) {
     const start = atHour(date, 18);
     const end = atHour(date, 19);
 
-    await prisma.workout.create({
-      data: {
-        userId,
-        name: workoutType === "upper" ? "Treino A — Superior" : "Treino B — Inferior",
-        date: start,
-        startTime: start,
-        endTime: end,
-        workoutType,
-        dayOfWeek: WEEKDAYS[dow] as any,
-        exercises: { create: buildSets(plan, exerciseIds, Math.max(0, level)) },
-      },
-    });
+    creates.push(
+      prisma.workout.create({
+        data: {
+          userId,
+          name: workoutType === "upper" ? "Treino A — Superior" : "Treino B — Inferior",
+          date: start,
+          startTime: start,
+          endTime: end,
+          workoutType,
+          dayOfWeek: WEEKDAYS[dow] as any,
+          exercises: { create: buildSets(plan, exerciseIds, Math.max(0, level)) },
+        },
+      }),
+    );
   }
+  await Promise.all(creates);
 }
 
 // Pequeno trajeto sintético (loop ~5km na região da Av. Paulista) pra alimentar
@@ -187,6 +192,8 @@ function buildRoute(): { lat: number; lng: number; t: number }[] {
 
 async function seedRuns(userId: string) {
   const route = buildRoute();
+  // Runs não têm relações aninhadas → um único createMany em vez de N creates.
+  const data = [];
   for (let w = HISTORY_WEEKS; w >= 0; w--) {
     // sábado de cada semana ~ offset baseado na semana
     const offset = w * 7 + 1;
@@ -202,48 +209,48 @@ async function seedRuns(userId: string) {
     const withRoute = w <= 1;
     const source = w === 0 ? "strava" : w === 1 ? "gpx" : "manual";
 
-    await prisma.run.create({
-      data: {
-        userId,
-        name: w === 0 ? "Corrida de sábado (Strava)" : "Corrida de sábado",
-        date,
-        startTime: date,
-        endTime: new Date(date.getTime() + duration * 1000),
-        distance,
-        duration,
-        movingTime,
-        pace: paceSecPerKm,
-        elevationGain: 40 + level * 3,
-        source,
-        externalId: source === "strava" ? `demo-${shortId()}` : null,
-        routePoints: withRoute ? (route as any) : undefined,
-      },
+    data.push({
+      userId,
+      name: w === 0 ? "Corrida de sábado (Strava)" : "Corrida de sábado",
+      date,
+      startTime: date,
+      endTime: new Date(date.getTime() + duration * 1000),
+      distance,
+      duration,
+      movingTime,
+      pace: paceSecPerKm,
+      elevationGain: 40 + level * 3,
+      source,
+      externalId: source === "strava" ? `demo-${shortId()}` : null,
+      routePoints: withRoute ? (route as any) : undefined,
     });
   }
+  await prisma.run.createMany({ data });
 }
 
 async function seedWeights(userId: string) {
   // Peso caindo gradualmente rumo à meta, com métricas de bioimpedância.
+  // Sem relações aninhadas → um único createMany.
+  const data = [];
   let weight = 82;
   for (let w = HISTORY_WEEKS; w >= 0; w--) {
     const date = atHour(daysAgo(w * 7), 7);
     const jitter = (w % 2 === 0 ? 0.2 : -0.1);
     const value = Math.round((weight + jitter) * 10) / 10;
-    await prisma.weightEntry.create({
-      data: {
-        userId,
-        weight: value,
-        recordedAt: date,
-        bodyFatPct: Math.round((20 - (HISTORY_WEEKS - w) * 0.4) * 10) / 10,
-        muscleMassKg: Math.round((34 + (HISTORY_WEEKS - w) * 0.2) * 10) / 10,
-        maintenanceKcal: 2350,
-        metabolicAge: 27,
-        visceralFat: 8,
-        bmi: Math.round((value / (1.78 * 1.78)) * 10) / 10,
-      },
+    data.push({
+      userId,
+      weight: value,
+      recordedAt: date,
+      bodyFatPct: Math.round((20 - (HISTORY_WEEKS - w) * 0.4) * 10) / 10,
+      muscleMassKg: Math.round((34 + (HISTORY_WEEKS - w) * 0.2) * 10) / 10,
+      maintenanceKcal: 2350,
+      metabolicAge: 27,
+      visceralFat: 8,
+      bmi: Math.round((value / (1.78 * 1.78)) * 10) / 10,
     });
     weight -= 0.5; // ~0.5kg/semana
   }
+  await prisma.weightEntry.createMany({ data });
 }
 
 async function seedTemplates(userId: string, exerciseIds: Map<string, string>) {
@@ -266,8 +273,10 @@ async function seedTemplates(userId: string, exerciseIds: Map<string, string>) {
       },
     });
   };
-  await make("Treino A — Superior", "upper", UPPER_PLAN);
-  await make("Treino B — Inferior", "lower", LOWER_PLAN);
+  await Promise.all([
+    make("Treino A — Superior", "upper", UPPER_PLAN),
+    make("Treino B — Inferior", "lower", LOWER_PLAN),
+  ]);
 }
 
 export interface DemoUser {
@@ -276,27 +285,10 @@ export interface DemoUser {
   email: string;
 }
 
-// Cria e popula uma conta demo isolada. Retorna o usuário pronto pra login.
-export async function createDemoUser(): Promise<DemoUser> {
-  await cleanupExpiredDemoUsers();
-
+// Popula a conta demo com goals + todo o histórico. Tudo que é independente
+// roda em paralelo para minimizar round-trips ao banco (o gargalo em prod).
+async function populateDemoData(userId: string): Promise<void> {
   const exerciseIds = await ensureExercises();
-
-  const suffix = shortId();
-  const username = `visitante-${suffix}`;
-  const email = `demo-${suffix}@${DEMO_EMAIL_DOMAIN}`;
-  // Senha aleatória que nunca é exposta: o login do demo não passa por senha.
-  const password = await AuthService.hashPassword(crypto.randomBytes(24).toString("hex"));
-
-  const user = await prisma.user.create({
-    data: {
-      username,
-      email,
-      password,
-      emailVerifiedAt: new Date(),
-    },
-    select: { id: true, username: true, email: true },
-  });
 
   const lastWorkout = (() => {
     // último dia de treino (seg/qua/sex) a partir de hoje pra trás
@@ -307,23 +299,118 @@ export async function createDemoUser(): Promise<DemoUser> {
     return new Date();
   })();
 
-  await prisma.userGoals.create({
-    data: {
-      userId: user.id,
-      weeklyWorkoutGoal: 4,
-      targetDays: ["segunda", "quarta", "sexta", "sabado"],
-      currentStreak: 5,
-      bestStreak: 12,
-      totalWeeksCompleted: 6,
-      lastWorkoutDate: lastWorkout,
-      targetWeight: 75,
-    },
+  await Promise.all([
+    prisma.userGoals.create({
+      data: {
+        userId,
+        weeklyWorkoutGoal: 4,
+        targetDays: ["segunda", "quarta", "sexta", "sabado"],
+        currentStreak: 5,
+        bestStreak: 12,
+        totalWeeksCompleted: 6,
+        lastWorkoutDate: lastWorkout,
+        targetWeight: 75,
+      },
+    }),
+    seedWorkouts(userId, exerciseIds),
+    seedTemplates(userId, exerciseIds),
+    seedRuns(userId),
+    seedWeights(userId),
+  ]);
+}
+
+// Apaga os dados gerados da conta demo (mantém o próprio usuário, para os
+// tokens de sessão ativos continuarem válidos). Workouts saem antes dos
+// templates porque Workout.templateId é SetNull.
+async function wipeDemoData(userId: string): Promise<void> {
+  await prisma.workout.deleteMany({ where: { userId } });
+  await Promise.all([
+    prisma.workoutTemplate.deleteMany({ where: { userId } }),
+    prisma.run.deleteMany({ where: { userId } }),
+    prisma.weightEntry.deleteMany({ where: { userId } }),
+    prisma.weeklyGoalEntry.deleteMany({ where: { userId } }),
+    prisma.userGoals.deleteMany({ where: { userId } }),
+  ]);
+}
+
+// Cria a conta demo única (uma vez na vida do banco) e a popula.
+async function createDemoUser(): Promise<DemoUser> {
+  // Senha aleatória que nunca é exposta: o login do demo não passa por senha.
+  const password = await AuthService.hashPassword(
+    crypto.randomBytes(24).toString("hex"),
+  );
+
+  try {
+    const user = await prisma.user.create({
+      data: {
+        username: DEMO_USERNAME,
+        email: DEMO_EMAIL,
+        password,
+        emailVerifiedAt: new Date(),
+      },
+      select: { id: true, username: true, email: true },
+    });
+
+    await populateDemoData(user.id);
+    lastSeededAt = Date.now();
+    return user;
+  } catch (err: any) {
+    // Corrida rara: outra requisição já criou a conta demo (e-mail único).
+    // Reaproveita a conta existente em vez de estourar.
+    if (err?.code === "P2002") {
+      const existing = await prisma.user.findUnique({
+        where: { email: DEMO_EMAIL },
+        select: { id: true, username: true, email: true },
+      });
+      if (existing) return existing;
+    }
+    throw err;
+  }
+}
+
+// Se os dados ficaram velhos, re-semeia em background. O visitante atual segue
+// com os dados existentes (que são válidos de qualquer forma); o reset vale para
+// os próximos. Um lock em memória evita resets concorrentes.
+function maybeResetInBackground(userId: string): void {
+  if (resetting) return;
+  if (Date.now() - lastSeededAt < RESET_TTL_MS) return;
+  resetting = true;
+  void (async () => {
+    try {
+      await wipeDemoData(userId);
+      await populateDemoData(userId);
+      lastSeededAt = Date.now();
+    } catch (err) {
+      console.error("Failed to reset demo data:", err);
+    } finally {
+      resetting = false;
+    }
+  })();
+}
+
+// Ponto de entrada do login demo. Retorna a conta padrão compartilhada — quase
+// sempre instantâneo (só uma busca). Só paga o seed completo na primeiríssima
+// vez, quando a conta ainda não existe.
+export async function getDemoUser(): Promise<DemoUser> {
+  const existing = await prisma.user.findUnique({
+    where: { email: DEMO_EMAIL },
+    select: { id: true, username: true, email: true },
   });
 
-  await seedWorkouts(user.id, exerciseIds);
-  await seedTemplates(user.id, exerciseIds);
-  await seedRuns(user.id);
-  await seedWeights(user.id);
+  if (existing) {
+    // No primeiro acesso após um restart, assume que os dados estão frescos
+    // para não disparar um reset desnecessário logo de cara.
+    if (lastSeededAt === 0) lastSeededAt = Date.now();
+    maybeResetInBackground(existing.id);
+    return existing;
+  }
 
-  return user;
+  // Ainda não existe: cria + popula uma única vez. O lock garante que requisições
+  // concorrentes compartilhem a mesma criação em vez de colidir no e-mail único.
+  if (!inFlightCreate) {
+    inFlightCreate = createDemoUser().finally(() => {
+      inFlightCreate = null;
+    });
+  }
+  return inFlightCreate;
 }
